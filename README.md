@@ -10,6 +10,7 @@
 - 핵심 지표: 순매출, 확정금액, 판매 수량, 객단가, 반품, 평균 할인율
 - 월 마감 예상: 남은 날을 같은 요일 평균으로 채운 예상 마감 매출과 범위(그 요일의 최저·최고)
 - 주별 매출(일~토): 주차별 합계와 전주 같은 요일 대비, 요일별 주차 비교 차트. 매장 표에도 최근 주 전주 대비 표시
+- 회원·비회원 매출: 회원/비회원 매출과 비중, 객단가, 신규 가입 회원 수와 그 매출, 일별·주별 추이. 매장 표에 회원 비중과 신규 가입 표시
 - 일별 매출(주말 구분), 매장별 순위, 유통 형태별·판매 형태별, 라인별·아이템별, 상품 상위 20, 시간대별 매출
 
 ## 실행
@@ -39,6 +40,10 @@ python3 -c "import pandas as pd; df=pd.read_excel('판매정보현황.xlsx', dty
 python3 scripts/aggregate_sales.py sales.pkl public/data
 ```
 
+```bash
+python3 scripts/aggregate_members.py sales.pkl public/data
+```
+
 3. 바뀐 `public/data/*.csv`를 커밋하면 다시 배포됩니다.
 
 원본 엑셀(고객번호 포함)은 저장소에 올리지 마세요. `.gitignore`가 `.xlsx` 파일을 제외합니다.
@@ -54,7 +59,9 @@ python3 scripts/aggregate_sales.py sales.pkl public/data
 | `public/data/product_store.csv` | 매장·상품코드별: 라인, 아이템, 성별, 수량, 순매출, 확정금액 |
 | `public/data/saletype_store.csv` | 매장·판매형태별: 순매출, 수량, TAG가 합계 |
 | `public/data/hour_store.csv` | 매장·시간대별: 순매출, 영수증 수 |
-| `scripts/aggregate_sales.py` | 엑셀 데이터를 위 CSV로 합산하는 스크립트 |
+| `public/data/member_daily.csv` | 매장·일자별: 회원/비회원 매출·영수증, 신규 가입 회원 수와 매출 (고객번호 없음) |
+| `scripts/aggregate_sales.py` | 엑셀 데이터를 매출 CSV로 합산하는 스크립트 |
+| `scripts/aggregate_members.py` | 엑셀 데이터를 회원·비회원 CSV로 합산하는 스크립트 |
 | `claude-artifact/index.html` | claude.ai 대시보드 버전의 페이지 코드 (claude.ai 안에서만 동작) |
 
 ## 계산 방식
@@ -62,4 +69,6 @@ python3 scripts/aggregate_sales.py sales.pkl public/data
 - 순매출 = 판매금액 합계 (반품은 음수로 들어 있어 자동으로 빠짐)
 - 객단가 = 판매 줄의 판매금액 ÷ 판매 영수증 수 (영수증 = 일자·매장·판매번호)
 - 평균 할인율 = 1 − 순매출 ÷ (TAG가 × 수량)
+- 회원 = 고객번호가 있는 판매, 비회원 = 없는 판매
+- 신규 가입 = 고객번호가 자료의 마지막 달(F + 연월) 번호인 회원 수 (처음 구매한 날·매장에 한 번만 셈)
 - 유통 형태 = 매장코드 첫 글자: C 백화점, D 아울렛, B 가두점, A 기타
