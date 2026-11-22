@@ -19,7 +19,7 @@ sd.to_csv(f'{out}/store_daily.csv', index=False)
 names = df.groupby('상품코드')['상품명'].agg(lambda s: s.str.strip().mode().iat[0])
 # 시즌 = 년도 끝 두 자리 + FW(Fall/Winter) / SS(Spring/Summer) / ALL(Four Season, Seasonless). 예: 2026 + Men's Winter → 26FW
 def season(row):
-    y = str(row['년도'] or '')[-2:]
+    y = str(row['년도'])[-2:] if pd.notna(row['년도']) else '--'  # 년도가 없으면 --
     s = str(row['시즌'] or '')
     tag = 'FW' if ('Fall' in s or 'Winter' in s) else 'SS' if ('Spring' in s or 'Summer' in s) else 'ALL'
     return y + tag

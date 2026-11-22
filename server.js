@@ -1,15 +1,25 @@
-// FJ 매출 현황 대시보드 서버: public/ 폴더를 서비스합니다 (외부 패키지 없음).
+// FJ 매출 현황 대시보드 서버: public/ 폴더를 서비스합니다.
 // 처음 접속하면 비밀번호 화면이 나오고, 맞는 비밀번호를 넣어야 대시보드와 데이터가 열립니다.
 // 비밀번호는 DASHBOARD_PASSWORD 환경 변수로 바꿀 수 있습니다 (없으면 기본값 사용).
+// /upload 화면이나 POST /api/upload로 판매정보현황 엑셀을 올리면 합계 CSV를 새로 만들어 대시보드가 바뀝니다.
+//   - 합계 파일은 DATA_DIR(없으면 Railway Volume 경로 RAILWAY_VOLUME_MOUNT_PATH)에 저장합니다.
+//   - 자동 전송용으로 UPLOAD_KEY 환경 변수를 넣으면, X-Upload-Key 헤더에 그 값을 보낸 요청은 로그인 없이 올릴 수 있습니다.
 const http = require('http');
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const crypto = require('crypto');
+const { aggregate } = require('./aggregate');
 
 const root = path.join(__dirname, 'public');
 const port = Number(process.env.PORT) || 3000;
 const password = process.env.DASHBOARD_PASSWORD || '2428';
 const token = crypto.createHash('sha256').update('fj-dashboard:' + password).digest('hex');
+const uploadKey = process.env.UPLOAD_KEY || '';
+const volumeDir = process.env.DATA_DIR || process.env.RAILWAY_VOLUME_MOUNT_PATH || '';
+const dataDir = volumeDir || path.join(__dirname, 'uploaded'); // Volume이 없으면 재배포 때 지워지는 임시 폴더
+const MAX_UPLOAD = 60 * 1024 * 1024;
+let uploading = false;
 const COOKIE = 'fj_auth';
 const MAX_AGE = 60 * 60 * 24 * 30; // 30일 동안 로그인 유지
 
@@ -120,6 +130,147 @@ function handleLogin(req, res) {
   });
 }
 
+function json(res, status, obj) {
+  res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+  res.end(JSON.stringify(obj));
+}
+
+function readMeta() {
+  try { return JSON.parse(fs.readFileSync(path.join(dataDir, 'meta.json'), 'utf8')); } catch { return null; }
+}
+
+function handleUpload(req, res, by) {
+  if (uploading) return json(res, 409, { ok: false, message: '다른 자료를 처리하는 중입니다. 1분 뒤에 다시 올려 주세요.' });
+  const declared = Number(req.headers['content-length'] || 0);
+  if (declared > MAX_UPLOAD) return json(res, 413, { ok: false, message: '파일이 너무 큽니다 (60MB까지).' });
+  uploading = true;
+  const tmp = path.join(os.tmpdir(), `upload-${Date.now()}-${crypto.randomBytes(4).toString('hex')}.xlsx`);
+  const out = fs.createWriteStream(tmp);
+  let size = 0, failed = false;
+  const done = (status, body) => { uploading = false; fs.rm(tmp, { force: true }, () => {}); json(res, status, body); };
+  req.on('data', (chunk) => {
+    size += chunk.length;
+    if (size > MAX_UPLOAD && !failed) { failed = true; req.destroy(); out.destroy(); done(413, { ok: false, message: '파일이 너무 큽니다 (60MB까지).' }); }
+  });
+  req.pipe(out);
+  out.on('error', () => { if (!failed) { failed = true; done(500, { ok: false, message: '파일을 받는 중 문제가 생겼습니다. 다시 올려 주세요.' }); } });
+  out.on('finish', async () => {
+    if (failed) return;
+    if (!size) return done(400, { ok: false, message: '파일이 비어 있습니다.' });
+    try {
+      const { files, meta } = await aggregate(tmp);
+      fs.mkdirSync(dataDir, { recursive: true });
+      const stage = fs.mkdtempSync(path.join(dataDir, '.incoming-'));
+      for (const [name, body] of Object.entries(files)) fs.writeFileSync(path.join(stage, name), body);
+      const name = decodeURIComponent(String(req.headers['x-file-name'] || '')).slice(0, 200);
+      const full = { ...meta, uploaded_at: new Date().toISOString(), file_name: name, by, persistent: !!volumeDir };
+      fs.writeFileSync(path.join(stage, 'meta.json'), JSON.stringify(full));
+      for (const f of fs.readdirSync(stage)) fs.renameSync(path.join(stage, f), path.join(dataDir, f));
+      fs.rmSync(stage, { recursive: true, force: true });
+      console.log(`자료 갱신: ${meta.first}~${meta.last}, ${meta.rows}줄 (${by})`);
+      done(200, { ok: true, ...full });
+    } catch (e) {
+      console.error('자료 처리 실패:', e.message);
+      done(422, { ok: false, message: e.message || '엑셀을 읽지 못했습니다.' });
+    }
+  });
+}
+
+function uploadPage() {
+  return `<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>자료 올리기 · FJ 매출 현황</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<style>
+:root { --bg: #f6f7f9; --panel: #ffffff; --fg: #17191c; --muted: #646b75; --line: #e3e6ea; --accent: #2f5fd0; --ok: #138a52; --bad: #c8372d; color-scheme: light; }
+@media (prefers-color-scheme: dark) { :root { --bg: #111317; --panel: #1a1d22; --fg: #eceef1; --muted: #9aa1ab; --line: #2b2f36; --accent: #6f97ff; --ok: #3fc483; --bad: #ff6b5e; color-scheme: dark; } }
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--fg); font-family: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif; font-size: 15px; line-height: 1.55; }
+main { max-width: 640px; margin: 0 auto; padding-block: 40px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: flex; flex-direction: column; gap: 18px; }
+h1 { margin: 0; font-size: 24px; font-weight: 700; letter-spacing: -0.02em; }
+p { margin: 0; }
+.muted { color: var(--muted); font-size: 14px; }
+.drop { border: 2px dashed var(--line); border-radius: 12px; background: var(--panel); padding: 36px 20px; text-align: center; cursor: pointer; display: flex; flex-direction: column; gap: 8px; align-items: center; }
+.drop.over { border-color: var(--accent); }
+.drop:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+.drop b { font-size: 16px; }
+button { font: inherit; font-weight: 600; color: #fff; background: var(--accent); border: 0; border-radius: 8px; padding: 11px 18px; cursor: pointer; }
+button:disabled { opacity: 0.5; cursor: default; }
+.box { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; display: flex; flex-direction: column; gap: 6px; }
+.ok { color: var(--ok); font-weight: 600; } .bad { color: var(--bad); font-weight: 600; }
+a { color: var(--accent); }
+ol { margin: 0; padding-left: 1.3em; }
+</style>
+</head>
+<body>
+<main>
+  <h1>자료 올리기</h1>
+  <p class="muted">ERP에서 내려받은 <b>판매정보현황 엑셀(이번 달 1일부터 어제까지)</b>을 올리면 대시보드가 바로 바뀝니다. 고객번호 같은 원본 값은 저장하지 않고 합계만 남깁니다.</p>
+  <div class="box" id="current"><span class="muted">지금 대시보드 자료</span><span id="current-text">확인하는 중…</span></div>
+  <label class="drop" id="drop" for="file">
+    <b id="drop-title">엑셀 파일을 여기로 끌어다 놓거나 눌러서 고르세요</b>
+    <span class="muted" id="drop-sub">.xlsx 파일 하나</span>
+    <input id="file" type="file" accept=".xlsx" hidden>
+  </label>
+  <button id="send" type="button" disabled>올리고 대시보드 갱신</button>
+  <div class="box" id="result" hidden></div>
+  <p class="muted"><a href="/">대시보드로 돌아가기</a> · <a href="/logout">로그아웃</a></p>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+let picked = null;
+const fmt = (m) => m ? m.first + ' ~ ' + m.last + ' · ' + m.rows.toLocaleString('ko-KR') + '줄 · 매장 ' + m.stores + '곳 · 순매출 ' + (m.net / 1e8).toFixed(2) + '억원' : '';
+function showCurrent() {
+  fetch('/data/meta.json', { cache: 'no-store' }).then((r) => r.ok ? r.json() : null).then((m) => {
+    $('current-text').textContent = m && m.last ? fmt(m) + ' (올린 시각 ' + new Date(m.uploaded_at).toLocaleString('ko-KR') + ')' : '아직 올린 자료가 없습니다. 저장소에 들어 있는 기본 자료를 보여 주고 있습니다.';
+  }).catch(() => { $('current-text').textContent = '확인하지 못했습니다.'; });
+}
+function pick(f) {
+  if (!f) return;
+  if (!/\\.xlsx$/i.test(f.name)) { $('drop-sub').textContent = '.xlsx 파일만 올릴 수 있습니다.'; return; }
+  picked = f;
+  $('drop-title').textContent = f.name;
+  $('drop-sub').textContent = (f.size / 1024 / 1024).toFixed(1) + 'MB · 다른 파일을 고르려면 다시 누르세요';
+  $('send').disabled = false;
+}
+$('file').addEventListener('change', (e) => pick(e.target.files[0]));
+const drop = $('drop');
+['dragenter', 'dragover'].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.add('over'); }));
+['dragleave', 'drop'].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.remove('over'); }));
+drop.addEventListener('drop', (e) => pick(e.dataTransfer.files[0]));
+$('send').addEventListener('click', async () => {
+  if (!picked) return;
+  $('send').disabled = true; $('send').textContent = '처리하는 중… (30초쯤 걸립니다)';
+  const box = $('result'); box.hidden = true;
+  try {
+    const r = await fetch('/api/upload', { method: 'POST', headers: { 'Content-Type': 'application/octet-stream', 'X-File-Name': encodeURIComponent(picked.name) }, body: picked });
+    const d = await r.json().catch(() => ({ ok: false, message: '서버 응답을 읽지 못했습니다.' }));
+    box.replaceChildren();
+    const head = document.createElement('span'); head.className = d.ok ? 'ok' : 'bad';
+    head.textContent = d.ok ? '대시보드를 갱신했습니다.' : '올리지 못했습니다.';
+    const body = document.createElement('span');
+    body.textContent = d.ok ? fmt(d) : (d.message || '다시 시도해 주세요.');
+    box.append(head, body);
+    if (d.ok && !d.persistent) { const w = document.createElement('span'); w.className = 'muted'; w.textContent = '주의: 저장 공간(Volume)이 연결되지 않아, 사이트가 다시 배포되면 이 자료가 사라집니다.'; box.appendChild(w); }
+    if (d.ok) { const a = document.createElement('a'); a.href = '/'; a.textContent = '대시보드 보기'; box.appendChild(a); }
+    box.hidden = false;
+    showCurrent();
+  } catch (e) {
+    box.textContent = '연결이 끊겼습니다. 다시 올려 주세요.'; box.hidden = false;
+  }
+  $('send').textContent = '올리고 대시보드 갱신'; $('send').disabled = false;
+});
+showCurrent();
+</script>
+</body>
+</html>`;
+}
+
 http.createServer((req, res) => {
   let pathname;
   try {
@@ -138,10 +289,29 @@ http.createServer((req, res) => {
     res.writeHead(303, { 'Set-Cookie': `${COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`, Location: '/login' });
     return res.end();
   }
+  if (pathname === '/api/upload' && req.method === 'POST' && uploadKey && req.headers['x-upload-key']) {
+    if (!same(req.headers['x-upload-key'], uploadKey)) return json(res, 401, { ok: false, message: '업로드 키가 맞지 않습니다.' });
+    return handleUpload(req, res, 'api');
+  }
   if (!loggedIn(req)) {
-    if (pathname === '/' || pathname.endsWith('.html')) { res.writeHead(303, { Location: '/login' }); return res.end(); }
+    if (pathname === '/' || pathname === '/upload' || pathname.endsWith('.html')) { res.writeHead(303, { Location: '/login' }); return res.end(); }
     res.writeHead(401, { 'Content-Type': 'text/plain; charset=utf-8' });
     return res.end('비밀번호가 필요합니다.');
+  }
+
+  if (pathname === '/upload') return send(res, 200, uploadPage());
+  if (pathname === '/api/upload') {
+    if (req.method !== 'POST') { res.writeHead(405); return res.end(); }
+    return handleUpload(req, res, 'web');
+  }
+  // 올린 자료가 있으면 그것을, 없으면 저장소에 든 기본 자료를 보여 줍니다
+  if (/^\/data\/[a-z_]+\.(csv|json)$/.test(pathname)) {
+    const up = path.join(dataDir, path.basename(pathname));
+    if (fs.existsSync(up)) {
+      res.writeHead(200, { 'Content-Type': types[path.extname(up)], 'Cache-Control': 'no-cache' });
+      return fs.createReadStream(up).pipe(res);
+    }
+    if (pathname === '/data/meta.json') return json(res, 200, null);
   }
 
   if (pathname.endsWith('/')) pathname += 'index.html';

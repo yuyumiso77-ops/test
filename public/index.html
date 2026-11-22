@@ -36,6 +36,9 @@ body { background: var(--color-bg); color: var(--color-fg); font-family: var(--f
 .fj-big { font-weight: 700; letter-spacing: -0.02em; }
 .dash-select { font: inherit; font-size: 14px; color: var(--color-fg); background-color: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: 8px; padding: 6px 10px; min-width: 140px; }
 .load-error { border: 1px solid #c8372d; border-radius: 10px; padding: 12px 16px; margin-bottom: 16px; }
+.site-bar { max-width: 1120px; margin: 0 auto; padding-top: 14px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 13px; color: var(--color-fg-muted); }
+.site-bar a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
+.site-bar .warn { color: var(--color-bad); }
 </style>
 <script src="vendor/d3.min.js"></script>
 <script>
@@ -88,6 +91,16 @@ body { background: var(--color-bg); color: var(--color-fg); font-family: var(--f
 </script>
 </head>
 <body>
+<div class="site-bar"><span id="site-updated">자료 확인 중…</span><a href="/upload">자료 올리기</a><a href="/logout">로그아웃</a></div>
+<script>
+fetch('data/meta.json', { cache: 'no-store' }).then((r) => r.ok ? r.json() : null).then((m) => {
+  const el = document.getElementById('site-updated');
+  if (!m || !m.last) { el.textContent = '기본 자료 (아직 올린 자료 없음)'; return; }
+  const at = new Date(m.uploaded_at);
+  el.textContent = '자료 ' + m.first + ' ~ ' + m.last + ' · ' + at.toLocaleString('ko-KR', { month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }) + ' 갱신';
+  if (Date.now() - at.getTime() > 36 * 3600 * 1000) { el.classList.add('warn'); el.textContent += ' (하루 넘게 갱신되지 않음)'; }
+}).catch(() => {});
+</script>
 <div id="dash-root">
 <style>
 .fj { display: flex; flex-direction: column; gap: var(--cds-gap-xl); }
@@ -186,7 +199,7 @@ body { background: var(--color-bg); color: var(--color-fg); font-family: var(--f
   <header class="fj-head" id="overview">
     <h1 class="fj-title">FJ 매출 현황</h1>
     <p class="fj-lede" data-read lang="ko"><span data-draw="scope">—</span>의 <span data-draw="period" data-source="kpi" data-field="last" data-row="0">—</span> 순매출은 <b data-draw="k-net" data-source="kpi" data-field="net" data-row="0">—</b>, 확정금액은 <b data-draw="k-confirmed" data-source="kpi" data-field="confirmed" data-row="0">—</b>입니다. 지금 추세라면 <span data-draw="fc-month" data-source="forecast" data-field="last" data-row="0">—</span> 마감 매출은 약 <b data-draw="fc-projected" data-source="forecast" data-field="projected" data-row="0">—</b>으로 예상됩니다. 회원 매출 비중은 <b data-draw="m-member_share" data-source="members" data-field="member_share" data-row="0">—</b>, 신규 가입 회원은 <b data-draw="m-new_members" data-source="members" data-field="new_members" data-row="0">—</b>명입니다. 이 기간 매출 1위 매장은 <b data-draw="top-store" data-source="stores" data-field="store" data-row="0">—</b>입니다.</p>
-    <p class="fj-note">판매정보현황 엑셀(2026년 11월 1–21일, POS 판매 31,605줄)을 매장·일자·상품별로 합산했습니다. 순매출은 판매금액에서 반품을 뺀 금액입니다.</p>
+    <p class="fj-note">ERP 판매정보현황 엑셀을 매장·일자·상품별로 합산했습니다. 순매출은 판매금액에서 반품을 뺀 금액입니다.</p>
   </header>
 
   <div class="fj-controls" id="filters">
@@ -567,7 +580,7 @@ body { background: var(--color-bg); color: var(--color-fg); font-family: var(--f
   <details class="fj-foot" id="about">
     <summary>데이터와 계산 방식</summary>
     <ul>
-      <li>원본: 판매정보현황 엑셀 1개 (2026년 11월 1–21일). 고객번호 같은 개인 정보는 올리지 않았고, 매장·일자·상품 단위 합계만 올렸습니다.</li>
+      <li>원본: ERP 판매정보현황 엑셀 (이번 달 1일부터 마지막 판매일까지). 고객번호 같은 개인 정보는 올리지 않았고, 매장·일자·상품 단위 합계만 올렸습니다.</li>
       <li>순매출 = 판매금액 합계 (반품은 음수로 들어 있어 자동으로 빠집니다). 확정금액은 엑셀의 확정금액 열 합계입니다.</li>
       <li>반품 = 판매구분이 "반품"인 줄의 금액. 교환으로 인한 반품도 포함됩니다.</li>
       <li>객단가 = 판매 줄의 판매금액 ÷ 판매 영수증 수 (영수증 = 일자·매장·판매번호가 같은 묶음).</li>
@@ -575,7 +588,7 @@ body { background: var(--color-bg); color: var(--color-fg); font-family: var(--f
       <li>유통 형태는 매장코드 첫 글자로 나눴습니다: C 백화점, D 아울렛, B 가두점, A 기타.</li>
       <li>유통사는 매장 이름(롯데·현대·신세계·갤러리아·AK)으로 나누고, 백화점과 아울렛은 따로 묶었습니다. 사용중지 매장과 순매출이 0 이하인 매장은 베스트·워스트 비교에서 뺐습니다. 베스트는 유통사 안 매출 상위 5개, 워스트는 남은 매장 중 하위 5개입니다. 격차 = 1위 매출 ÷ 최하위 매출.</li>
       <li>상품 년도는 엑셀의 년도 열, 시즌은 시즌 열입니다 (Fall·Winter = FW, Spring·Summer = SS, Four Season·Seasonless = 시즌 구분 없음). 아이템별 베스트·워스트는 고른 년도·시즌 안에서 상품코드(색상·사이즈 합산) 순매출 기준이며, 베스트는 상위 5개, 워스트는 베스트에 들지 않은 하위 5개입니다. 순매출이 0 이하인 상품과 이 기간에 안 팔린 상품은 빠집니다.</li>
-      <li>남성·여성은 엑셀 성별 열(Man / Woman)입니다. 성별이 비어 있는 판매(이 기간 75.8만원)는 "구분 없음"으로 두고 비중 계산의 전체 매출에만 넣었습니다. 비중 변화(%p)는 최근 주 비중에서 전주 같은 요일들의 비중을 뺀 값입니다.</li>
+      <li>남성·여성은 엑셀 성별 열(Man / Woman)입니다. 성별이 비어 있는 판매는 "구분 없음"으로 두고 비중 계산의 전체 매출에만 넣었습니다. 비중 변화(%p)는 최근 주 비중에서 전주 같은 요일들의 비중을 뺀 값입니다.</li>
       <li>회원 = 고객번호가 있는 판매, 비회원 = 고객번호가 없는 판매. 객단가는 영수증 안에 고객번호가 하나라도 있으면 회원 영수증으로 셉니다.</li>
       <li>신규 가입 = 고객번호가 이번 달(F + 연월) 번호인 회원 수. 자료에서 처음 구매한 날·매장에 한 번만 셉니다. 가입만 하고 구매하지 않은 회원은 판매 자료에 없어서 빠집니다.</li>
       <li>주는 일요일부터 토요일까지입니다. 전주 대비는 전주의 같은 요일들과 비교하므로, 덜 끝난 주도 같은 날 수끼리 비교됩니다.</li>
@@ -1149,7 +1162,7 @@ dash.calc('year_item', {
     const rows = productStore.filter((r) => codes.has(r.store_code));
     const out = [];
     for (const [item, v] of d3.group(rows, (r) => r.item)) {
-      for (const [year, w] of d3.group(v, (r) => '20' + String(r.season).slice(0, 2))) {
+      for (const [year, w] of d3.group(v, (r) => { const yy = String(r.season).slice(0, 2); return /^\d\d$/.test(yy) ? '20' + yy : '년도 없음'; })) {
         out.push({ item, line: w[0].line, year, net: d3.sum(w, (r) => +r.net), qty: d3.sum(w, (r) => +r.qty) });
       }
     }

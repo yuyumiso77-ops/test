@@ -25,7 +25,7 @@
 npm start
 ```
 
-외부 패키지가 없어서 Node 18 이상이면 바로 실행됩니다. 포트는 `PORT` 환경 변수(기본 3000)를 따릅니다.
+Node 18 이상에서 `npm install` 후 실행합니다 (엑셀 읽기용 exceljs). 포트는 `PORT` 환경 변수(기본 3000)를 따릅니다.
 
 ### 비밀번호
 
@@ -35,34 +35,45 @@ npm start
 
 ## 데이터 갱신
 
-1. ERP에서 판매정보현황 엑셀을 내려받습니다.
-2. 합산 스크립트로 CSV를 만듭니다 (pandas, openpyxl 필요).
+### 사이트에서 올리기 (매일 아침)
+
+1. ERP에서 **판매정보현황 엑셀(이번 달 1일부터 어제까지)** 을 내려받습니다.
+2. 대시보드 위쪽의 **자료 올리기**(`/upload`)에서 파일을 끌어다 놓고 **올리고 대시보드 갱신**을 누릅니다.
+3. 서버가 엑셀을 합산해(30초 안팎) 대시보드를 바로 바꿉니다. 대시보드 위쪽에 자료 기간과 갱신 시각이 나옵니다.
+
+원본 엑셀과 고객번호는 저장하지 않고 합계 CSV만 저장합니다.
+
+### Railway 저장 공간(Volume) — 꼭 연결
+
+올린 자료는 Volume에 저장됩니다. Volume이 없으면 사이트가 다시 배포될 때 올린 자료가 사라지고 저장소의 기본 자료(`public/data`)로 돌아갑니다.
+서비스에 Volume을 붙이면 Railway가 `RAILWAY_VOLUME_MOUNT_PATH`를 넣어 주므로 따로 설정할 것은 없습니다 (직접 정하려면 `DATA_DIR`).
+
+### 자동 전송 (24시간 컴퓨터 등)
+
+Railway **Variables**에 `UPLOAD_KEY`(길고 추측하기 어려운 값)를 넣으면, 그 값을 헤더에 실은 요청은 로그인 없이 올릴 수 있습니다.
 
 ```bash
-python3 -c "import pandas as pd; df=pd.read_excel('판매정보현황.xlsx', dtype=str); df[df['판매일자'].notna()].to_pickle('sales.pkl')"
+curl -X POST -H "X-Upload-Key: <UPLOAD_KEY 값>" -H "X-File-Name: sales.xlsx" --data-binary @판매정보현황.xlsx https://<사이트 주소>/api/upload
+```
+
+### 명령줄로 합산만 하기
+
+```bash
+npm install
 ```
 
 ```bash
-python3 scripts/aggregate_sales.py sales.pkl public/data
+node aggregate.js 판매정보현황.xlsx public/data
 ```
 
-```bash
-python3 scripts/aggregate_members.py sales.pkl public/data
-```
-
-```bash
-python3 scripts/aggregate_gender.py sales.pkl public/data
-```
-
-3. 바뀐 `public/data/*.csv`를 커밋하면 다시 배포됩니다.
-
-원본 엑셀(고객번호 포함)은 저장소에 올리지 마세요. `.gitignore`가 `.xlsx` 파일을 제외합니다.
+`scripts/*.py`는 같은 합산을 하는 이전 파이썬 버전입니다.
 
 ## 파일
 
 | 경로 | 내용 |
 |---|---|
-| `server.js` | `public/` 폴더를 서비스하는 작은 Node 서버 (선택적 비밀번호) |
+| `server.js` | 대시보드·로그인·자료 올리기(`/upload`, `/api/upload`)를 처리하는 Node 서버 |
+| `aggregate.js` | 판매정보현황 엑셀을 대시보드용 합계 CSV 7개로 바꾸는 코드 |
 | `public/index.html` | 대시보드 페이지 |
 | `public/vendor/d3.min.js` | 차트 라이브러리 d3 v7.9.0 (ISC 라이선스) |
 | `public/data/store_daily.csv` | 매장·일자별: 판매, 반품, 순매출, 확정금액, 수량, TAG가 합계, 영수증 수 |
