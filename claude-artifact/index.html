@@ -59,6 +59,17 @@
 .fj-best { color: var(--color-ok); }
 .fj-worst { color: var(--color-bad); }
 .fj-strip-dot { cursor: default; }
+.fj-rcards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr)); gap: var(--cds-gap-md); }
+.fj-rcard { background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-lg); display: flex; flex-direction: column; gap: var(--cds-gap-sm); min-width: 0; }
+.fj-rcard h3 { margin: 0; font-size: var(--cds-font-size-body); font-weight: var(--cds-font-weight-medium); }
+.fj-rcols { display: grid; grid-template-columns: 1fr 1fr; gap: var(--cds-gap-md); }
+.fj-rlist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.fj-rlist li { display: grid; grid-template-columns: 1.6em minmax(0, 1fr) auto; gap: 6px; align-items: baseline; font-size: var(--cds-font-size-caption); font-variant-numeric: tabular-nums; }
+.fj-rlist .fj-link { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; color: var(--color-fg); }
+.fj-rlist .rk { color: var(--color-fg-muted); text-align: right; }
+.fj-rlist li.none { display: block; color: var(--color-fg-muted); }
+.fj-rhead { font-size: var(--cds-font-size-caption); font-weight: var(--cds-font-weight-medium); }
+@media (max-width: 420px) { .fj-rcols { grid-template-columns: 1fr; } }
 .fj-link { appearance: none; border: 0; background: none; padding: 0; font: inherit; cursor: pointer; text-align: left; text-decoration: underline; text-decoration-color: color-mix(in srgb, currentColor 35%, transparent); text-underline-offset: 3px; }
 .fj-link.is-on { font-weight: var(--cds-font-weight-medium); text-decoration-color: currentColor; }
 .fj-link:focus-visible { outline: 2px solid var(--color-fg); outline-offset: 2px; }
@@ -245,25 +256,10 @@
 
   <section class="fj-section" id="retailers">
     <div class="fj-sec-title">
-      <h2>유통사별 베스트·워스트 매장</h2>
-      <span class="fj-label">순매출 기준. 같은 유통사라도 백화점과 아울렛은 따로 비교합니다. 매장 이름을 누르면 그 매장만 봅니다.</span>
+      <h2>유통사별 베스트 5·워스트 5 매장</h2>
+      <span class="fj-label">순매출 기준. 같은 유통사라도 백화점과 아울렛은 따로 비교합니다. 매장이 10개보다 적으면 베스트와 겹치지 않게 워스트 수가 줄어듭니다. 매장 이름을 누르면 그 매장만 봅니다.</span>
     </div>
-    <div class="fj-tablewrap">
-      <table class="fj-table" id="retailer-table" data-source="retailers" data-row-key="retailer">
-        <thead><tr>
-          <th data-field="retailer">유통사</th>
-          <th class="n" data-field="stores">매장 수</th>
-          <th class="n" data-field="net">순매출</th>
-          <th class="n" data-field="per_store">매장당 평균</th>
-          <th data-field="best_store">베스트 매장</th>
-          <th class="n" data-field="best_net">베스트 매출</th>
-          <th data-field="worst_store">워스트 매장</th>
-          <th class="n" data-field="worst_net">워스트 매출</th>
-          <th class="n" data-field="gap">격차</th>
-        </tr></thead>
-        <tbody data-draw="retailer-rows"></tbody>
-      </table>
-    </div>
+    <div class="fj-rcards" id="retailer-cards" data-draw="retailer-cards" data-source="retailer_stores retailers"></div>
     <div class="fj-sec-title">
       <span class="fj-label">유통사별 매장 매출 분포. 점 하나가 매장 하나입니다.</span>
       <div class="fj-legend" data-draw="strip-legend"></div>
@@ -344,7 +340,7 @@
       <li>객단가 = 판매 줄의 판매금액 ÷ 판매 영수증 수 (영수증 = 일자·매장·판매번호가 같은 묶음).</li>
       <li>평균 할인율 = 1 − 순매출 ÷ (TAG가 × 수량).</li>
       <li>유통 형태는 매장코드 첫 글자로 나눴습니다: C 백화점, D 아울렛, B 가두점, A 기타.</li>
-      <li>유통사는 매장 이름(롯데·현대·신세계·갤러리아·AK)으로 나누고, 백화점과 아울렛은 따로 묶었습니다. 사용중지 매장과 순매출이 0 이하인 매장은 베스트·워스트 비교에서 뺐습니다. 격차 = 베스트 매출 ÷ 워스트 매출.</li>
+      <li>유통사는 매장 이름(롯데·현대·신세계·갤러리아·AK)으로 나누고, 백화점과 아울렛은 따로 묶었습니다. 사용중지 매장과 순매출이 0 이하인 매장은 베스트·워스트 비교에서 뺐습니다. 베스트는 유통사 안 매출 상위 5개, 워스트는 남은 매장 중 하위 5개입니다. 격차 = 1위 매출 ÷ 최하위 매출.</li>
       <li>회원 = 고객번호가 있는 판매, 비회원 = 고객번호가 없는 판매. 객단가는 영수증 안에 고객번호가 하나라도 있으면 회원 영수증으로 셉니다.</li>
       <li>신규 가입 = 고객번호가 이번 달(F + 연월) 번호인 회원 수. 자료에서 처음 구매한 날·매장에 한 번만 셉니다. 가입만 하고 구매하지 않은 회원은 판매 자료에 없어서 빠집니다.</li>
       <li>주는 일요일부터 토요일까지입니다. 전주 대비는 전주의 같은 요일들과 비교하므로, 덜 끝난 주도 같은 날 수끼리 비교됩니다.</li>
@@ -668,14 +664,16 @@ dash.calc('member_weekly', {
 dash.calc('retailer_stores', {
   inputs: ['stores'],
   title: '유통사별 매장 매출',
-  description: '선택한 유통 형태의 매장을 유통사(백화점/아울렛 구분)로 묶고 매출 순위를 매김. 사용중지 매장과 순매출 0 이하 매장은 뺌',
+  description: '선택한 유통 형태의 매장을 유통사(백화점/아울렛 구분)로 묶고 매출 순위를 매김. 상위 5개는 베스트, 남은 매장 중 하위 5개는 워스트. 사용중지 매장과 순매출 0 이하 매장은 뺌',
   fn: (stores) => {
     const active = stores.filter((r) => r.net > 0 && !/사용중지/.test(r.store));
     const out = [];
     for (const [retailer, v] of d3.group(active, window.FJ.retailer)) {
       const sorted = v.slice().sort((a, b) => b.net - a.net);
+      // 상위 5개는 베스트, 남은 매장 중 하위 5개는 워스트 (매장이 10개 미만이면 겹치지 않게 워스트가 줄어듦)
+      const nb = Math.min(5, sorted.length), nw = Math.min(5, sorted.length - nb);
       sorted.forEach((r, i) => out.push({ retailer, store_code: r.store_code, store: r.store, net: r.net, wow: r.wow,
-        rank: i + 1, of: sorted.length, role: i === 0 ? 'best' : i === sorted.length - 1 ? 'worst' : '' }));
+        rank: i + 1, of: sorted.length, role: i < nb ? 'best' : i >= sorted.length - nw ? 'worst' : '' }));
     }
     return out;
   },
@@ -1068,33 +1066,52 @@ dash.draw('member-week-rows', (tb) => {
 });
 
 // ── 유통사별 베스트·워스트 ──
-dash.draw('retailer-rows', (tb) => {
-  const d = dash.data('retailers');
-  if (d.status !== 'ok') return FJ.rowsMsg(tb, 9, d.status === 'error' ? '매장 데이터를 불러오지 못했습니다.' : '—');
-  if (!d.data.length) return FJ.rowsMsg(tb, 9, '이 조건에 맞는 매장이 없습니다.');
+dash.draw('retailer-cards', (el) => {
+  const d = dash.data('retailer_stores'), sum = dash.data('retailers');
+  if (FJ.notOk(el, d)) return;
+  if (!d.data.length) return FJ.empty(el, '이 조건에 맞는 매장이 없습니다.');
   const picked = dash.params().store || '';
-  const storeCell = (name, code, cls) => {
-    const td = document.createElement('td');
-    if (!name) { td.textContent = '—'; td.className = 'm'; return td; }
-    const b = document.createElement('button');
-    b.type = 'button'; b.className = 'fj-link ' + cls + (code === picked ? ' is-on' : ''); b.textContent = name;
-    b.addEventListener('click', () => dash.setParams({ store: code === picked ? '' : code }));
-    td.appendChild(b);
-    return td;
+  const summary = sum.status === 'ok' ? sum.data : [];
+  const order = summary.length ? summary.map((r) => r.retailer) : Array.from(new Set(d.data.map((r) => r.retailer)));
+  // 카드 안에서는 유통사 이름을 뺀 짧은 매장명 (전체 이름은 마우스를 올리면 보임)
+  const short = (n) => n.replace(/^(롯데|현대|신세계)\s?(백화점|프리미엄\s?아울렛|아울렛|커넥트)\s*/, '').replace(/^(갤러리아|AK플라자)\s*/, '') || n;
+  const list = (rows, cls, none) => {
+    const ul = document.createElement('ul'); ul.className = 'fj-rlist';
+    if (!rows.length) { const li = document.createElement('li'); li.className = 'none'; li.textContent = none; ul.appendChild(li); return ul; }
+    rows.forEach((r) => {
+      const li = document.createElement('li');
+      const rk = document.createElement('span'); rk.className = 'rk'; rk.textContent = String(r.rank);
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'fj-link' + (r.store_code === picked ? ' is-on' : '');
+      b.textContent = short(r.store); b.title = `${r.store} · ${r.of}개 중 ${r.rank}위`;
+      b.addEventListener('click', () => dash.setParams({ store: r.store_code === picked ? '' : r.store_code }));
+      const v = document.createElement('span'); v.className = cls; v.textContent = FJ.won(r.net);
+      li.append(rk, b, v); ul.appendChild(li);
+    });
+    return ul;
   };
-  tb.replaceChildren(...d.data.map((r) => {
-    const tr = document.createElement('tr');
-    tr.dataset.key = r.retailer;
-    tr.append(FJ.td(r.retailer), FJ.td(FJ.int(r.stores), 'n'), FJ.td(FJ.won(r.net), 'n'), FJ.td(FJ.won(r.per_store), 'n'),
-      storeCell(r.best_store, r.best_code, 'fj-best'), FJ.td(FJ.won(r.best_net), 'n'),
-      storeCell(r.worst_store, r.worst_code, 'fj-worst'), FJ.td(r.worst_net == null ? '—' : FJ.won(r.worst_net), 'n'),
-      FJ.td(r.gap == null ? '—' : r.gap.toFixed(1) + '배', 'n m'));
-    return tr;
+  el.replaceChildren(...order.map((g) => {
+    const rows = d.data.filter((r) => r.retailer === g);
+    const info = summary.find((r) => r.retailer === g);
+    const card = document.createElement('div'); card.className = 'fj-rcard';
+    const h = document.createElement('h3'); h.textContent = g;
+    const sub = document.createElement('span'); sub.className = 'fj-sub';
+    sub.textContent = info ? `${info.stores}개 매장 · 순매출 ${FJ.won(info.net)} · 매장당 ${FJ.won(info.per_store)}` + (info.gap ? ` · 1위와 최하위 격차 ${info.gap.toFixed(1)}배` : '') : '';
+    const cols = document.createElement('div'); cols.className = 'fj-rcols';
+    const col = (title, cls, items, none) => {
+      const c = document.createElement('div');
+      const t = document.createElement('div'); t.className = 'fj-rhead ' + cls; t.textContent = title;
+      c.append(t, list(items, cls, none)); return c;
+    };
+    const best = rows.filter((r) => r.role === 'best').sort((a, b) => a.rank - b.rank);
+    const worst = rows.filter((r) => r.role === 'worst').sort((a, b) => b.rank - a.rank);
+    cols.append(col(`베스트 ${best.length}`, 'fj-best', best, '—'), col(worst.length ? `워스트 ${worst.length}` : '워스트', 'fj-worst', worst, '매장이 5개 이하라 없음'));
+    card.append(h, sub, cols);
+    return card;
   }));
 });
 
 dash.draw('strip-legend', (el) => {
-  el.replaceChildren(...[['베스트', 'var(--color-ok)'], ['워스트', 'var(--color-bad)'], ['그 밖의 매장', 'var(--cds-chart-muted)']].map(([n, c]) => {
+  el.replaceChildren(...[['베스트 5', 'var(--color-ok)'], ['워스트 5', 'var(--color-bad)'], ['그 밖의 매장', 'var(--cds-chart-muted)']].map(([n, c]) => {
     const it = document.createElement('span');
     const sw = document.createElement('i'); sw.className = 'fj-sw'; sw.style.background = c; sw.style.borderRadius = '50%';
     it.append(sw, document.createTextNode(n));
