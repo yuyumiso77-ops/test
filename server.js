@@ -8,7 +8,7 @@ const crypto = require('crypto');
 
 const root = path.join(__dirname, 'public');
 const port = Number(process.env.PORT) || 3000;
-const password = process.env.DASHBOARD_PASSWORD || '232';
+const password = process.env.DASHBOARD_PASSWORD || '2428';
 const token = crypto.createHash('sha256').update('fj-dashboard:' + password).digest('hex');
 const COOKIE = 'fj_auth';
 const MAX_AGE = 60 * 60 * 24 * 30; // 30일 동안 로그인 유지
