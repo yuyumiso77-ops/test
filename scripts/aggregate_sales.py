@@ -24,6 +24,8 @@ def season(row):
     tag = 'FW' if ('Fall' in s or 'Winter' in s) else 'SS' if ('Spring' in s or 'Summer' in s) else 'ALL'
     return y + tag
 seasons = df.drop_duplicates('상품코드').set_index('상품코드').apply(season, axis=1)
+# 라인·아이템·성별이 빈 줄도 빠지지 않게 채워 둡니다
+for c, v in [('라인','기타'),('아이템','기타'),('성별','')]: df[c] = df[c].fillna(v)
 ps = df.groupby(['매장코드','라인','아이템','성별','상품코드']).agg(qty=('판매수량','sum'), net=('판매금액','sum'), confirmed=('확정금액','sum')).reset_index()
 ps['product_name'] = ps['상품코드'].map(names)
 ps['season'] = ps['상품코드'].map(seasons)

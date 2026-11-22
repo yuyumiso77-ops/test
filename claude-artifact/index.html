@@ -72,6 +72,9 @@
 .fj-rlist .nm { display: flex; flex-direction: column; min-width: 0; }
 .fj-rlist .nm > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fj-rlist .cd { color: var(--color-fg-muted); font-size: 11px; }
+.fj-pivot .fj-cd { color: var(--color-fg-muted); font-size: 11px; }
+.fj-pivot td.is-pick, .fj-pivot th.is-pick { background: var(--color-panel); }
+.fj-pivot tr.fj-total td { font-weight: var(--cds-font-weight-medium); border-top: 1px solid var(--color-border-line); }
 .fj-rhead { font-size: var(--cds-font-size-caption); font-weight: var(--cds-font-weight-medium); }
 @media (max-width: 420px) { .fj-rcols { grid-template-columns: 1fr; } }
 .fj-link { appearance: none; border: 0; background: none; padding: 0; font: inherit; cursor: pointer; text-align: left; text-decoration: underline; text-decoration-color: color-mix(in srgb, currentColor 35%, transparent); text-underline-offset: 3px; }
@@ -327,10 +330,31 @@
     </div>
   </section>
 
+  <section class="fj-section" id="year-items">
+    <div class="fj-sec-title">
+      <h2>상품 년도별 아이템 매출</h2>
+      <span class="fj-label">판매는 모두 이 기간이고, 년도는 상품의 년도(엑셀 년도 열)입니다. 각 칸은 순매출이고, 아래 작은 글씨는 그 아이템 안 비중입니다.</span>
+    </div>
+    <div class="fj-tablewrap" id="year-item-table" data-draw="year-item-table" data-source="year_item"></div>
+  </section>
+
   <section class="fj-section" id="product-ranks">
     <div class="fj-sec-title">
-      <h2>아이템별 베스트 5·워스트 5(26FW) 상품</h2>
-      <span class="fj-label">상품코드 기준 순매출(색상·사이즈 합산). 베스트는 모든 상품, 워스트는 26FW 시즌 상품만 비교합니다. 이 기간에 팔린 상품만 순위에 넣고, 순매출이 0 이하인 상품은 뺐습니다.</span>
+      <h2>아이템별 베스트 5·워스트 5 상품</h2>
+      <span class="fj-label">고른 상품 년도·시즌 안에서 상품코드 기준 순매출(색상·사이즈 합산)로 순위를 매깁니다. 워스트는 베스트에 들지 않은 하위 5개입니다. 이 기간에 팔린 상품만 넣고, 순매출이 0 이하인 상품은 뺐습니다.</span>
+    </div>
+    <div class="fj-controls">
+      <label class="fj-ctl"><span class="fj-label">상품 년도</span>
+        <select class="dash-select" id="pyear-select" data-draw="pyear-select" data-source="year_item" aria-label="상품 년도"></select>
+      </label>
+      <label class="fj-ctl"><span class="fj-label">시즌</span>
+        <select class="dash-select" id="pseason-select" aria-label="시즌">
+          <option value="">전체</option>
+          <option value="FW">FW (가을·겨울)</option>
+          <option value="SS">SS (봄·여름)</option>
+          <option value="ALL">시즌 구분 없음 (Four Season·Seasonless)</option>
+        </select>
+      </label>
     </div>
     <div class="fj-rcards" id="product-cards" data-draw="product-cards" data-source="product_ranks"></div>
   </section>
@@ -353,7 +377,7 @@
       <li>평균 할인율 = 1 − 순매출 ÷ (TAG가 × 수량).</li>
       <li>유통 형태는 매장코드 첫 글자로 나눴습니다: C 백화점, D 아울렛, B 가두점, A 기타.</li>
       <li>유통사는 매장 이름(롯데·현대·신세계·갤러리아·AK)으로 나누고, 백화점과 아울렛은 따로 묶었습니다. 사용중지 매장과 순매출이 0 이하인 매장은 베스트·워스트 비교에서 뺐습니다. 베스트는 유통사 안 매출 상위 5개, 워스트는 남은 매장 중 하위 5개입니다. 격차 = 1위 매출 ÷ 최하위 매출.</li>
-      <li>아이템별 베스트·워스트 상품은 상품코드(색상·사이즈 합산) 순매출 기준입니다. 베스트는 상위 5개, 워스트는 26FW 시즌(년도 2026 + 시즌 Fall/Winter) 상품 중 베스트에 들지 않은 하위 5개이며, 순매출이 0 이하인 상품은 뺐습니다. 이 기간에 하나도 안 팔린 26FW 상품은 판매 자료에 없어 빠집니다.</li>
+      <li>상품 년도는 엑셀의 년도 열, 시즌은 시즌 열입니다 (Fall·Winter = FW, Spring·Summer = SS, Four Season·Seasonless = 시즌 구분 없음). 아이템별 베스트·워스트는 고른 년도·시즌 안에서 상품코드(색상·사이즈 합산) 순매출 기준이며, 베스트는 상위 5개, 워스트는 베스트에 들지 않은 하위 5개입니다. 순매출이 0 이하인 상품과 이 기간에 안 팔린 상품은 빠집니다.</li>
       <li>회원 = 고객번호가 있는 판매, 비회원 = 고객번호가 없는 판매. 객단가는 영수증 안에 고객번호가 하나라도 있으면 회원 영수증으로 셉니다.</li>
       <li>신규 가입 = 고객번호가 이번 달(F + 연월) 번호인 회원 수. 자료에서 처음 구매한 날·매장에 한 번만 셉니다. 가입만 하고 구매하지 않은 회원은 판매 자료에 없어서 빠집니다.</li>
       <li>주는 일요일부터 토요일까지입니다. 전주 대비는 전주의 같은 요일들과 비교하므로, 덜 끝난 주도 같은 날 수끼리 비교됩니다.</li>
@@ -777,14 +801,34 @@ dash.calc('top_products', {
   },
 });
 
-dash.calc('product_ranks', {
+dash.calc('year_item', {
   inputs: ['product_store', 'store_daily'],
-  title: '아이템별 베스트·워스트 상품',
-  description: '선택한 유통 형태·매장에서 아이템(KNIT, PANTS, DOWN 등)별로 상품코드 순매출 순위를 매김. 베스트는 전체 상품 중 상위 5개, 워스트는 26FW 시즌 상품 중 베스트에 들지 않은 하위 5개. 순매출 0 이하 상품(반품이 더 많은 상품 포함)은 순위에서 뺌',
+  title: '상품 년도별 아이템 매출',
+  description: '선택한 유통 형태·매장에서 아이템과 상품 년도(엑셀의 년도 열)별 순매출과 수량',
   fn: (productStore, storeDaily) => {
     const codes = window.FJ.pick(storeDaily, dash.params());
     const rows = productStore.filter((r) => codes.has(r.store_code));
-    const WORST_SEASON = '26FW'; // 워스트는 이 시즌 상품만 비교
+    const out = [];
+    for (const [item, v] of d3.group(rows, (r) => r.item)) {
+      for (const [year, w] of d3.group(v, (r) => '20' + String(r.season).slice(0, 2))) {
+        out.push({ item, line: w[0].line, year, net: d3.sum(w, (r) => +r.net), qty: d3.sum(w, (r) => +r.qty) });
+      }
+    }
+    return out;
+  },
+});
+
+dash.calc('product_ranks', {
+  inputs: ['product_store', 'store_daily'],
+  title: '아이템별 베스트·워스트 상품',
+  description: '선택한 유통 형태·매장, 상품 년도·시즌 안에서 아이템별로 상품코드 순매출 순위를 매김. 베스트는 상위 5개, 워스트는 베스트에 들지 않은 하위 5개. 순매출 0 이하 상품(반품이 더 많은 상품 포함)은 순위에서 뺌',
+  fn: (productStore, storeDaily) => {
+    const p = dash.params();
+    const year = p.pyear ?? '2026', tag = p.pseason || ''; // 기본은 2026년 상품
+    const codes = window.FJ.pick(storeDaily, p);
+    // 시즌 열 = 년도 끝 두 자리 + FW/SS/ALL (예: 26FW)
+    const rows = productStore.filter((r) => codes.has(r.store_code)
+      && (!year || String(r.season).slice(0, 2) === year.slice(2)) && (!tag || String(r.season).slice(2) === tag));
     const products = Array.from(d3.group(rows, (r) => r.product_code), ([product_code, v]) => ({
       product_code, product_name: v[0].product_name, line: v[0].line, item: v[0].item, season: v[0].season,
       qty: d3.sum(v, (r) => +r.qty), net: d3.sum(v, (r) => +r.net),
@@ -794,14 +838,11 @@ dash.calc('product_ranks', {
       const sold = v.filter((r) => r.net > 0).sort((a, b) => b.net - a.net);
       const excluded = v.length - sold.length;
       const item_net = d3.sum(v, (r) => r.net), item_qty = d3.sum(v, (r) => r.qty);
-      const nb = Math.min(5, sold.length);
-      // 워스트: 26FW 상품 순위에서 베스트에 들지 않은 하위 5개 (순위는 26FW 상품 안에서)
-      const season = sold.filter((r) => r.season === WORST_SEASON);
-      sold.slice(0, nb).forEach((r, i) => out.push({ ...r, item, rank: i + 1, of: sold.length, excluded, item_net, item_qty, season_of: season.length, role: 'best' }));
-      const bestCodes = new Set(sold.slice(0, nb).map((r) => r.product_code));
-      const pool = season.map((r, i) => ({ r, rank: i + 1 })).filter((x) => !bestCodes.has(x.r.product_code));
-      pool.slice(Math.max(0, pool.length - 5)).forEach((x) => out.push({ ...x.r, item, rank: x.rank, of: season.length, excluded, item_net, item_qty,
-        season_of: season.length, role: 'worst' }));
+      const nb = Math.min(5, sold.length), nw = Math.min(5, sold.length - nb);
+      sold.forEach((r, i) => {
+        const role = i < nb ? 'best' : i >= sold.length - nw ? 'worst' : '';
+        if (role) out.push({ ...r, item, rank: i + 1, of: sold.length, excluded, item_net, item_qty, role });
+      });
     }
     return out;
   },
@@ -824,10 +865,12 @@ dash.calc('hours', {
 // ── 필터 ──
 document.querySelectorAll('#type-select').forEach((s) => s.addEventListener('change', () => dash.setParams({ type: s.value, store: '' })));
 document.querySelectorAll('#clear-filters').forEach((b) => b.addEventListener('click', () => dash.setParams({ type: '', store: '' })));
+document.querySelectorAll('#pseason-select').forEach((s) => s.addEventListener('change', () => dash.setParams({ pseason: s.value })));
 dash.onData(() => {
   const p = dash.params();
   document.querySelectorAll('#type-select').forEach((s) => { if (document.activeElement !== s) s.value = p.type || ''; });
   document.querySelectorAll('#clear-filters').forEach((b) => { b.hidden = !p.type && !p.store; });
+  document.querySelectorAll('#pseason-select').forEach((s) => { if (document.activeElement !== s) s.value = p.pseason || ''; });
 });
 
 dash.draw('store-select', (sel) => {
@@ -1275,10 +1318,54 @@ dash.draw('product-rows', (tb) => {
   }));
 });
 
+dash.draw('pyear-select', (sel) => {
+  const d = dash.data('year_item');
+  const years = d.status === 'ok' ? Array.from(new Set(d.data.map((r) => r.year))).sort().reverse() : [];
+  sel.replaceChildren(new Option('전체 년도', ''), ...years.map((y) => new Option(`${y}년 상품`, y)));
+  sel.value = dash.params().pyear ?? '2026';
+  sel.onchange = () => dash.setParams({ pyear: sel.value });
+});
+
+dash.draw('year-item-table', (el) => {
+  const d = dash.data('year_item');
+  if (FJ.notOk(el, d)) return;
+  if (!d.data.length) return FJ.empty(el, '이 조건에 맞는 매출이 없습니다.');
+  const years = Array.from(new Set(d.data.map((r) => r.year))).sort().reverse();
+  const items = Array.from(d3.rollup(d.data, (v) => d3.sum(v, (r) => r.net), (r) => r.item)).sort((a, b) => b[1] - a[1]);
+  const cell = new Map(d.data.map((r) => [r.item + '|' + r.year, r]));
+  const yearTotal = d3.rollup(d.data, (v) => d3.sum(v, (r) => r.net), (r) => r.year);
+  const grand = d3.sum(d.data, (r) => r.net);
+  const picked = dash.params().pyear ?? '2026';
+  const table = document.createElement('table'); table.className = 'fj-table fj-pivot';
+  const thead = document.createElement('thead'); const hr = document.createElement('tr');
+  const th = (t, c) => { const x = document.createElement('th'); x.textContent = t; x.className = c || ''; return x; };
+  hr.append(th('아이템'), th('라인'), th('합계', 'n'), ...years.map((y) => th(`${y}년`, 'n' + (y === picked ? ' is-pick' : ''))));
+  thead.appendChild(hr);
+  const tbody = document.createElement('tbody');
+  const valCell = (r, total, isPick) => {
+    const td = document.createElement('td'); td.className = 'n' + (isPick ? ' is-pick' : '');
+    if (!r || !r.net) { td.textContent = '—'; td.classList.add('m'); return td; }
+    const a = document.createElement('div'); a.textContent = FJ.won(r.net);
+    const b = document.createElement('div'); b.className = 'fj-cd'; b.textContent = total ? FJ.pct(r.net / total) : '';
+    td.append(a, b); return td;
+  };
+  items.forEach(([item, total]) => {
+    const tr = document.createElement('tr');
+    const line = (d.data.find((r) => r.item === item) || {}).line || '';
+    tr.append(FJ.td(item), FJ.td(line, 'm'), FJ.td(FJ.won(total), 'n'), ...years.map((y) => valCell(cell.get(item + '|' + y), total, y === picked)));
+    tbody.appendChild(tr);
+  });
+  const ft = document.createElement('tr'); ft.className = 'fj-total';
+  ft.append(FJ.td('합계'), FJ.td(''), FJ.td(FJ.won(grand), 'n'), ...years.map((y) => valCell({ net: yearTotal.get(y) || 0 }, grand, y === picked)));
+  tbody.appendChild(ft);
+  table.append(thead, tbody);
+  el.replaceChildren(table);
+});
+
 dash.draw('product-cards', (el) => {
   const d = dash.data('product_ranks');
   if (FJ.notOk(el, d)) return;
-  if (!d.data.length) return FJ.empty(el, '이 조건에 맞는 매출이 없습니다.');
+  if (!d.data.length) return FJ.empty(el, '고른 상품 년도·시즌에 팔린 상품이 없습니다.');
   const totals = d3.rollup(d.data, (v) => v[0].item_net, (r) => r.item);
   const order = Array.from(totals.keys()).sort((a, b) => totals.get(b) - totals.get(a));
   const list = (rows, cls, none) => {
@@ -1286,7 +1373,7 @@ dash.draw('product-cards', (el) => {
     if (!rows.length) { const li = document.createElement('li'); li.className = 'none'; li.textContent = none; ul.appendChild(li); return ul; }
     rows.forEach((r) => {
       const li = document.createElement('li');
-      li.title = `${r.product_name} (${r.product_code}) · ${r.season} · ${FJ.int(r.qty)}개 · ` + (r.role === 'worst' ? `26FW ${r.of}개 중 ${r.rank}위` : `${r.of}개 중 ${r.rank}위`);
+      li.title = `${r.product_name} (${r.product_code}) · ${r.season} · ${FJ.int(r.qty)}개 · ${r.of}개 중 ${r.rank}위`;
       const rk = document.createElement('span'); rk.className = 'rk'; rk.textContent = String(r.rank);
       const nm = document.createElement('span'); nm.className = 'nm';
       const n1 = document.createElement('span'); n1.textContent = r.product_name;
@@ -1302,9 +1389,8 @@ dash.draw('product-cards', (el) => {
     const card = document.createElement('div'); card.className = 'fj-rcard';
     const h = document.createElement('h3'); h.textContent = `${item}` + (rows[0] && rows[0].line ? ` · ${rows[0].line}` : '');
     const sub = document.createElement('span'); sub.className = 'fj-sub';
-    const head = rows.find((r) => r.role === 'best') || rows[0] || {};
-    const seasonCount = (rows.find((r) => r.season_of != null) || {}).season_of || 0;
-    sub.textContent = `순매출 ${FJ.won(head.item_net)} · ${FJ.int(head.item_qty)}개 · 팔린 상품 ${FJ.int(head.of)}개 (26FW ${FJ.int(seasonCount)}개)` + (head.excluded ? ` · 순매출 0 이하 ${FJ.int(head.excluded)}개 제외` : '');
+    const head = rows[0] || {};
+    sub.textContent = `순매출 ${FJ.won(head.item_net)} · ${FJ.int(head.item_qty)}개 · 팔린 상품 ${FJ.int(head.of)}개` + (head.excluded ? ` · 순매출 0 이하 ${FJ.int(head.excluded)}개 제외` : '');
     const best = rows.filter((r) => r.role === 'best').sort((a, b) => a.rank - b.rank);
     const worst = rows.filter((r) => r.role === 'worst').sort((a, b) => b.rank - a.rank);
     const col = (title, cls, items, none) => {
@@ -1313,8 +1399,7 @@ dash.draw('product-cards', (el) => {
       c.append(t, list(items, cls, none)); return c;
     };
     const cols = document.createElement('div'); cols.className = 'fj-rcols stack';
-    const noneMsg = seasonCount ? '26FW 상품이 모두 베스트에 들어 있음' : '26FW 상품 없음';
-    cols.append(col(`베스트 ${best.length}`, 'fj-best', best, '—'), col(worst.length ? `워스트 ${worst.length} · 26FW` : '워스트 · 26FW', 'fj-worst', worst, noneMsg));
+    cols.append(col(`베스트 ${best.length}`, 'fj-best', best, '—'), col(worst.length ? `워스트 ${worst.length}` : '워스트', 'fj-worst', worst, '팔린 상품이 5개 이하라 없음'));
     card.append(h, sub, cols);
     return card;
   }));
