@@ -1,0 +1,12 @@
+{
+  "name": "brand-sales-dashboard",
+  "version": "1.0.0",
+  "private": true,
+  "description": "브랜드 매출 현황 대시보드",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
