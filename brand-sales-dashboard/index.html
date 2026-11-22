@@ -1,0 +1,604 @@
+<meta name="dash-one-writer">
+<style>
+.bs { display: flex; flex-direction: column; gap: var(--cds-gap-xl); }
+.bs-head { display: flex; flex-direction: column; gap: var(--cds-gap-sm); }
+.bs-title-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--cds-gap-md); }
+.bs-title { font-family: var(--font-anthropic-serif); font-weight: 400; font-size: var(--cds-font-size-title); margin: 0; text-wrap: balance; }
+.bs-pill { font-size: var(--cds-font-size-caption); padding: 2px 10px; border-radius: 999px; border: 1px solid var(--color-warn); color: var(--color-warn); letter-spacing: 0.02em; }
+.bs-lede { margin: 0; font-size: var(--cds-font-size-heading); line-height: 1.55; max-width: 60ch; }
+.bs-lede b { font-weight: var(--cds-font-weight-medium); font-variant-numeric: tabular-nums; }
+.bs-note { margin: 0; color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); max-width: 70ch; }
+.bs-controls { display: flex; flex-wrap: wrap; gap: var(--cds-gap-md) var(--cds-gap-lg); align-items: flex-end; }
+.bs-ctl { display: flex; flex-direction: column; gap: var(--cds-gap-xs); }
+.bs-label { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); letter-spacing: 0.02em; }
+.bs-seg { display: inline-flex; border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); overflow: hidden; }
+.bs-seg button { appearance: none; border: 0; background: transparent; color: var(--color-fg); padding: 5px 16px; font: inherit; font-size: var(--cds-font-size-caption); cursor: pointer; }
+.bs-seg button + button { border-left: 1px solid var(--color-border-line); }
+.bs-seg button.is-on { background: var(--color-fg); color: var(--color-bg); }
+.bs-seg button:focus-visible { outline: 2px solid var(--color-fg); outline-offset: -3px; }
+.bs-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: var(--cds-gap-md); }
+.bs-card { background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-lg); display: flex; flex-direction: column; gap: var(--cds-gap-xs); min-width: 0; }
+.bs-big { font-family: var(--font-anthropic-serif); font-weight: 400; font-size: var(--cds-font-size-title); font-variant-numeric: tabular-nums; line-height: 1.2; }
+.bs-delta { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); font-variant-numeric: tabular-nums; }
+.bs-delta b { font-weight: var(--cds-font-weight-medium); }
+.bs-up { color: var(--color-ok); }
+.bs-down { color: var(--color-bad); }
+.bs-section { display: flex; flex-direction: column; gap: var(--cds-gap-md); min-width: 0; }
+.bs-section h2 { margin: 0; font-size: var(--cds-font-size-heading); font-weight: var(--cds-font-weight-medium); }
+.bs-sec-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: var(--cds-gap-sm) var(--cds-gap-md); }
+.bs-sec-title { display: flex; flex-direction: column; gap: 2px; }
+.bs-chart { position: relative; min-height: 260px; }
+.bs-chart.short { min-height: 200px; }
+.bs-empty { color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); padding: var(--cds-pad-lg) 0; margin: 0; }
+.bs-grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr)); gap: var(--cds-gap-xl); }
+.bs-tablewrap { overflow-x: auto; }
+.bs-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: var(--cds-font-size-body); }
+.bs-table th { text-align: left; font-weight: var(--cds-font-weight-medium); font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); padding: 6px 10px; border-bottom: 1px solid var(--color-border-line); white-space: nowrap; }
+.bs-table td { padding: 8px 10px; border-bottom: 1px solid var(--color-border-line); white-space: nowrap; }
+.bs-table .n { text-align: right; }
+.bs-table tr.is-picked td { background: var(--color-panel); font-weight: var(--cds-font-weight-medium); }
+.bs-share { display: flex; align-items: center; gap: 8px; justify-content: flex-end; }
+.bs-share i { display: block; height: 6px; border-radius: 3px; background: var(--cds-chart-muted); }
+.bs-hbars { display: flex; flex-direction: column; gap: var(--cds-gap-md); }
+.bs-hbar { display: grid; grid-template-columns: minmax(84px, auto) 1fr; gap: 4px var(--cds-gap-md); align-items: center; }
+.bs-hbar-name { font-size: var(--cds-font-size-body); }
+.bs-hbar-track { height: 12px; border-radius: 3px; background: var(--cds-chart-grid); overflow: hidden; }
+.bs-hbar-fill { height: 100%; border-radius: 3px; }
+.bs-hbar-val { grid-column: 2; font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); font-variant-numeric: tabular-nums; }
+.bs-hbar-val b { color: var(--color-fg); font-weight: var(--cds-font-weight-medium); }
+.bs-tip { position: absolute; pointer-events: none; background: var(--cds-surface-popover); border: 1px solid var(--cds-border); box-shadow: var(--cds-shadow-popover); border-radius: var(--cds-radius); padding: 8px 10px; font-size: var(--cds-font-size-caption); white-space: nowrap; z-index: 2; display: flex; flex-direction: column; gap: 2px; font-variant-numeric: tabular-nums; }
+.bs-tip span { color: var(--cds-text-secondary); }
+.bs-legend { display: flex; flex-wrap: wrap; gap: 4px var(--cds-gap-md); font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); margin-bottom: var(--cds-gap-sm); }
+.bs-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.bs-sw { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+.bs-axis text { fill: var(--cds-text-secondary); font-size: var(--cds-font-size-caption); font-family: var(--font-anthropic-sans); }
+.bs-grid line { stroke: var(--cds-chart-grid); }
+.bs-base { stroke: var(--cds-chart-axis); }
+.bs-foot { color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); }
+.bs-foot summary { cursor: pointer; }
+.bs-foot ul { margin: var(--cds-gap-sm) 0 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 4px; max-width: 75ch; }
+</style>
+
+<div class="bs">
+  <header class="bs-head" id="overview">
+    <div class="bs-title-row">
+      <h1 class="bs-title">브랜드 매출 현황</h1>
+      <span class="bs-pill">예시 데이터</span>
+    </div>
+    <p class="bs-lede" data-read lang="ko"><span data-draw="store-name">—</span>의 <span data-draw="win-mtd" data-source="kpi" data-field="last" data-row="0">—</span> 매출은 <b data-draw="k-mtd" data-source="kpi" data-field="mtd" data-row="0">—</b>, 전년 같은 기간 대비 <b data-draw="k-mtd_yoy" data-source="kpi" data-field="mtd_yoy" data-row="0">—</b>입니다. 오프라인 매장 중 이번 달 1위는 <b data-draw="top-store" data-source="top_offline">—</b>입니다.</p>
+    <p class="bs-note">지금 보이는 숫자는 화면 구성을 보여주기 위한 예시입니다. 실제 매출 엑셀/CSV 파일을 올리면 같은 링크에서 실제 숫자로 바뀝니다.</p>
+  </header>
+
+  <div class="bs-controls" id="filters">
+    <label class="bs-ctl"><span class="bs-label">매장</span>
+      <select class="dash-select" id="store-select" data-draw="store-select" data-source="store_table" aria-label="매장"></select>
+    </label>
+    <label class="bs-ctl"><span class="bs-label">채널·상품 기간</span>
+      <select class="dash-select" id="range-select" aria-label="채널·상품 기간">
+        <option value="mtd">이번 달</option>
+        <option value="ytd">올해 누적</option>
+        <option value="l12m">최근 12개월</option>
+      </select>
+    </label>
+  </div>
+
+  <div class="bs-kpis" id="kpis">
+    <div class="bs-card" id="kpi-mtd">
+      <span class="bs-label">이번 달 누적 · <span data-draw="win-mtd" data-source="kpi" data-field="last" data-row="0">—</span></span>
+      <span class="bs-big" data-draw="k-mtd" data-source="kpi" data-field="mtd" data-row="0">—</span>
+      <span class="bs-delta"><b data-draw="k-mtd_yoy" data-source="kpi" data-field="mtd_yoy" data-row="0">—</b> 전년 동기 대비</span>
+    </div>
+    <div class="bs-card" id="kpi-ytd">
+      <span class="bs-label">올해 누적 · <span data-draw="win-ytd" data-source="kpi" data-field="last" data-row="0">—</span></span>
+      <span class="bs-big" data-draw="k-ytd" data-source="kpi" data-field="ytd" data-row="0">—</span>
+      <span class="bs-delta"><b data-draw="k-ytd_yoy" data-source="kpi" data-field="ytd_yoy" data-row="0">—</b> 전년 동기 대비</span>
+    </div>
+    <div class="bs-card" id="kpi-day">
+      <span class="bs-label">최근 하루 · <span data-draw="win-day" data-source="kpi" data-field="last" data-row="0">—</span></span>
+      <span class="bs-big" data-draw="k-day" data-source="kpi" data-field="day" data-row="0">—</span>
+      <span class="bs-delta"><b data-draw="k-day_wow" data-source="kpi" data-field="day_wow" data-row="0">—</b> 지난주 같은 요일 대비</span>
+    </div>
+    <div class="bs-card" id="kpi-orders">
+      <span class="bs-label">이번 달 주문 수 · <span data-draw="win-mtd" data-source="kpi" data-field="last" data-row="0">—</span></span>
+      <span class="bs-big" data-draw="k-orders" data-source="kpi" data-field="orders" data-row="0">—</span>
+      <span class="bs-delta"><b data-draw="k-orders_yoy" data-source="kpi" data-field="orders_yoy" data-row="0">—</b> 전년 동기 대비</span>
+    </div>
+  </div>
+
+  <section class="bs-section" id="trend">
+    <div class="bs-sec-head">
+      <div class="bs-sec-title">
+        <h2>매출 추이</h2>
+        <span class="bs-label">막대는 매출, 회색 점은 전년 같은 달 (월별 보기). 일별 보기는 최근 90일입니다.</span>
+      </div>
+      <div class="bs-seg" role="group" aria-label="보기 단위" id="grain">
+        <button type="button" data-grain="year" aria-pressed="false">연</button>
+        <button type="button" data-grain="month" aria-pressed="true">월</button>
+        <button type="button" data-grain="day" aria-pressed="false">일</button>
+      </div>
+    </div>
+    <div class="bs-chart" id="trend-chart" data-draw="trend" data-source="trend"></div>
+  </section>
+
+  <section class="bs-section" id="stores">
+    <div class="bs-sec-title">
+      <h2>매장별 매출</h2>
+      <span class="bs-label">보기 단위(연·월·일)는 위 매출 추이와 같습니다. 일별 보기는 최근 60일입니다.</span>
+    </div>
+    <div class="bs-chart" id="store-chart" data-draw="store-trend" data-source="store_trend"></div>
+    <div class="bs-tablewrap">
+      <table class="bs-table" id="store-table" data-source="store_table" data-row-key="store">
+        <thead><tr>
+          <th data-field="store">매장</th>
+          <th class="n" data-field="mtd">이번 달 누적</th>
+          <th class="n" data-field="mtd_yoy">전년 동기 대비</th>
+          <th class="n" data-field="ytd">올해 누적</th>
+          <th class="n" data-field="ytd_share">올해 비중</th>
+        </tr></thead>
+        <tbody data-draw="store-rows"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <div class="bs-grid2">
+    <section class="bs-section" id="channels">
+      <div class="bs-sec-title">
+        <h2>채널별 매출</h2>
+        <span class="bs-label"><span data-draw="range-label" data-source="kpi" data-field="last" data-row="0">—</span> · 전년 같은 기간 대비</span>
+      </div>
+      <div class="bs-chart short" id="channel-chart" data-draw="channel" data-source="channel"></div>
+    </section>
+
+    <section class="bs-section" id="products">
+      <div class="bs-sec-title">
+        <h2>상품별 매출</h2>
+        <span class="bs-label"><span data-draw="range-label" data-source="kpi" data-field="last" data-row="0">—</span> · 매출 순</span>
+      </div>
+      <div class="bs-tablewrap">
+        <table class="bs-table" id="product-table" data-source="product" data-row-key="product">
+          <thead><tr>
+            <th class="n" data-field="rank">순위</th>
+            <th data-field="product">상품</th>
+            <th class="n" data-field="qty">수량</th>
+            <th class="n" data-field="revenue">매출</th>
+            <th class="n" data-field="share">비중</th>
+          </tr></thead>
+          <tbody data-draw="product-rows"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <details class="bs-foot" id="about">
+    <summary>데이터와 계산 방식</summary>
+    <ul>
+      <li>현재 숫자는 Claude가 만든 예시 데이터입니다 (2025년 1월 1일부터 2026년 11월 21일까지, 매장 4곳과 온라인 채널 4개). 실제 매출이 아닙니다.</li>
+      <li>매출은 판매 금액 합계입니다. 실제 파일로 바꿀 때 부가세 포함 여부, 반품 차감 여부를 맞춰야 합니다.</li>
+      <li>전년 동기 대비는 작년 같은 날짜 범위(예: 작년 11월 1일부터 21일까지)와 비교합니다. 최근 12개월은 비교할 작년 데이터가 모자라 대비 값을 표시하지 않습니다.</li>
+      <li>"온라인"은 자사몰, 쿠팡, 스마트스토어, 무신사 판매를 묶은 것입니다. 오프라인 매장은 채널이 "오프라인"입니다.</li>
+    </ul>
+  </details>
+</div>
+
+<script>
+window.BS = (() => {
+  const loc = 'ko-KR';
+  const won = (v) => v == null || !isFinite(v) ? '—'
+    : Math.abs(v) >= 1e8 ? (v / 1e8).toFixed(2) + '억원'
+    : Math.abs(v) >= 1e4 ? Math.round(v / 1e4).toLocaleString(loc) + '만원'
+    : Math.round(v).toLocaleString(loc) + '원';
+  const wonShort = (v) => v >= 1e8 ? (+(v / 1e8).toFixed(1)) + '억' : v >= 1e4 ? Math.round(v / 1e4).toLocaleString(loc) + '만' : String(v);
+  const pct = (v) => v == null || !isFinite(v) ? '—' : (v >= 0 ? '+' : '') + (v * 100).toFixed(1) + '%';
+  const share = (v) => v == null ? '—' : (v * 100).toFixed(1) + '%';
+  const int = (v) => v == null || !isFinite(v) ? '—' : Math.round(v).toLocaleString(loc);
+  const dow = (s) => '일월화수목금토'[new Date(s + 'T00:00:00Z').getUTCDay()];
+  const md = (s) => `${+s.slice(5, 7)}월 ${+s.slice(8, 10)}일`;
+  const short = (p, g) => g === 'year' ? p + '년' : g === 'month' ? `${p.slice(2, 4)}.${p.slice(5, 7)}` : `${+p.slice(5, 7)}/${+p.slice(8, 10)}`;
+  const long = (p, g) => g === 'year' ? p + '년' : g === 'month' ? `${p.slice(0, 4)}년 ${+p.slice(5, 7)}월` : `${p.slice(0, 4)}년 ${md(p)} (${dow(p)})`;
+  const range = (last, r) => {
+    if (r === 'ytd') return `${last.slice(0, 4)}년 1월 1일–${md(last)}`;
+    if (r === 'l12m') return '최근 12개월';
+    return `${+last.slice(5, 7)}월 1–${+last.slice(8, 10)}일`;
+  };
+  function notOk(el, d) {
+    if (d.status === 'ok') return false;
+    const p = document.createElement('p');
+    p.className = 'bs-empty';
+    p.textContent = d.status === 'error' ? '이 차트의 데이터를 불러오지 못했습니다.' : '—';
+    el.replaceChildren(p);
+    return true;
+  }
+  function tip(el) {
+    const t = document.createElement('div');
+    t.className = 'bs-tip';
+    t.hidden = true;
+    el.appendChild(t);
+    return t;
+  }
+  function showTip(el, t, lines, x, y) {
+    t.replaceChildren(...lines.map(([a, b], i) => {
+      const row = document.createElement('div');
+      if (i === 0) { const s = document.createElement('b'); s.textContent = a; row.appendChild(s); return row; }
+      const s = document.createElement('span'); s.textContent = a + ' ';
+      row.append(s, document.createTextNode(b));
+      return row;
+    }));
+    t.hidden = false;
+    const w = t.offsetWidth, W = el.clientWidth;
+    let left = x + 14;
+    if (left + w > W) left = x - 14 - w;
+    t.style.left = Math.max(0, left) + 'px';
+    t.style.top = Math.max(0, y - 20) + 'px';
+  }
+  function yAxis(svg, y, W, m) {
+    const ticks = y.ticks(4);
+    const g = svg.append('g').attr('class', 'bs-axis');
+    const tl = g.selectAll('text').data(ticks).join('text').text(wonShort).attr('y', (d) => y(d)).attr('dy', '0.32em').attr('text-anchor', 'end');
+    const lw = d3.max(tl.nodes(), (n) => n.getComputedTextLength()) || 28;
+    m.l = Math.ceil(lw) + 10;
+    tl.attr('x', m.l - 8);
+    svg.insert('g', ':first-child').attr('class', 'bs-grid').selectAll('line').data(ticks.filter((t) => t > 0)).join('line')
+      .attr('x1', m.l).attr('x2', W - m.r).attr('y1', (d) => y(d)).attr('y2', (d) => y(d));
+  }
+  function xLabels(svg, periods, xpos, W, m, H, g) {
+    const every = Math.max(1, Math.ceil(periods.length * (g === 'day' ? 42 : 48) / Math.max(1, W - m.l - m.r)));
+    svg.append('g').attr('class', 'bs-axis').selectAll('text')
+      .data(periods.filter((p, i) => (periods.length - 1 - i) % every === 0)).join('text')
+      .attr('x', xpos).attr('y', H - 6).attr('text-anchor', 'middle').text((p) => short(p, g));
+  }
+  return { won, wonShort, pct, share, int, dow, md, short, long, range, notOk, tip, showTip, yAxis, xLabels };
+})();
+</script>
+
+<script>
+// ── 계산: 모두 업로드된 파일에서 나옵니다 ──
+dash.calc('kpi', {
+  inputs: ['daily'],
+  title: '핵심 지표',
+  description: '선택한 매장의 이번 달·올해 누적, 최근 하루, 주문 수와 전년·전주 비교',
+  fn: (daily) => {
+    const store = dash.params().store || '';
+    const rows = daily.filter((r) => !store || r.store === store);
+    const last = d3.max(daily, (r) => r.date);
+    const Y = last.slice(0, 4), M = last.slice(5, 7), mdd = last.slice(5);
+    const LY = String(+Y - 1);
+    const sum = (f, k = 'revenue') => d3.sum(rows.filter(f), (r) => +r[k]);
+    const inMtd = (r) => r.date.startsWith(`${Y}-${M}`) && r.date <= last;
+    const inMtdLy = (r) => r.date.startsWith(`${LY}-${M}`) && r.date.slice(5) <= mdd;
+    const inYtd = (r) => r.date.startsWith(Y) && r.date <= last;
+    const inYtdLy = (r) => r.date.startsWith(LY) && r.date.slice(5) <= mdd;
+    const lw = new Date(Date.parse(last + 'T00:00:00Z') - 7 * 864e5).toISOString().slice(0, 10);
+    const ch = (a, b) => b ? a / b - 1 : null;
+    const mtd = sum(inMtd), mtd_ly = sum(inMtdLy), ytd = sum(inYtd), ytd_ly = sum(inYtdLy);
+    const day = sum((r) => r.date === last), day_lw = sum((r) => r.date === lw);
+    const orders = sum(inMtd, 'orders'), orders_ly = sum(inMtdLy, 'orders');
+    return [{ last, mtd, mtd_ly, mtd_yoy: ch(mtd, mtd_ly), ytd, ytd_ly, ytd_yoy: ch(ytd, ytd_ly),
+      day, day_lw, day_wow: ch(day, day_lw), orders, orders_ly, orders_yoy: ch(orders, orders_ly) }];
+  },
+});
+
+dash.calc('trend', {
+  inputs: ['daily'],
+  title: '매출 추이',
+  description: '선택한 매장의 연·월·일별 매출 합계 (월별은 전년 같은 달 포함, 일별은 최근 90일)',
+  fn: (daily) => {
+    const { store = '', grain = 'month' } = dash.params();
+    const rows = daily.filter((r) => !store || r.store === store);
+    const last = d3.max(daily, (r) => r.date);
+    if (grain === 'day') {
+      const from = new Date(Date.parse(last + 'T00:00:00Z') - 89 * 864e5).toISOString().slice(0, 10);
+      const by = d3.rollup(rows.filter((r) => r.date >= from), (v) => d3.sum(v, (r) => +r.revenue), (r) => r.date);
+      return Array.from(by, ([period, revenue]) => ({ period, revenue })).sort((a, b) => d3.ascending(a.period, b.period));
+    }
+    const len = grain === 'year' ? 4 : 7;
+    const by = d3.rollup(rows, (v) => d3.sum(v, (r) => +r.revenue), (r) => r.date.slice(0, len));
+    return Array.from(by, ([period, revenue]) => {
+      const prev = (+period.slice(0, 4) - 1) + period.slice(4);
+      return { period, revenue, ly: grain === 'month' ? (by.get(prev) ?? null) : null };
+    }).sort((a, b) => d3.ascending(a.period, b.period));
+  },
+});
+
+dash.calc('store_trend', {
+  inputs: ['daily'],
+  title: '매장별 매출 추이',
+  description: '매장별 연·월·일별 매출 합계 (일별은 최근 60일)',
+  fn: (daily) => {
+    const { grain = 'month' } = dash.params();
+    const last = d3.max(daily, (r) => r.date);
+    let rows = daily;
+    if (grain === 'day') {
+      const from = new Date(Date.parse(last + 'T00:00:00Z') - 59 * 864e5).toISOString().slice(0, 10);
+      rows = daily.filter((r) => r.date >= from);
+    }
+    const len = grain === 'year' ? 4 : grain === 'month' ? 7 : 10;
+    const by = d3.rollup(rows, (v) => d3.sum(v, (r) => +r.revenue), (r) => r.date.slice(0, len), (r) => r.store);
+    const out = [];
+    for (const [period, m] of by) for (const [store, revenue] of m) out.push({ period, store, revenue });
+    return out.sort((a, b) => d3.ascending(a.period, b.period));
+  },
+});
+
+dash.calc('store_table', {
+  inputs: ['daily'],
+  title: '매장별 요약',
+  description: '매장별 이번 달 누적, 전년 동기 대비, 올해 누적과 비중 (이번 달 매출 순)',
+  fn: (daily) => {
+    const last = d3.max(daily, (r) => r.date);
+    const Y = last.slice(0, 4), M = last.slice(5, 7), mdd = last.slice(5), LY = String(+Y - 1);
+    const by = d3.group(daily, (r) => r.store);
+    const ytdAll = d3.sum(daily.filter((r) => r.date.startsWith(Y)), (r) => +r.revenue);
+    const out = Array.from(by, ([store, v]) => {
+      const s = (f) => d3.sum(v.filter(f), (r) => +r.revenue);
+      const mtd = s((r) => r.date.startsWith(`${Y}-${M}`));
+      const mtd_ly = s((r) => r.date.startsWith(`${LY}-${M}`) && r.date.slice(5) <= mdd);
+      const ytd = s((r) => r.date.startsWith(Y));
+      return { store, mtd, mtd_ly, mtd_yoy: mtd_ly ? mtd / mtd_ly - 1 : null, ytd, ytd_share: ytdAll ? ytd / ytdAll : null };
+    });
+    return out.sort((a, b) => b.mtd - a.mtd);
+  },
+});
+
+dash.calc('top_offline', {
+  inputs: ['store_table'],
+  title: '이번 달 1위 오프라인 매장',
+  description: '온라인을 뺀 매장 중 이번 달 누적 매출이 가장 큰 곳',
+  fn: (stores) => (stores.find((r) => r.store !== '온라인') || {}).store ?? null,
+});
+
+dash.calc('channel', {
+  inputs: ['daily'],
+  title: '채널별 매출',
+  description: '선택한 매장·기간의 채널별 매출, 비중, 전년 같은 기간 대비',
+  fn: (daily) => {
+    const { store = '', range = 'mtd' } = dash.params();
+    const last = d3.max(daily, (r) => r.date), first = d3.min(daily, (r) => r.date);
+    const from = range === 'ytd' ? last.slice(0, 4) + '-01-01'
+      : range === 'l12m' ? new Date(Date.parse(last + 'T00:00:00Z') - 364 * 864e5).toISOString().slice(0, 10)
+      : last.slice(0, 8) + '01';
+    const back = (s) => (+s.slice(0, 4) - 1) + s.slice(4);
+    const hasLy = back(from) >= first;
+    const rows = daily.filter((r) => !store || r.store === store);
+    const tot = (a, b) => d3.rollup(rows.filter((r) => r.date >= a && r.date <= b), (v) => d3.sum(v, (r) => +r.revenue), (r) => r.channel);
+    const cur = tot(from, last), prev = tot(back(from), back(last));
+    const total = d3.sum(cur.values());
+    return Array.from(cur, ([channel, revenue]) => ({
+      channel, revenue, share: total ? revenue / total : 0,
+      yoy: hasLy && prev.get(channel) ? revenue / prev.get(channel) - 1 : null,
+    })).sort((a, b) => b.revenue - a.revenue);
+  },
+});
+
+dash.calc('product', {
+  inputs: ['product_monthly'],
+  title: '상품별 매출',
+  description: '선택한 매장·기간의 상품별 판매 수량, 매출, 비중 (매출 순)',
+  fn: (products) => {
+    const { store = '', range = 'mtd' } = dash.params();
+    const lm = d3.max(products, (r) => r.month);
+    const months = new Set();
+    if (range === 'mtd') months.add(lm);
+    else if (range === 'ytd') products.forEach((r) => { if (r.month.startsWith(lm.slice(0, 4)) && r.month <= lm) months.add(r.month); });
+    else {
+      let y = +lm.slice(0, 4), m = +lm.slice(5, 7);
+      for (let i = 0; i < 12; i++) { months.add(`${y}-${String(m).padStart(2, '0')}`); if (--m === 0) { m = 12; y--; } }
+    }
+    const rows = products.filter((r) => months.has(r.month) && (!store || r.store === store));
+    const by = d3.rollup(rows, (v) => ({ qty: d3.sum(v, (r) => +r.qty), revenue: d3.sum(v, (r) => +r.revenue) }), (r) => r.product);
+    const total = d3.sum(by.values(), (d) => d.revenue);
+    return Array.from(by, ([product, d]) => ({ product, ...d, share: total ? d.revenue / total : 0 }))
+      .sort((a, b) => b.revenue - a.revenue)
+      .map((d, i) => ({ rank: i + 1, ...d }));
+  },
+});
+</script>
+
+<script>
+// ── 필터 ──
+document.querySelectorAll('[data-grain]').forEach((b) => b.addEventListener('click', () => dash.setParams({ grain: b.dataset.grain })));
+document.querySelectorAll('#range-select').forEach((s) => s.addEventListener('change', () => dash.setParams({ range: s.value })));
+dash.onData(() => {
+  const p = dash.params();
+  document.querySelectorAll('[data-grain]').forEach((b) => {
+    const on = b.dataset.grain === (p.grain || 'month');
+    b.classList.toggle('is-on', on);
+    b.setAttribute('aria-pressed', String(on));
+  });
+  document.querySelectorAll('#range-select').forEach((s) => { if (document.activeElement !== s) s.value = p.range || 'mtd'; });
+});
+
+dash.draw('store-select', (sel) => {
+  const d = dash.data('store_table');
+  const stores = d.status === 'ok' ? d.data.map((r) => r.store) : [];
+  sel.replaceChildren(new Option('전체 매장', ''), ...stores.map((s) => new Option(s, s)));
+  sel.value = dash.params().store || '';
+  sel.onchange = () => dash.setParams({ store: sel.value || '' });
+});
+
+dash.draw('store-name', (el) => { el.textContent = dash.params().store || '전체 매장'; });
+
+// ── 숫자 ──
+const KPI = { 'k-mtd': ['mtd', 'won'], 'k-ytd': ['ytd', 'won'], 'k-day': ['day', 'won'], 'k-orders': ['orders', 'int'],
+  'k-mtd_yoy': ['mtd_yoy', 'pct'], 'k-ytd_yoy': ['ytd_yoy', 'pct'], 'k-day_wow': ['day_wow', 'pct'], 'k-orders_yoy': ['orders_yoy', 'pct'] };
+Object.entries(KPI).forEach(([name, [field, kind]]) => dash.draw(name, (el) => {
+  const d = dash.data('kpi');
+  if (d.status !== 'ok' || !d.data || !d.data.length) { el.textContent = '—'; el.className = ''; return; }
+  const v = d.data[0][field];
+  el.textContent = kind === 'won' ? BS.won(v) : kind === 'pct' ? BS.pct(v) : BS.int(v);
+  if (kind === 'pct') el.className = v == null ? '' : v >= 0 ? 'bs-up' : 'bs-down';
+}));
+
+const WIN = {
+  'win-mtd': (last) => BS.range(last, 'mtd'),
+  'win-ytd': (last) => BS.range(last, 'ytd').slice(6),
+  'win-day': (last) => `${BS.md(last)} (${BS.dow(last)})`,
+  'range-label': (last) => BS.range(last, dash.params().range || 'mtd'),
+};
+Object.entries(WIN).forEach(([name, f]) => dash.draw(name, (el) => {
+  const d = dash.data('kpi');
+  el.textContent = d.status === 'ok' && d.data && d.data.length ? f(d.data[0].last) : '—';
+}));
+
+dash.draw('top-store', (el) => {
+  const d = dash.data('top_offline');
+  el.textContent = d.status === 'ok' && d.data ? d.data : '—';
+});
+
+// ── 매출 추이 ──
+dash.draw('trend', (el) => {
+  const d = dash.data('trend');
+  if (BS.notOk(el, d)) return;
+  const rows = d.data, g = dash.params().grain || 'month';
+  if (!rows.length) { el.replaceChildren(Object.assign(document.createElement('p'), { className: 'bs-empty', textContent: '이 조건에 맞는 매출이 없습니다.' })); return; }
+  el.replaceChildren();
+  const W = el.clientWidth || 600, H = 260, m = { t: 10, r: 6, b: 24, l: 40 };
+  const svg = d3.select(el).append('svg').attr('width', '100%').attr('height', H).attr('viewBox', `0 0 ${W} ${H}`)
+    .attr('role', 'img').attr('aria-label', `${dash.params().store || '전체 매장'} ${g === 'year' ? '연도별' : g === 'month' ? '월별' : '일별'} 매출 막대 차트`);
+  const y = d3.scaleLinear().domain([0, d3.max(rows, (r) => Math.max(r.revenue, r.ly || 0)) || 1]).nice().range([H - m.b, m.t]);
+  BS.yAxis(svg, y, W, m);
+  const x = d3.scaleBand().domain(rows.map((r) => r.period)).range([m.l, W - m.r]).padding(rows.length > 40 ? 0.12 : 0.25);
+  const cx = (p) => x(p) + x.bandwidth() / 2;
+  const bars = svg.append('g').selectAll('rect').data(rows).join('rect')
+    .attr('x', (r) => x(r.period)).attr('width', x.bandwidth())
+    .attr('y', (r) => y(r.revenue)).attr('height', (r) => y(0) - y(r.revenue))
+    .attr('rx', Math.min(3, x.bandwidth() / 4)).style('fill', dash.colors[0]);
+  svg.append('g').selectAll('circle').data(rows.filter((r) => r.ly != null)).join('circle')
+    .attr('cx', (r) => cx(r.period)).attr('cy', (r) => y(r.ly)).attr('r', Math.min(3.5, x.bandwidth() / 3 + 1))
+    .style('fill', 'var(--cds-chart-muted)').style('stroke', 'var(--color-bg)').style('stroke-width', 1);
+  svg.append('line').attr('class', 'bs-base').attr('x1', m.l).attr('x2', W - m.r).attr('y1', y(0)).attr('y2', y(0));
+  BS.xLabels(svg, rows.map((r) => r.period), cx, W, m, H, g);
+  const t = BS.tip(el);
+  svg.append('rect').attr('x', m.l).attr('y', m.t).attr('width', W - m.l - m.r).attr('height', H - m.t - m.b).style('fill', 'transparent')
+    .on('pointermove', (ev) => {
+      const [px] = d3.pointer(ev);
+      const i = Math.max(0, Math.min(rows.length - 1, Math.floor((px - m.l - x.step() * x.paddingOuter()) / x.step())));
+      const r = rows[i];
+      bars.style('opacity', (b) => (b === r ? 1 : 0.55));
+      const lines = [[BS.long(r.period, g)], ['매출', BS.won(r.revenue)]];
+      if (r.ly != null) lines.push(['전년 같은 달', `${BS.won(r.ly)} (${BS.pct(r.revenue / r.ly - 1)})`]);
+      BS.showTip(el, t, lines, cx(r.period), y(r.revenue));
+    })
+    .on('pointerleave', () => { t.hidden = true; bars.style('opacity', 1); });
+});
+
+// ── 매장별 추이 ──
+dash.draw('store-trend', (el) => {
+  const d = dash.data('store_trend');
+  if (BS.notOk(el, d)) return;
+  const g = dash.params().grain || 'month', picked = dash.params().store || '';
+  const periods = Array.from(new Set(d.data.map((r) => r.period))).sort();
+  const order = dash.data('store_table');
+  const stores = order.status === 'ok' && order.data.length ? order.data.map((r) => r.store) : Array.from(new Set(d.data.map((r) => r.store)));
+  const byStore = d3.group(d.data, (r) => r.store);
+  const color = (s) => dash.colors[stores.indexOf(s) % dash.colors.length];
+  el.replaceChildren();
+  const legend = document.createElement('div');
+  legend.className = 'bs-legend';
+  stores.forEach((s) => {
+    const it = document.createElement('span');
+    const sw = document.createElement('i'); sw.className = 'bs-sw'; sw.style.background = color(s);
+    it.append(sw, document.createTextNode(s));
+    if (picked && s !== picked) it.style.opacity = 0.5;
+    legend.appendChild(it);
+  });
+  el.appendChild(legend);
+  const W = el.clientWidth || 600, H = 240, m = { t: 10, r: 10, b: 24, l: 40 };
+  const svg = d3.select(el).append('svg').attr('width', '100%').attr('height', H).attr('viewBox', `0 0 ${W} ${H}`)
+    .attr('role', 'img').attr('aria-label', `매장별 ${g === 'year' ? '연도별' : g === 'month' ? '월별' : '일별'} 매출 선 차트`);
+  const y = d3.scaleLinear().domain([0, d3.max(d.data, (r) => r.revenue) || 1]).nice().range([H - m.b, m.t]);
+  BS.yAxis(svg, y, W, m);
+  const pad = g === 'year' ? 40 : 8;
+  const x = d3.scalePoint().domain(periods).range([m.l + pad, W - m.r - pad]);
+  const line = d3.line().x((r) => x(r.period)).y((r) => y(r.revenue));
+  stores.forEach((s) => {
+    const vals = (byStore.get(s) || []).slice().sort((a, b) => d3.ascending(a.period, b.period));
+    const dim = picked && s !== picked;
+    svg.append('path').datum(vals).attr('d', line).style('fill', 'none').style('stroke', color(s))
+      .style('stroke-width', picked && !dim ? 2.5 : 1.75).style('opacity', dim ? 0.25 : 1);
+    const lastV = vals[vals.length - 1];
+    if (lastV) svg.append('circle').attr('cx', x(lastV.period)).attr('cy', y(lastV.revenue)).attr('r', 3).style('fill', color(s)).style('opacity', dim ? 0.25 : 1);
+  });
+  svg.append('line').attr('class', 'bs-base').attr('x1', m.l).attr('x2', W - m.r).attr('y1', y(0)).attr('y2', y(0));
+  BS.xLabels(svg, periods, (p) => x(p), W, m, H, g);
+  const guide = svg.append('line').style('stroke', 'var(--cds-chart-reference)').attr('y1', m.t).attr('y2', H - m.b).style('opacity', 0);
+  const t = BS.tip(el);
+  svg.append('rect').attr('x', m.l).attr('y', m.t).attr('width', W - m.l - m.r).attr('height', H - m.t - m.b).style('fill', 'transparent')
+    .on('pointermove', (ev) => {
+      const [px] = d3.pointer(ev);
+      const p = periods[d3.minIndex(periods, (q) => Math.abs(x(q) - px))];
+      guide.attr('x1', x(p)).attr('x2', x(p)).style('opacity', 1);
+      const vals = d.data.filter((r) => r.period === p).sort((a, b) => b.revenue - a.revenue);
+      BS.showTip(el, t, [[BS.long(p, g)], ...vals.map((r) => [r.store, BS.won(r.revenue)])], x(p), m.t + 30 + legend.offsetHeight);
+    })
+    .on('pointerleave', () => { t.hidden = true; guide.style('opacity', 0); });
+});
+
+dash.draw('store-rows', (tb) => {
+  const d = dash.data('store_table');
+  const picked = dash.params().store || '';
+  if (d.status !== 'ok') {
+    const tr = document.createElement('tr'); const td = document.createElement('td'); td.colSpan = 5;
+    td.textContent = d.status === 'error' ? '매장 데이터를 불러오지 못했습니다.' : '—';
+    tr.appendChild(td); tb.replaceChildren(tr); return;
+  }
+  tb.replaceChildren(...d.data.map((r) => {
+    const tr = document.createElement('tr');
+    if (r.store === picked) tr.className = 'is-picked';
+    const cells = [[r.store, ''], [BS.won(r.mtd), 'n'], [BS.pct(r.mtd_yoy), 'n ' + (r.mtd_yoy == null ? '' : r.mtd_yoy >= 0 ? 'bs-up' : 'bs-down')], [BS.won(r.ytd), 'n'], [BS.share(r.ytd_share), 'n']];
+    cells.forEach(([v, c]) => { const td = document.createElement('td'); td.textContent = v; td.className = c; tr.appendChild(td); });
+    return tr;
+  }));
+});
+
+// ── 채널 ──
+dash.draw('channel', (el) => {
+  const d = dash.data('channel');
+  if (BS.notOk(el, d)) return;
+  if (!d.data.length) { el.replaceChildren(Object.assign(document.createElement('p'), { className: 'bs-empty', textContent: '이 조건에 맞는 매출이 없습니다.' })); return; }
+  const max = d3.max(d.data, (r) => r.revenue) || 1;
+  const wrap = document.createElement('div');
+  wrap.className = 'bs-hbars';
+  wrap.setAttribute('role', 'list');
+  d.data.forEach((r, i) => {
+    const row = document.createElement('div'); row.className = 'bs-hbar'; row.setAttribute('role', 'listitem');
+    const name = document.createElement('span'); name.className = 'bs-hbar-name'; name.textContent = r.channel;
+    const track = document.createElement('div'); track.className = 'bs-hbar-track';
+    const fill = document.createElement('div'); fill.className = 'bs-hbar-fill';
+    fill.style.width = (r.revenue / max * 100).toFixed(1) + '%';
+    fill.style.background = dash.colors[0];
+    track.appendChild(fill);
+    const val = document.createElement('span'); val.className = 'bs-hbar-val';
+    const b = document.createElement('b'); b.textContent = BS.won(r.revenue);
+    val.append(b, document.createTextNode(` · 비중 ${BS.share(r.share)}`));
+    if (r.yoy != null) {
+      const y = document.createElement('span'); y.className = r.yoy >= 0 ? 'bs-up' : 'bs-down';
+      y.textContent = ` · ${BS.pct(r.yoy)}`; val.appendChild(y);
+    }
+    row.append(name, track, val);
+    wrap.appendChild(row);
+  });
+  el.replaceChildren(wrap);
+});
+
+// ── 상품 ──
+dash.draw('product-rows', (tb) => {
+  const d = dash.data('product');
+  if (d.status !== 'ok' || !d.data.length) {
+    const tr = document.createElement('tr'); const td = document.createElement('td'); td.colSpan = 5;
+    td.textContent = d.status === 'error' ? '상품 데이터를 불러오지 못했습니다.' : d.status === 'ok' ? '이 조건에 맞는 매출이 없습니다.' : '—';
+    tr.appendChild(td); tb.replaceChildren(tr); return;
+  }
+  const maxShare = d3.max(d.data, (r) => r.share) || 1;
+  tb.replaceChildren(...d.data.map((r) => {
+    const tr = document.createElement('tr');
+    const td = (v, c) => { const x = document.createElement('td'); x.textContent = v; x.className = c; return x; };
+    const share = document.createElement('td'); share.className = 'n';
+    const box = document.createElement('div'); box.className = 'bs-share';
+    const bar = document.createElement('i'); bar.style.width = Math.round(r.share / maxShare * 48) + 'px';
+    const txt = document.createElement('span'); txt.textContent = BS.share(r.share);
+    box.append(bar, txt); share.appendChild(box);
+    tr.append(td(String(r.rank), 'n'), td(r.product, ''), td(BS.int(r.qty), 'n'), td(BS.won(r.revenue), 'n'), share);
+    return tr;
+  }));
+});
+</script>
