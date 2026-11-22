@@ -14,6 +14,7 @@
 - 상품 년도별 아이템 매출: 아이템 × 상품 년도(엑셀 년도 열) 순매출표와 아이템 안 비중
 - 아이템별 베스트 5·워스트 5 상품: 고른 상품 년도·시즌(FW/SS/시즌 구분 없음) 안에서 아이템마다 상품코드 순매출 상위 5개와 하위 5개 (순매출 0 이하 상품 제외)
 - 유통사별 베스트 5·워스트 5 매장: 롯데·현대·신세계·갤러리아·AK(백화점/아울렛 구분)와 가두점별 매출 상위 5개·하위 5개 매장, 매장 수, 순매출, 매장당 평균, 1위와 최하위 격차, 매장 분포 차트
+- 남성·여성 매출: 전체·매장별 남성/여성 비중, 주별 비교와 최근 주 전주 대비 증감·비중 변화(%p)
 - 일별 매출(주말 구분), 매장별 순위, 유통 형태별·판매 형태별, 라인별·아이템별, 상품 상위 20, 시간대별 매출
 
 ## 실행
@@ -47,6 +48,10 @@ python3 scripts/aggregate_sales.py sales.pkl public/data
 python3 scripts/aggregate_members.py sales.pkl public/data
 ```
 
+```bash
+python3 scripts/aggregate_gender.py sales.pkl public/data
+```
+
 3. 바뀐 `public/data/*.csv`를 커밋하면 다시 배포됩니다.
 
 원본 엑셀(고객번호 포함)은 저장소에 올리지 마세요. `.gitignore`가 `.xlsx` 파일을 제외합니다.
@@ -62,8 +67,10 @@ python3 scripts/aggregate_members.py sales.pkl public/data
 | `public/data/product_store.csv` | 매장·상품코드별: 라인, 아이템, 성별, 시즌(예: 26FW), 수량, 순매출, 확정금액 |
 | `public/data/saletype_store.csv` | 매장·판매형태별: 순매출, 수량, TAG가 합계 |
 | `public/data/hour_store.csv` | 매장·시간대별: 순매출, 영수증 수 |
+| `public/data/gender_daily.csv` | 매장·일자·성별(남성/여성/구분 없음): 순매출, 수량 |
 | `public/data/member_daily.csv` | 매장·일자별: 회원/비회원 매출·영수증, 신규 가입 회원 수와 매출 (고객번호 없음) |
 | `scripts/aggregate_sales.py` | 엑셀 데이터를 매출 CSV로 합산하는 스크립트 |
+| `scripts/aggregate_gender.py` | 엑셀 데이터를 성별 CSV로 합산하는 스크립트 |
 | `scripts/aggregate_members.py` | 엑셀 데이터를 회원·비회원 CSV로 합산하는 스크립트 |
 | `claude-artifact/index.html` | claude.ai 대시보드 버전의 페이지 코드 (claude.ai 안에서만 동작) |
 

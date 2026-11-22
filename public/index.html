@@ -41,7 +41,7 @@ body { background: var(--color-bg); color: var(--color-fg); font-family: var(--f
 <script>
 // claude.ai 대시보드의 dash API를 흉내 내는 작은 실행기: CSV를 읽고, 계산(calc)과 그리기(draw)를 돌립니다.
 (() => {
-  const files = { store_daily: 'data/store_daily.csv', product_store: 'data/product_store.csv', saletype_store: 'data/saletype_store.csv', hour_store: 'data/hour_store.csv', member_daily: 'data/member_daily.csv' };
+  const files = { store_daily: 'data/store_daily.csv', product_store: 'data/product_store.csv', saletype_store: 'data/saletype_store.csv', hour_store: 'data/hour_store.csv', member_daily: 'data/member_daily.csv', gender_daily: 'data/gender_daily.csv' };
   const raw = {}, calcs = {}, draws = {}, onDatas = [];
   let params = { type: '', store: '', pyear: '2026', pseason: '' }, memo = {}, loaded = false, failed = false;
   function data(id) {
@@ -170,6 +170,8 @@ body { background: var(--color-bg); color: var(--color-fg); font-family: var(--f
 .fj-link { appearance: none; border: 0; background: none; padding: 0; font: inherit; cursor: pointer; text-align: left; text-decoration: underline; text-decoration-color: color-mix(in srgb, currentColor 35%, transparent); text-underline-offset: 3px; }
 .fj-link.is-on { font-weight: var(--cds-font-weight-medium); text-decoration-color: currentColor; }
 .fj-link:focus-visible { outline: 2px solid var(--color-fg); outline-offset: 2px; }
+.fj-mix { display: flex; width: 90px; height: 8px; border-radius: 4px; overflow: hidden; background: var(--cds-chart-grid); }
+.fj-mix i { display: block; height: 100%; }
 .fj-foot { color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); }
 .fj-foot summary { cursor: pointer; }
 .fj-foot ul { margin: var(--cds-gap-sm) 0 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 4px; max-width: 78ch; }
@@ -325,6 +327,73 @@ body { background: var(--color-bg); color: var(--color-fg); font-family: var(--f
     </div>
   </section>
 
+  <section class="fj-section" id="gender-section">
+    <div class="fj-sec-title">
+      <h2>남성·여성 매출</h2>
+      <span class="fj-label">엑셀 성별 열 기준입니다. 전주 대비는 최근 주 <span data-draw="recent-week" data-source="weekly">—</span>와 전주의 같은 요일들을 비교합니다.</span>
+    </div>
+    <div class="fj-kpis">
+      <div class="fj-card" id="kpi-man">
+        <span class="fj-label">남성 매출</span>
+        <span class="fj-big" data-draw="g-man" data-source="gender" data-field="man" data-row="0">—</span>
+        <span class="fj-sub">비중 <b data-draw="g-man_share" data-source="gender" data-field="man_share" data-row="0">—</b> · 최근 주 전주 대비 <b data-draw="g-man_wow" data-source="gender" data-field="man_wow" data-row="0">—</b></span>
+      </div>
+      <div class="fj-card" id="kpi-woman">
+        <span class="fj-label">여성 매출</span>
+        <span class="fj-big" data-draw="g-woman" data-source="gender" data-field="woman" data-row="0">—</span>
+        <span class="fj-sub">비중 <b data-draw="g-woman_share" data-source="gender" data-field="woman_share" data-row="0">—</b> · 최근 주 전주 대비 <b data-draw="g-woman_wow" data-source="gender" data-field="woman_wow" data-row="0">—</b></span>
+      </div>
+      <div class="fj-card" id="kpi-man-week">
+        <span class="fj-label">최근 주 남성 비중</span>
+        <span class="fj-big" data-draw="g-man_share_week" data-source="gender" data-field="man_share_week" data-row="0">—</span>
+        <span class="fj-sub">전주보다 <b data-draw="g-man_share_change" data-source="gender" data-field="man_share_change" data-row="0">—</b></span>
+      </div>
+      <div class="fj-card" id="kpi-woman-week">
+        <span class="fj-label">최근 주 여성 비중</span>
+        <span class="fj-big" data-draw="g-woman_share_week" data-source="gender" data-field="woman_share_week" data-row="0">—</span>
+        <span class="fj-sub">전주보다 <b data-draw="g-woman_share_change" data-source="gender" data-field="woman_share_change" data-row="0">—</b></span>
+      </div>
+    </div>
+    <div class="fj-legend" data-draw="gender-legend"></div>
+    <div class="fj-chart short" id="gender-week-chart" data-draw="gender-weeks" data-source="gender_weekly"></div>
+    <div class="fj-tablewrap">
+      <table class="fj-table" id="gender-week-table" data-source="gender_weekly" data-row-key="week">
+        <thead><tr>
+          <th data-field="week">주차</th>
+          <th data-field="start">기간</th>
+          <th class="n" data-field="man">남성 매출</th>
+          <th class="n" data-field="man_wow">남성 전주 대비</th>
+          <th class="n" data-field="woman">여성 매출</th>
+          <th class="n" data-field="woman_wow">여성 전주 대비</th>
+          <th class="n" data-field="man_share">남성 비중</th>
+          <th class="n" data-field="woman_share">여성 비중</th>
+          <th class="n" data-field="woman_share_change">여성 비중 변화</th>
+        </tr></thead>
+        <tbody data-draw="gender-week-rows"></tbody>
+      </table>
+    </div>
+    <div class="fj-sec-title">
+      <span class="fj-label">매장별 비중 · 순매출 순. 줄을 누르면 그 매장만 봅니다.</span>
+    </div>
+    <div class="fj-tablewrap tall">
+      <table class="fj-table" id="gender-store-table" data-source="gender_stores" data-row-key="store_code">
+        <thead><tr>
+          <th data-field="store">매장</th>
+          <th data-field="type">형태</th>
+          <th class="n" data-field="net">순매출</th>
+          <th class="n" data-field="man_share">남성 비중</th>
+          <th class="n" data-field="woman_share">여성 비중</th>
+          <th>남·여</th>
+          <th class="n" data-field="woman_share_week">최근 주 여성 비중</th>
+          <th class="n" data-field="woman_share_change">전주보다</th>
+          <th class="n" data-field="man_wow">남성 전주 대비</th>
+          <th class="n" data-field="woman_wow">여성 전주 대비</th>
+        </tr></thead>
+        <tbody data-draw="gender-store-rows"></tbody>
+      </table>
+    </div>
+  </section>
+
   <section class="fj-section" id="stores-section">
     <div class="fj-sec-title">
       <h2>매장별 매출</h2>
@@ -468,6 +537,7 @@ body { background: var(--color-bg); color: var(--color-fg); font-family: var(--f
       <li>유통 형태는 매장코드 첫 글자로 나눴습니다: C 백화점, D 아울렛, B 가두점, A 기타.</li>
       <li>유통사는 매장 이름(롯데·현대·신세계·갤러리아·AK)으로 나누고, 백화점과 아울렛은 따로 묶었습니다. 사용중지 매장과 순매출이 0 이하인 매장은 베스트·워스트 비교에서 뺐습니다. 베스트는 유통사 안 매출 상위 5개, 워스트는 남은 매장 중 하위 5개입니다. 격차 = 1위 매출 ÷ 최하위 매출.</li>
       <li>상품 년도는 엑셀의 년도 열, 시즌은 시즌 열입니다 (Fall·Winter = FW, Spring·Summer = SS, Four Season·Seasonless = 시즌 구분 없음). 아이템별 베스트·워스트는 고른 년도·시즌 안에서 상품코드(색상·사이즈 합산) 순매출 기준이며, 베스트는 상위 5개, 워스트는 베스트에 들지 않은 하위 5개입니다. 순매출이 0 이하인 상품과 이 기간에 안 팔린 상품은 빠집니다.</li>
+      <li>남성·여성은 엑셀 성별 열(Man / Woman)입니다. 성별이 비어 있는 판매(이 기간 75.8만원)는 "구분 없음"으로 두고 비중 계산의 전체 매출에만 넣었습니다. 비중 변화(%p)는 최근 주 비중에서 전주 같은 요일들의 비중을 뺀 값입니다.</li>
       <li>회원 = 고객번호가 있는 판매, 비회원 = 고객번호가 없는 판매. 객단가는 영수증 안에 고객번호가 하나라도 있으면 회원 영수증으로 셉니다.</li>
       <li>신규 가입 = 고객번호가 이번 달(F + 연월) 번호인 회원 수. 자료에서 처음 구매한 날·매장에 한 번만 셉니다. 가입만 하고 구매하지 않은 회원은 판매 자료에 없어서 빠집니다.</li>
       <li>주는 일요일부터 토요일까지입니다. 전주 대비는 전주의 같은 요일들과 비교하므로, 덜 끝난 주도 같은 날 수끼리 비교됩니다.</li>
@@ -491,6 +561,7 @@ window.FJ = (() => {
   const md = (s) => `${+s.slice(5, 7)}월 ${+s.slice(8, 10)}일`;
   const signed = (v) => v == null || !isFinite(v) ? '—' : (v >= 0 ? '+' : '') + (v * 100).toFixed(1) + '%';
   const tone = (v) => v == null || !isFinite(v) ? '' : v >= 0 ? 'fj-up' : 'fj-down';
+  const pp = (v) => v == null || !isFinite(v) ? '—' : (v >= 0 ? '+' : '') + (v * 100).toFixed(1) + '%p';
   const shiftDays = (s, n) => new Date(Date.parse(s + 'T00:00:00Z') + n * 864e5).toISOString().slice(0, 10);
   // 한 주의 시작 = 일요일
   const weekStart = (s) => shiftDays(s, -new Date(s + 'T00:00:00Z').getUTCDay());
@@ -588,7 +659,7 @@ window.FJ = (() => {
     tr.appendChild(td); tb.replaceChildren(tr);
   }
   function td(v, c) { const x = document.createElement('td'); x.textContent = v; x.className = c || ''; return x; }
-  return { won, wonShort, pct, int, dow, md, isWeekend, signed, tone, shiftDays, weekStart, retailer, notOk, empty, bars, hbars, rowsMsg, td };
+  return { won, wonShort, pct, int, dow, md, isWeekend, signed, tone, pp, shiftDays, weekStart, retailer, notOk, empty, bars, hbars, rowsMsg, td };
 })();
 </script>
 
@@ -818,6 +889,79 @@ dash.calc('retailers', {
       worst_store: worst ? worst.store : null, worst_code: worst ? worst.store_code : null, worst_net: worst ? worst.net : null, worst_wow: worst ? worst.wow : null,
       gap: worst && worst.net ? best.net / worst.net : null };
   }).sort((a, b) => b.net - a.net),
+});
+
+dash.calc('gender_weekly', {
+  inputs: ['gender_daily', 'store_daily'],
+  title: '주별 남성·여성 매출',
+  description: '선택한 유통 형태·매장의 주(일~토)별 남성/여성 순매출과 비중, 전주 같은 요일 대비 증감과 비중 변화',
+  fn: (genderDaily, storeDaily) => {
+    const codes = window.FJ.pick(storeDaily, dash.params());
+    const rows = genderDaily.filter((r) => codes.has(r.store_code));
+    const by = d3.rollup(rows, (v) => d3.sum(v, (r) => +r.net), (r) => r.date, (r) => r.gender);
+    const dates = Array.from(new Set(storeDaily.map((r) => r.date))).sort();
+    const all = new Set(dates);
+    const sumOf = (ds, g) => d3.sum(ds, (d) => (by.get(d) && by.get(d).get(g)) || 0);
+    const weeks = Array.from(new Set(dates.map(window.FJ.weekStart))).sort();
+    return weeks.map((w, i) => {
+      const ds = dates.filter((d) => window.FJ.weekStart(d) === w);
+      const prev = ds.map((d) => window.FJ.shiftDays(d, -7));
+      const hasPrev = prev.every((d) => all.has(d));
+      const man = sumOf(ds, '남성'), woman = sumOf(ds, '여성'), other = sumOf(ds, '구분 없음');
+      const pm = sumOf(prev, '남성'), pw = sumOf(prev, '여성'), po = sumOf(prev, '구분 없음');
+      const total = man + woman + other, ptotal = pm + pw + po;
+      return { week: `${i + 1}주차`, start: ds[0], end: ds[ds.length - 1], man, woman, other, total,
+        man_share: total ? man / total : null, woman_share: total ? woman / total : null,
+        man_wow: hasPrev && pm > 0 ? man / pm - 1 : null, woman_wow: hasPrev && pw > 0 ? woman / pw - 1 : null,
+        man_share_change: hasPrev && total && ptotal ? man / total - pm / ptotal : null,
+        woman_share_change: hasPrev && total && ptotal ? woman / total - pw / ptotal : null };
+    });
+  },
+});
+
+dash.calc('gender', {
+  inputs: ['gender_weekly'],
+  title: '남성·여성 매출 요약',
+  description: '기간 전체 남성/여성 순매출과 비중, 최근 주의 비중과 전주 대비 증감·비중 변화',
+  fn: (weeks) => {
+    if (!weeks.length) return [];
+    const man = d3.sum(weeks, (w) => w.man), woman = d3.sum(weeks, (w) => w.woman), other = d3.sum(weeks, (w) => w.other);
+    const total = man + woman + other, last = weeks[weeks.length - 1];
+    return [{ man, woman, other, man_share: total ? man / total : null, woman_share: total ? woman / total : null,
+      man_share_week: last.man_share, woman_share_week: last.woman_share,
+      man_wow: last.man_wow, woman_wow: last.woman_wow,
+      man_share_change: last.man_share_change, woman_share_change: last.woman_share_change }];
+  },
+});
+
+dash.calc('gender_stores', {
+  inputs: ['gender_daily', 'store_daily'],
+  title: '매장별 남성·여성 비중',
+  description: '선택한 유통 형태의 매장별 순매출, 남성/여성 비중, 최근 주 여성 비중과 전주 대비 변화, 남성/여성 전주 대비 증감 (순매출 순, 사용중지·순매출 0 이하 매장 제외)',
+  fn: (genderDaily, storeDaily) => {
+    const { type = '' } = dash.params();
+    const info = new Map(storeDaily.map((r) => [r.store_code, r]));
+    const dates = new Set(storeDaily.map((r) => r.date));
+    const last = d3.max(storeDaily, (r) => r.date);
+    const cur = new Set(Array.from(dates).filter((d) => d >= window.FJ.weekStart(last)));
+    const prevList = Array.from(cur).map((d) => window.FJ.shiftDays(d, -7));
+    const hasPrev = prevList.every((d) => dates.has(d));
+    const prev = new Set(prevList);
+    const rows = genderDaily.filter((r) => { const i = info.get(r.store_code); return i && (!type || i.type === type); });
+    return Array.from(d3.group(rows, (r) => r.store_code), ([store_code, v]) => {
+      const i = info.get(store_code);
+      const s = (f) => d3.sum(v.filter(f), (r) => +r.net);
+      const net = s(() => true), man = s((r) => r.gender === '남성'), woman = s((r) => r.gender === '여성');
+      const cw = s((r) => cur.has(r.date) && r.gender === '여성'), ct = s((r) => cur.has(r.date));
+      const pw = s((r) => prev.has(r.date) && r.gender === '여성'), pt = s((r) => prev.has(r.date));
+      const cm = s((r) => cur.has(r.date) && r.gender === '남성'), pm = s((r) => prev.has(r.date) && r.gender === '남성');
+      return { store_code, store: i.store, type: i.type, net,
+        man_share: net ? man / net : null, woman_share: net ? woman / net : null,
+        woman_share_week: ct > 0 ? cw / ct : null, woman_share_prev: hasPrev && pt > 0 ? pw / pt : null,
+        woman_share_change: hasPrev && ct > 0 && pt > 0 ? cw / ct - pw / pt : null,
+        man_wow: hasPrev && pm > 0 ? cm / pm - 1 : null, woman_wow: hasPrev && pw > 0 ? cw / pw - 1 : null };
+    }).filter((r) => r.net > 0 && !/사용중지/.test(r.store)).sort((a, b) => b.net - a.net);
+  },
 });
 
 dash.calc('type_mix', {
@@ -1346,6 +1490,88 @@ dash.draw('retailer-strip', (el) => {
       show(r);
     })
     .on('pointerleave', () => { t.hidden = true; dots.style('opacity', 1); });
+});
+
+// ── 남성·여성 ──
+const GEN = { 'g-man': 'won', 'g-woman': 'won', 'g-man_share': 'pct', 'g-woman_share': 'pct', 'g-man_share_week': 'pct', 'g-woman_share_week': 'pct',
+  'g-man_wow': 'signed', 'g-woman_wow': 'signed', 'g-man_share_change': 'pp', 'g-woman_share_change': 'pp' };
+Object.entries(GEN).forEach(([name, kind]) => dash.draw(name, (el) => {
+  const d = dash.data('gender');
+  if (d.status !== 'ok' || !d.data || !d.data.length) { el.textContent = '—'; el.className = ''; return; }
+  const v = d.data[0][name.slice(2)];
+  el.textContent = kind === 'won' ? FJ.won(v) : kind === 'pct' ? FJ.pct(v) : kind === 'pp' ? FJ.pp(v) : FJ.signed(v);
+  el.className = kind === 'signed' ? FJ.tone(v) : '';
+}));
+
+dash.draw('gender-legend', (el) => {
+  el.replaceChildren(...[['남성', 0], ['여성', 1]].map(([n, i]) => {
+    const it = document.createElement('span');
+    const sw = document.createElement('i'); sw.className = 'fj-sw'; sw.style.background = dash.colors[i];
+    it.append(sw, document.createTextNode(n));
+    return it;
+  }));
+});
+
+dash.draw('gender-weeks', (el) => {
+  const d = dash.data('gender_weekly');
+  if (FJ.notOk(el, d)) return;
+  if (!d.data.some((r) => r.total > 0)) return FJ.empty(el, '이 조건에 맞는 매출이 없습니다.');
+  const wrap = document.createElement('div'); wrap.className = 'fj-hbars'; wrap.setAttribute('role', 'list');
+  d.data.forEach((r) => {
+    const row = document.createElement('div'); row.className = 'fj-hbar'; row.setAttribute('role', 'listitem');
+    const name = document.createElement('span'); name.className = 'fj-hbar-name';
+    name.textContent = `${r.week} ${+r.start.slice(5, 7)}/${+r.start.slice(8, 10)}–${+r.end.slice(8, 10)}`;
+    const track = document.createElement('div'); track.className = 'fj-hbar-track'; track.style.display = 'flex'; track.style.height = '14px';
+    const m = document.createElement('div'); m.style.width = ((r.man_share || 0) * 100).toFixed(1) + '%'; m.style.background = dash.colors[0];
+    const w = document.createElement('div'); w.style.width = ((r.woman_share || 0) * 100).toFixed(1) + '%'; w.style.background = dash.colors[1];
+    track.append(m, w);
+    const val = document.createElement('span'); val.className = 'fj-hbar-val';
+    const b1 = document.createElement('b'); b1.textContent = `남성 ${FJ.pct(r.man_share)}`;
+    const b2 = document.createElement('b'); b2.textContent = `여성 ${FJ.pct(r.woman_share)}`;
+    val.append(b1, document.createTextNode(` (${FJ.won(r.man)}) · `), b2, document.createTextNode(` (${FJ.won(r.woman)})`));
+    row.append(name, track, val);
+    wrap.appendChild(row);
+  });
+  el.replaceChildren(wrap);
+});
+
+dash.draw('gender-week-rows', (tb) => {
+  const d = dash.data('gender_weekly');
+  if (d.status !== 'ok') return FJ.rowsMsg(tb, 9, d.status === 'error' ? '성별 데이터를 불러오지 못했습니다.' : '—');
+  tb.replaceChildren(...d.data.map((r) => {
+    const tr = document.createElement('tr');
+    tr.dataset.key = r.week;
+    const range = `${+r.start.slice(5, 7)}/${+r.start.slice(8, 10)}–${+r.end.slice(5, 7)}/${+r.end.slice(8, 10)}`;
+    tr.append(FJ.td(r.week), FJ.td(range, 'm'), FJ.td(FJ.won(r.man), 'n'), FJ.td(FJ.signed(r.man_wow), 'n ' + FJ.tone(r.man_wow)),
+      FJ.td(FJ.won(r.woman), 'n'), FJ.td(FJ.signed(r.woman_wow), 'n ' + FJ.tone(r.woman_wow)),
+      FJ.td(FJ.pct(r.man_share), 'n'), FJ.td(FJ.pct(r.woman_share), 'n'), FJ.td(FJ.pp(r.woman_share_change), 'n m'));
+    return tr;
+  }));
+});
+
+dash.draw('gender-store-rows', (tb) => {
+  const d = dash.data('gender_stores');
+  if (d.status !== 'ok') return FJ.rowsMsg(tb, 10, d.status === 'error' ? '성별 데이터를 불러오지 못했습니다.' : '—');
+  if (!d.data.length) return FJ.rowsMsg(tb, 10, '이 조건에 맞는 매장이 없습니다.');
+  const picked = dash.params().store || '';
+  tb.replaceChildren(...d.data.map((r) => {
+    const tr = document.createElement('tr');
+    tr.className = 'pick' + (r.store_code === picked ? ' is-picked' : '');
+    tr.dataset.key = r.store_code;
+    tr.tabIndex = 0;
+    const go = () => dash.setParams({ store: r.store_code === picked ? '' : r.store_code });
+    tr.addEventListener('click', go);
+    tr.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
+    const mixTd = document.createElement('td');
+    const mix = document.createElement('div'); mix.className = 'fj-mix';
+    const a = document.createElement('i'); a.style.width = ((r.man_share || 0) * 100).toFixed(1) + '%'; a.style.background = dash.colors[0];
+    const b = document.createElement('i'); b.style.width = ((r.woman_share || 0) * 100).toFixed(1) + '%'; b.style.background = dash.colors[1];
+    mix.append(a, b); mixTd.appendChild(mix);
+    tr.append(FJ.td(r.store), FJ.td(r.type, 'm'), FJ.td(FJ.won(r.net), 'n'), FJ.td(FJ.pct(r.man_share), 'n'), FJ.td(FJ.pct(r.woman_share), 'n'), mixTd,
+      FJ.td(FJ.pct(r.woman_share_week), 'n'), FJ.td(FJ.pp(r.woman_share_change), 'n m'),
+      FJ.td(FJ.signed(r.man_wow), 'n ' + FJ.tone(r.man_wow)), FJ.td(FJ.signed(r.woman_wow), 'n ' + FJ.tone(r.woman_wow)));
+    return tr;
+  }));
 });
 
 // ── 매장 ──
