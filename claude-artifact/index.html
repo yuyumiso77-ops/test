@@ -74,7 +74,7 @@
 .fj-rlist .cd { color: var(--color-fg-muted); font-size: 11px; }
 .fj-pivot .fj-cd { color: var(--color-fg-muted); font-size: 11px; }
 .fj-pivot td.is-pick, .fj-pivot th.is-pick { background: var(--color-panel); }
-.fj-pivot tr.fj-total td { font-weight: var(--cds-font-weight-medium); border-top: 1px solid var(--color-border-line); }
+.fj-table tr.fj-total td, .fj-pivot tr.fj-total td { font-weight: var(--cds-font-weight-medium); border-top: 1px solid var(--color-border-line); }
 .fj-rhead { font-size: var(--cds-font-size-caption); font-weight: var(--cds-font-weight-medium); }
 @media (max-width: 420px) { .fj-rcols { grid-template-columns: 1fr; } }
 .fj-link { appearance: none; border: 0; background: none; padding: 0; font: inherit; cursor: pointer; text-align: left; text-decoration: underline; text-decoration-color: color-mix(in srgb, currentColor 35%, transparent); text-underline-offset: 3px; }
@@ -87,6 +87,9 @@
 .fj-table .fj-cd { color: var(--color-fg-muted); font-size: 11px; }
 .fj-table .fj-cd.fj-up { color: var(--color-ok); }
 .fj-table .fj-cd.fj-down { color: var(--color-bad); }
+.fj-plan-list { margin: 0; padding-left: 1.4em; display: flex; flex-direction: column; gap: 6px; max-width: 80ch; line-height: 1.5; }
+.fj-plan-list b { font-weight: var(--cds-font-weight-medium); }
+.fj-note a, .fj-label a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
 .fj-foot { color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); }
 .fj-foot summary { cursor: pointer; }
 .fj-foot ul { margin: var(--cds-gap-sm) 0 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 4px; max-width: 78ch; }
@@ -168,6 +171,67 @@
     </div>
     <p class="fj-sub">실적 <b data-draw="fc-actual" data-source="forecast" data-field="actual" data-row="0">—</b> (<span data-draw="fc-done" data-source="forecast" data-field="days_done" data-row="0">—</span>일) · 남은 <span data-draw="fc-left" data-source="forecast" data-field="days_left" data-row="0">—</span>일 예상 <b data-draw="fc-rest" data-source="forecast" data-field="rest" data-row="0">—</b> · 예상 마감 대비 진행률 <b data-draw="fc-progress" data-source="forecast" data-field="progress" data-row="0">—</b></p>
     <div class="fj-chart" id="forecast-chart" data-draw="forecast-chart" data-source="forecast_daily"></div>
+  </section>
+
+  <section class="fj-section" id="plan">
+    <div class="fj-sec-title">
+      <h2>11월 잔여 기간 매출 증대 방안</h2>
+      <span class="fj-label">목표 70억원은 회사 목표를 받기 전에 정한 임시값입니다. 목표와 일별 계획은 전체 매장 기준이고, 예상·실적과 매장 그룹은 데이터가 바뀌면 함께 바뀝니다. 자세한 근거는 <a href="https://claude.ai/artifact/9QYirHpoTQ7KwZScsubM3R" target="_blank" rel="noopener">증대 방안 문서</a>에 있습니다.</span>
+    </div>
+    <p class="fj-note" data-draw="plan-filter-note" hidden>유통 형태나 매장을 고르면 목표 대비 숫자는 비워 둡니다. 목표는 전체 매장 기준입니다.</p>
+    <div class="fj-kpis">
+      <div class="fj-card" id="plan-target">
+        <span class="fj-label">11월 목표</span>
+        <span class="fj-big" data-draw="p-target" data-source="plan" data-field="target" data-row="0">—</span>
+        <span class="fj-sub">예상 마감 <b data-draw="p-projected" data-source="plan" data-field="projected" data-row="0">—</b></span>
+      </div>
+      <div class="fj-card" id="plan-gap">
+        <span class="fj-label">목표까지 더 필요한 매출</span>
+        <span class="fj-big" data-draw="p-gap" data-source="plan" data-field="gap" data-row="0">—</span>
+        <span class="fj-sub">남은 <b data-draw="p-days_left" data-source="plan" data-field="days_left" data-row="0">—</b>일 예상 대비 <b data-draw="p-lift" data-source="plan" data-field="lift" data-row="0">—</b></span>
+      </div>
+      <div class="fj-card" id="plan-need">
+        <span class="fj-label">필요한 하루 평균</span>
+        <span class="fj-big" data-draw="p-need_per_day" data-source="plan" data-field="need_per_day" data-row="0">—</span>
+        <span class="fj-sub">지금 예상 <b data-draw="p-est_per_day" data-source="plan" data-field="est_per_day" data-row="0">—</b></span>
+      </div>
+    </div>
+    <ol class="fj-plan-list">
+      <li><b>주말 3일(11/22·28·29) 집중</b>: 오후 2–6시(하루 매출의 약 절반)에 판매 인력을 모으고, 아울렛은 FW 1년차 20% 추가 할인을 크게 알립니다.</li>
+      <li><b>11/27(금) 블랙프라이데이 행사</b>: 목요일까지 회원 문자로 미리 알립니다.</li>
+      <li><b>회원 전환</b>: 회원 객단가가 비회원보다 높습니다. 계산대에서 가입을 권하고 다운 구매 마일리지 추가 적립을 다시 알립니다.</li>
+      <li><b>여성 아우터 회복</b>: 여성 다운·팬츠 베스트 상품 재고를 하락 매장으로 옮기고 매장 앞에 진열합니다.</li>
+      <li><b>객단가 올리기</b>: 다운·니트 구매 고객에게 팬츠·ACC(비니, 워머)를 함께 권합니다.</li>
+    </ol>
+    <div class="fj-sec-title"><span class="fj-label">남은 날 일별 목표 · 예상은 같은 요일의 11월 평균이고, 실적이 들어온 날은 실적으로 바뀝니다.</span></div>
+    <div class="fj-tablewrap">
+      <table class="fj-table" id="plan-day-table" data-source="plan_days" data-row-key="date">
+        <thead><tr>
+          <th data-field="date">날짜</th>
+          <th class="n" data-field="expected">예상·실적</th>
+          <th class="n" data-field="target">목표</th>
+          <th class="n" data-field="gap">실적 − 목표</th>
+          <th data-field="action">실행</th>
+        </tr></thead>
+        <tbody data-draw="plan-day-rows"></tbody>
+      </table>
+    </div>
+    <div class="fj-sec-title"><span class="fj-label">매장 그룹별 방안 · 최근 주 전주 대비로 나눴습니다. 줄을 누르면 그 매장만 봅니다.</span></div>
+    <div class="fj-rcards" data-draw="plan-group-notes" data-source="plan_stores"></div>
+    <div class="fj-tablewrap tall">
+      <table class="fj-table" id="plan-store-table" data-source="plan_stores" data-row-key="store_code">
+        <thead><tr>
+          <th data-field="group">그룹</th>
+          <th data-field="store">매장</th>
+          <th class="n" data-field="prev_week">전주</th>
+          <th class="n" data-field="week_net">최근 주</th>
+          <th class="n" data-field="wow">전주 대비</th>
+          <th class="n" data-field="target">9일 목표</th>
+          <th class="n" data-field="add">지금 속도보다 더</th>
+        </tr></thead>
+        <tbody data-draw="plan-store-rows"></tbody>
+      </table>
+    </div>
   </section>
 
   <section class="fj-section" id="weekly">
@@ -486,6 +550,7 @@
       <li>유통사는 매장 이름(롯데·현대·신세계·갤러리아·AK)으로 나누고, 백화점과 아울렛은 따로 묶었습니다. 사용중지 매장과 순매출이 0 이하인 매장은 베스트·워스트 비교에서 뺐습니다. 베스트는 유통사 안 매출 상위 5개, 워스트는 남은 매장 중 하위 5개입니다. 격차 = 1위 매출 ÷ 최하위 매출.</li>
       <li>상품 년도는 엑셀의 년도 열, 시즌은 시즌 열입니다 (Fall·Winter = FW, Spring·Summer = SS, Four Season·Seasonless = 시즌 구분 없음). 아이템별 베스트·워스트는 고른 년도·시즌 안에서 상품코드(색상·사이즈 합산) 순매출 기준이며, 베스트는 상위 5개, 워스트는 베스트에 들지 않은 하위 5개입니다. 순매출이 0 이하인 상품과 이 기간에 안 팔린 상품은 빠집니다.</li>
       <li>남성·여성은 엑셀 성별 열(Man / Woman)입니다. 성별이 비어 있는 판매(이 기간 75.8만원)는 "구분 없음"으로 두고 비중 계산의 전체 매출에만 넣었습니다. 비중 변화(%p)는 최근 주 비중에서 전주 같은 요일들의 비중을 뺀 값입니다.</li>
+      <li>증대 방안의 목표 70억원과 일별 목표는 임시로 정한 고정값입니다(회사 목표가 오면 바꿉니다). 매장 그룹은 최근 주 전주 대비로 매번 다시 나눕니다: A 회복 = 아울렛·순매출 8,000만원 이상·−15% 이하, B 급락 = 그 밖에 −30% 이하·순매출 2,000만원 이상, C 상승 = +10% 이상·순매출 3,000만원 이상.</li>
       <li>회원 = 고객번호가 있는 판매, 비회원 = 고객번호가 없는 판매. 객단가는 영수증 안에 고객번호가 하나라도 있으면 회원 영수증으로 셉니다.</li>
       <li>신규 가입 = 고객번호가 이번 달(F + 연월) 번호인 회원 수. 자료에서 처음 구매한 날·매장에 한 번만 셉니다. 가입만 하고 구매하지 않은 회원은 판매 자료에 없어서 빠집니다.</li>
       <li>주는 일요일부터 토요일까지입니다. 전주 대비는 전주의 같은 요일들과 비교하므로, 덜 끝난 주도 같은 날 수끼리 비교됩니다.</li>
@@ -979,6 +1044,71 @@ dash.calc('gender_stores', {
   },
 });
 
+// 증대 방안의 목표(사람이 정한 고정값): 11월 마감 70억원과 남은 날 하루 목표
+window.FJ.PLAN = {
+  target: 7e9,
+  days: [
+    { date: '2026-11-22', target: 4.30e8, action: '주말 행사 시작, A 회복 아울렛 인력 보강' },
+    { date: '2026-11-23', target: 1.35e8, action: '회원 문자: 주간 행사와 마일리지 적립 안내' },
+    { date: '2026-11-24', target: 1.70e8, action: '여성 다운·패딩 재고를 하락 매장으로 이동' },
+    { date: '2026-11-25', target: 1.90e8, action: '매장별 중간 점검' },
+    { date: '2026-11-26', target: 1.95e8, action: '블랙프라이데이 사전 안내, VMD 교체' },
+    { date: '2026-11-27', target: 2.70e8, action: '블랙프라이데이 당일 행사' },
+    { date: '2026-11-28', target: 3.60e8, action: '주말 행사 2차, 오후 2–6시 인력 집중' },
+    { date: '2026-11-29', target: 4.30e8, action: '주말 행사 2차, 구매 고객 회원 가입 전환' },
+    { date: '2026-11-30', target: 1.65e8, action: '월말 마감 행사, 마일리지 추가 적립 마감 안내' },
+  ],
+};
+
+dash.calc('plan', {
+  inputs: ['forecast'],
+  title: '11월 목표 대비',
+  description: '전체 매장 기준 11월 목표(70억원) 대비 예상 마감과 차이, 남은 날 필요한 하루 평균과 지금 예상되는 하루 평균. 유통 형태·매장을 고르면 목표가 없어 비워 둠',
+  fn: (fc) => {
+    const p = dash.params();
+    const f = fc && fc[0];
+    if (!f || p.type || p.store) return [];
+    const target = window.FJ.PLAN.target;
+    return [{ target, projected: f.projected, gap: target - f.projected, actual: f.actual, days_left: f.days_left,
+      need_per_day: f.days_left ? (target - f.actual) / f.days_left : null, est_per_day: f.days_left ? f.rest / f.days_left : null,
+      lift: f.rest ? (target - f.actual) / f.rest - 1 : null }];
+  },
+});
+
+dash.calc('plan_days', {
+  inputs: ['forecast_daily'],
+  title: '남은 날 일별 목표',
+  description: '이번 달 남은 날의 요일 평균 예상(또는 실적이 들어온 날은 실적)과 일별 목표, 실행 계획',
+  fn: (days) => window.FJ.PLAN.days.map((d) => {
+    const r = days.find((x) => x.date === d.date) || {};
+    return { date: d.date, kind: r.kind || '예상', expected: r.net ?? null, target: d.target, action: d.action,
+      gap: r.net != null ? r.net - d.target : null };
+  }),
+});
+
+dash.calc('plan_stores', {
+  inputs: ['stores'],
+  title: '매장 그룹별 증대 방안',
+  description: '최근 주 전주 대비로 매장을 나눔: A 회복(아울렛, 순매출 8,000만원 이상, −15% 이하), B 급락(그 밖에 −30% 이하, 순매출 2,000만원 이상), C 상승(+10% 이상, 순매출 3,000만원 이상). 9일 목표 = A·B는 전주 하루 평균 × 9일, C는 최근 주 하루 평균 × 9일',
+  fn: (stores) => {
+    const out = [];
+    stores.forEach((r) => {
+      if (r.wow == null || /사용중지/.test(r.store)) return;
+      const prev = r.week_net / (1 + r.wow);
+      let group = '';
+      if (r.type === '아울렛' && r.net >= 8e7 && r.wow <= -0.15) group = 'A 회복';
+      else if (r.wow <= -0.3 && r.net >= 2e7) group = 'B 급락';
+      else if (r.wow >= 0.1 && r.net >= 3e7) group = 'C 상승';
+      if (!group) return;
+      const target = (group === 'C 상승' ? r.week_net : prev) / 7 * 9;
+      out.push({ store_code: r.store_code, store: r.store, type: r.type, group, prev_week: prev, week_net: r.week_net, wow: r.wow,
+        target, add: group === 'C 상승' ? null : target - r.week_net / 7 * 9 });
+    });
+    const order = { 'A 회복': 0, 'B 급락': 1, 'C 상승': 2 };
+    return out.sort((a, b) => order[a.group] - order[b.group] || b.week_net - a.week_net);
+  },
+});
+
 dash.calc('type_mix', {
   inputs: ['store_daily'],
   title: '유통 형태별 매출',
@@ -1244,6 +1374,73 @@ dash.draw('forecast-chart', (el) => {
       t.style.left = Math.max(0, left) + 'px'; t.style.top = Math.max(0, y(r.cum) - 20) + 'px';
     })
     .on('pointerleave', () => { t.hidden = true; guide.style('opacity', 0); });
+});
+
+// ── 증대 방안 ──
+const PLN = { 'p-target': 'won', 'p-projected': 'won', 'p-gap': 'won', 'p-need_per_day': 'won', 'p-est_per_day': 'won', 'p-days_left': 'int', 'p-lift': 'signed' };
+Object.entries(PLN).forEach(([name, kind]) => dash.draw(name, (el) => {
+  const d = dash.data('plan');
+  if (d.status !== 'ok' || !d.data || !d.data.length) { el.textContent = '—'; return; }
+  const v = d.data[0][name.slice(2)];
+  el.textContent = kind === 'won' ? FJ.won(v) : kind === 'int' ? FJ.int(v) : FJ.signed(v);
+}));
+dash.draw('plan-filter-note', (el) => { const p = dash.params(); el.hidden = !(p.type || p.store); });
+
+dash.draw('plan-day-rows', (tb) => {
+  const d = dash.data('plan_days');
+  if (d.status !== 'ok') return FJ.rowsMsg(tb, 5, d.status === 'error' ? '데이터를 불러오지 못했습니다.' : '—');
+  const filtered = !!(dash.params().type || dash.params().store);
+  let te = 0, tt = 0;
+  const rows = d.data.map((r) => {
+    te += r.expected || 0; tt += r.target;
+    const tr = document.createElement('tr'); tr.dataset.key = r.date;
+    tr.append(FJ.td(`${FJ.md(r.date)} (${FJ.dow(r.date)})`), FJ.td(`${FJ.won(r.expected)} · ${r.kind}`, 'n'),
+      FJ.td(filtered ? '—' : FJ.won(r.target), 'n'),
+      FJ.td(r.kind === '실적' && !filtered ? FJ.won(r.gap) : '—', 'n ' + (r.kind === '실적' && !filtered ? FJ.tone(r.gap) : 'm')),
+      FJ.td(r.action, 'm'));
+    return tr;
+  });
+  const tot = document.createElement('tr'); tot.className = 'fj-total';
+  tot.append(FJ.td('합계'), FJ.td(FJ.won(te), 'n'), FJ.td(filtered ? '—' : FJ.won(tt), 'n'), FJ.td(''), FJ.td(''));
+  tb.replaceChildren(...rows, tot);
+});
+
+dash.draw('plan-group-notes', (el) => {
+  const d = dash.data('plan_stores');
+  if (FJ.notOk(el, d)) return;
+  const notes = [
+    ['A 회복', '대형 아울렛 하락점', '매출 규모가 커서 회복 효과가 가장 큽니다. 주말 인력, 추가 할인 안내, 다운·니트 재고를 먼저 배정합니다.'],
+    ['B 급락', '한 주에 30% 넘게 빠진 매장', '행사 종료, 결원, 재고 부족 같은 원인이 있는지 먼저 확인합니다.'],
+    ['C 상승', '오른 매장', '무엇이 통했는지 확인해 다른 매장에 적용하고, 품절이 나지 않게 재고를 우선 보냅니다.'],
+  ];
+  el.replaceChildren(...notes.map(([g, title, body]) => {
+    const rows = d.data.filter((r) => r.group === g);
+    const card = document.createElement('div'); card.className = 'fj-rcard';
+    const h = document.createElement('h3'); h.textContent = `${g} · ${title}`;
+    const sub = document.createElement('span'); sub.className = 'fj-sub';
+    sub.textContent = rows.length ? `${rows.length}개 매장 · 9일 목표 ${FJ.won(d3.sum(rows, (r) => r.target))}` + (g === 'C 상승' ? ' (최근 주 속도 유지)' : ` (지금 속도보다 ${FJ.won(d3.sum(rows, (r) => r.add))} 더)`) : '해당 매장 없음';
+    const p = document.createElement('p'); p.className = 'fj-note'; p.style.margin = '0'; p.textContent = body;
+    card.append(h, sub, p);
+    return card;
+  }));
+});
+
+dash.draw('plan-store-rows', (tb) => {
+  const d = dash.data('plan_stores');
+  if (d.status !== 'ok') return FJ.rowsMsg(tb, 7, d.status === 'error' ? '매장 데이터를 불러오지 못했습니다.' : '—');
+  if (!d.data.length) return FJ.rowsMsg(tb, 7, '이 조건에 맞는 매장이 없습니다.');
+  const picked = dash.params().store || '';
+  tb.replaceChildren(...d.data.map((r) => {
+    const tr = document.createElement('tr');
+    tr.className = 'pick' + (r.store_code === picked ? ' is-picked' : '');
+    tr.dataset.key = r.store_code; tr.tabIndex = 0;
+    const go = () => dash.setParams({ store: r.store_code === picked ? '' : r.store_code });
+    tr.addEventListener('click', go);
+    tr.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
+    tr.append(FJ.td(r.group, 'm'), FJ.td(r.store), FJ.td(FJ.won(r.prev_week), 'n'), FJ.td(FJ.won(r.week_net), 'n'),
+      FJ.td(FJ.signed(r.wow), 'n ' + FJ.tone(r.wow)), FJ.td(FJ.won(r.target), 'n'), FJ.td(r.add == null ? '유지' : FJ.won(r.add), r.add == null ? 'n m' : 'n'));
+    return tr;
+  }));
 });
 
 // ── 주별 ──
