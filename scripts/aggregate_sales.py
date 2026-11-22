@@ -17,10 +17,18 @@ sd = df.groupby(key).agg(sales=('sale_amt','sum'), returns=('ret_amt','sum'), ne
 sd.columns=['date','store_code','store','type','sales','returns','net','confirmed','qty','return_qty','tag','receipts']
 sd.to_csv(f'{out}/store_daily.csv', index=False)
 names = df.groupby('상품코드')['상품명'].agg(lambda s: s.str.strip().mode().iat[0])
+# 시즌 = 년도 끝 두 자리 + FW(Fall/Winter) / SS(Spring/Summer) / ALL(Four Season, Seasonless). 예: 2026 + Men's Winter → 26FW
+def season(row):
+    y = str(row['년도'] or '')[-2:]
+    s = str(row['시즌'] or '')
+    tag = 'FW' if ('Fall' in s or 'Winter' in s) else 'SS' if ('Spring' in s or 'Summer' in s) else 'ALL'
+    return y + tag
+seasons = df.drop_duplicates('상품코드').set_index('상품코드').apply(season, axis=1)
 ps = df.groupby(['매장코드','라인','아이템','성별','상품코드']).agg(qty=('판매수량','sum'), net=('판매금액','sum'), confirmed=('확정금액','sum')).reset_index()
 ps['product_name'] = ps['상품코드'].map(names)
-ps.columns=['store_code','line','item','gender','product_code','qty','net','confirmed','product_name']
-ps = ps[['store_code','line','item','gender','product_code','product_name','qty','net','confirmed']]
+ps['season'] = ps['상품코드'].map(seasons)
+ps.columns=['store_code','line','item','gender','product_code','qty','net','confirmed','product_name','season']
+ps = ps[['store_code','line','item','gender','product_code','product_name','season','qty','net','confirmed']]
 ps['gender']=ps['gender'].fillna('')
 ps.to_csv(f'{out}/product_store.csv', index=False)
 st = df.groupby(['매장코드','판매형태']).agg(net=('판매금액','sum'), qty=('판매수량','sum'), tag=('tag_amt','sum')).reset_index()
