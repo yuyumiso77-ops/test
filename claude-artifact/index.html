@@ -82,6 +82,9 @@
 .fj-link:focus-visible { outline: 2px solid var(--color-fg); outline-offset: 2px; }
 .fj-mix { display: flex; width: 90px; height: 8px; border-radius: 4px; overflow: hidden; background: var(--cds-chart-grid); }
 .fj-mix i { display: block; height: 100%; }
+.fj-share { display: flex; align-items: center; gap: 8px; justify-content: flex-end; }
+.fj-share i { display: block; height: 6px; border-radius: 3px; }
+.fj-table .fj-cd { color: var(--color-fg-muted); font-size: 11px; }
 .fj-foot { color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); }
 .fj-foot summary { cursor: pointer; }
 .fj-foot ul { margin: var(--cds-gap-sm) 0 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 4px; max-width: 78ch; }
@@ -280,6 +283,23 @@
           <th class="n" data-field="woman_share_change">여성 비중 변화</th>
         </tr></thead>
         <tbody data-draw="gender-week-rows"></tbody>
+      </table>
+    </div>
+    <div class="fj-sec-title">
+      <span class="fj-label">아이템별 · "남성 안 비중"은 남성 매출 중 그 아이템이 차지하는 몫, "아이템 안 남·여"는 그 아이템 매출을 남녀로 나눈 몫입니다.</span>
+    </div>
+    <div class="fj-tablewrap">
+      <table class="fj-table" id="gender-item-table" data-source="gender_items" data-row-key="item">
+        <thead><tr>
+          <th data-field="item">아이템</th>
+          <th class="n" data-field="man">남성 매출</th>
+          <th class="n" data-field="man_in">남성 안 비중</th>
+          <th class="n" data-field="woman">여성 매출</th>
+          <th class="n" data-field="woman_in">여성 안 비중</th>
+          <th>아이템 안 남·여</th>
+          <th class="n" data-field="woman_ratio">여성 비율</th>
+        </tr></thead>
+        <tbody data-draw="gender-item-rows"></tbody>
       </table>
     </div>
     <div class="fj-sec-title">
@@ -841,6 +861,26 @@ dash.calc('gender', {
       man_share_week: last.man_share, woman_share_week: last.woman_share,
       man_wow: last.man_wow, woman_wow: last.woman_wow,
       man_share_change: last.man_share_change, woman_share_change: last.woman_share_change }];
+  },
+});
+
+dash.calc('gender_items', {
+  inputs: ['product_store', 'store_daily'],
+  title: '남성·여성 아이템별 매출',
+  description: '선택한 유통 형태·매장에서 아이템별 남성/여성 순매출, 남성 매출 안·여성 매출 안에서 그 아이템의 비중, 아이템 안 남녀 비중 (아이템 순매출 순)',
+  fn: (productStore, storeDaily) => {
+    const codes = window.FJ.pick(storeDaily, dash.params());
+    const rows = productStore.filter((r) => codes.has(r.store_code));
+    const manAll = d3.sum(rows.filter((r) => r.gender === 'Man'), (r) => +r.net);
+    const womanAll = d3.sum(rows.filter((r) => r.gender === 'Woman'), (r) => +r.net);
+    return Array.from(d3.group(rows, (r) => r.item), ([item, v]) => {
+      const man = d3.sum(v.filter((r) => r.gender === 'Man'), (r) => +r.net);
+      const woman = d3.sum(v.filter((r) => r.gender === 'Woman'), (r) => +r.net);
+      const total = d3.sum(v, (r) => +r.net);
+      return { item, line: v[0].line, man, woman, total,
+        man_in: manAll ? man / manAll : null, woman_in: womanAll ? woman / womanAll : null,
+        man_ratio: man + woman > 0 ? man / (man + woman) : null, woman_ratio: man + woman > 0 ? woman / (man + woman) : null };
+    }).filter((r) => r.man !== 0 || r.woman !== 0).sort((a, b) => b.total - a.total);
   },
 });
 
@@ -1455,6 +1495,36 @@ dash.draw('gender-week-rows', (tb) => {
     tr.append(FJ.td(r.week), FJ.td(range, 'm'), FJ.td(FJ.won(r.man), 'n'), FJ.td(FJ.signed(r.man_wow), 'n ' + FJ.tone(r.man_wow)),
       FJ.td(FJ.won(r.woman), 'n'), FJ.td(FJ.signed(r.woman_wow), 'n ' + FJ.tone(r.woman_wow)),
       FJ.td(FJ.pct(r.man_share), 'n'), FJ.td(FJ.pct(r.woman_share), 'n'), FJ.td(FJ.pp(r.woman_share_change), 'n m'));
+    return tr;
+  }));
+});
+
+dash.draw('gender-item-rows', (tb) => {
+  const d = dash.data('gender_items');
+  if (d.status !== 'ok') return FJ.rowsMsg(tb, 7, d.status === 'error' ? '성별 데이터를 불러오지 못했습니다.' : '—');
+  if (!d.data.length) return FJ.rowsMsg(tb, 7, '이 조건에 맞는 매출이 없습니다.');
+  const maxIn = d3.max(d.data, (r) => Math.max(r.man_in || 0, r.woman_in || 0)) || 1;
+  const shareCell = (v, color) => {
+    const td = document.createElement('td'); td.className = 'n';
+    const box = document.createElement('div'); box.className = 'fj-share';
+    const bar = document.createElement('i'); bar.style.width = Math.max(0, Math.round((v || 0) / maxIn * 60)) + 'px'; bar.style.background = color;
+    const t = document.createElement('span'); t.textContent = FJ.pct(v);
+    box.append(bar, t); td.appendChild(box); return td;
+  };
+  tb.replaceChildren(...d.data.map((r) => {
+    const tr = document.createElement('tr');
+    tr.dataset.key = r.item;
+    const mixTd = document.createElement('td');
+    const mix = document.createElement('div'); mix.className = 'fj-mix';
+    const a = document.createElement('i'); a.style.width = ((r.man_ratio || 0) * 100).toFixed(1) + '%'; a.style.background = dash.colors[0];
+    const b = document.createElement('i'); b.style.width = ((r.woman_ratio || 0) * 100).toFixed(1) + '%'; b.style.background = dash.colors[1];
+    mix.append(a, b); mixTd.appendChild(mix);
+    const name = document.createElement('td');
+    const n1 = document.createElement('div'); n1.textContent = r.item;
+    const n2 = document.createElement('div'); n2.className = 'fj-cd'; n2.textContent = r.line;
+    name.append(n1, n2);
+    tr.append(name, FJ.td(FJ.won(r.man), 'n'), shareCell(r.man_in, dash.colors[0]), FJ.td(FJ.won(r.woman), 'n'), shareCell(r.woman_in, dash.colors[1]),
+      mixTd, FJ.td(FJ.pct(r.woman_ratio), 'n'));
     return tr;
   }));
 });
