@@ -85,6 +85,8 @@
 .fj-share { display: flex; align-items: center; gap: 8px; justify-content: flex-end; }
 .fj-share i { display: block; height: 6px; border-radius: 3px; }
 .fj-table .fj-cd { color: var(--color-fg-muted); font-size: 11px; }
+.fj-table .fj-cd.fj-up { color: var(--color-ok); }
+.fj-table .fj-cd.fj-down { color: var(--color-bad); }
 .fj-foot { color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); }
 .fj-foot summary { cursor: pointer; }
 .fj-foot ul { margin: var(--cds-gap-sm) 0 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 4px; max-width: 78ch; }
@@ -298,10 +300,26 @@
           <th class="n" data-field="woman_in">여성 안 비중</th>
           <th>아이템 안 남·여</th>
           <th class="n" data-field="woman_ratio">여성 비율</th>
+          <th class="n" data-field="man_wow">남성 전주 대비</th>
+          <th class="n" data-field="woman_wow">여성 전주 대비</th>
+          <th class="n" data-field="woman_ratio_change">여성 비율 변화</th>
         </tr></thead>
         <tbody data-draw="gender-item-rows"></tbody>
       </table>
     </div>
+    <div class="fj-sec-title">
+      <span class="fj-label">아이템별 주별 매출 · 각 칸 아래는 전주 같은 요일 대비, 마지막 열은 그 주 매출 안 아이템 비중과 전주보다 변한 정도입니다.</span>
+    </div>
+    <div class="fj-controls">
+      <label class="fj-ctl"><span class="fj-label">성별</span>
+        <select class="dash-select" id="gsel-select" aria-label="성별">
+          <option value="전체">남성+여성 전체</option>
+          <option value="남성">남성</option>
+          <option value="여성">여성</option>
+        </select>
+      </label>
+    </div>
+    <div class="fj-tablewrap" id="gender-item-weeks" data-draw="gender-item-weeks" data-source="gender_item_weekly"></div>
     <div class="fj-sec-title">
       <span class="fj-label">매장별 비중 · 순매출 순. 줄을 누르면 그 매장만 봅니다.</span>
     </div>
@@ -864,23 +882,70 @@ dash.calc('gender', {
   },
 });
 
+// 최근 주(일~토)와 전주의 같은 요일들
+window.FJ.recentWeeks = (storeDaily) => {
+  const dates = new Set(storeDaily.map((r) => r.date));
+  const last = d3.max(storeDaily, (r) => r.date);
+  const cur = Array.from(dates).filter((d) => d >= window.FJ.weekStart(last));
+  const prev = cur.map((d) => window.FJ.shiftDays(d, -7));
+  return { cur: new Set(cur), prev: new Set(prev), hasPrev: prev.every((d) => dates.has(d)) };
+};
+
 dash.calc('gender_items', {
-  inputs: ['product_store', 'store_daily'],
+  inputs: ['gender_item_daily', 'store_daily'],
   title: '남성·여성 아이템별 매출',
-  description: '선택한 유통 형태·매장에서 아이템별 남성/여성 순매출, 남성 매출 안·여성 매출 안에서 그 아이템의 비중, 아이템 안 남녀 비중 (아이템 순매출 순)',
-  fn: (productStore, storeDaily) => {
+  description: '선택한 유통 형태·매장에서 아이템별 남성/여성 순매출, 남성 매출 안·여성 매출 안 비중, 아이템 안 여성 비율, 최근 주 전주 대비 증감과 여성 비율 변화 (아이템 순매출 순)',
+  fn: (gid, storeDaily) => {
     const codes = window.FJ.pick(storeDaily, dash.params());
-    const rows = productStore.filter((r) => codes.has(r.store_code));
-    const manAll = d3.sum(rows.filter((r) => r.gender === 'Man'), (r) => +r.net);
-    const womanAll = d3.sum(rows.filter((r) => r.gender === 'Woman'), (r) => +r.net);
+    const { cur, prev, hasPrev } = window.FJ.recentWeeks(storeDaily);
+    const rows = gid.filter((r) => codes.has(r.store_code));
+    const sum = (v, f) => d3.sum(v.filter(f), (r) => +r.net);
+    const manAll = sum(rows, (r) => r.gender === '남성'), womanAll = sum(rows, (r) => r.gender === '여성');
     return Array.from(d3.group(rows, (r) => r.item), ([item, v]) => {
-      const man = d3.sum(v.filter((r) => r.gender === 'Man'), (r) => +r.net);
-      const woman = d3.sum(v.filter((r) => r.gender === 'Woman'), (r) => +r.net);
-      const total = d3.sum(v, (r) => +r.net);
-      return { item, line: v[0].line, man, woman, total,
+      const man = sum(v, (r) => r.gender === '남성'), woman = sum(v, (r) => r.gender === '여성');
+      const cm = sum(v, (r) => r.gender === '남성' && cur.has(r.date)), pm = sum(v, (r) => r.gender === '남성' && prev.has(r.date));
+      const cw = sum(v, (r) => r.gender === '여성' && cur.has(r.date)), pw = sum(v, (r) => r.gender === '여성' && prev.has(r.date));
+      return { item, line: v[0].line, man, woman, total: sum(v, () => true),
         man_in: manAll ? man / manAll : null, woman_in: womanAll ? woman / womanAll : null,
-        man_ratio: man + woman > 0 ? man / (man + woman) : null, woman_ratio: man + woman > 0 ? woman / (man + woman) : null };
+        man_ratio: man + woman > 0 ? man / (man + woman) : null, woman_ratio: man + woman > 0 ? woman / (man + woman) : null,
+        man_wow: hasPrev && pm > 0 ? cm / pm - 1 : null, woman_wow: hasPrev && pw > 0 ? cw / pw - 1 : null,
+        woman_ratio_change: hasPrev && cm + cw > 0 && pm + pw > 0 ? cw / (cm + cw) - pw / (pm + pw) : null };
     }).filter((r) => r.man !== 0 || r.woman !== 0).sort((a, b) => b.total - a.total);
+  },
+});
+
+dash.calc('gender_item_weekly', {
+  inputs: ['gender_item_daily', 'store_daily'],
+  title: '아이템별 주별 매출 (성별)',
+  description: '선택한 유통 형태·매장과 성별(전체/남성/여성)에서 아이템별 주(일~토) 순매출, 전주 같은 요일 대비, 그 주 안 아이템 비중과 비중 변화',
+  fn: (gid, storeDaily) => {
+    const p = dash.params();
+    const g = p.gsel || '전체';
+    const codes = window.FJ.pick(storeDaily, p);
+    const rows = gid.filter((r) => codes.has(r.store_code) && (g === '전체' || r.gender === g));
+    const dates = Array.from(new Set(storeDaily.map((r) => r.date))).sort();
+    const all = new Set(dates);
+    const by = d3.rollup(rows, (v) => d3.sum(v, (r) => +r.net), (r) => r.item, (r) => r.date);
+    const tot = d3.rollup(rows, (v) => d3.sum(v, (r) => +r.net), (r) => r.date);
+    const weeks = Array.from(new Set(dates.map(window.FJ.weekStart))).sort();
+    const out = [];
+    for (const [item, m] of by) {
+      const line = (rows.find((r) => r.item === item) || {}).line || '';
+      let prevShare = null;
+      weeks.forEach((w, i) => {
+        const ds = dates.filter((d) => window.FJ.weekStart(d) === w);
+        const pds = ds.map((d) => window.FJ.shiftDays(d, -7));
+        const hasPrev = pds.every((d) => all.has(d));
+        const net = d3.sum(ds, (d) => m.get(d) || 0), pnet = d3.sum(pds, (d) => m.get(d) || 0);
+        const total = d3.sum(ds, (d) => tot.get(d) || 0);
+        const share = total ? net / total : null;
+        out.push({ item, line, gender: g, week: `${i + 1}주차`, start: ds[0], end: ds[ds.length - 1], net,
+          wow: hasPrev && pnet > 0 ? net / pnet - 1 : null, share,
+          share_change: hasPrev && share != null && prevShare != null ? share - prevShare : null });
+        prevShare = share;
+      });
+    }
+    return out;
   },
 });
 
@@ -1050,11 +1115,13 @@ dash.calc('hours', {
 document.querySelectorAll('#type-select').forEach((s) => s.addEventListener('change', () => dash.setParams({ type: s.value, store: '' })));
 document.querySelectorAll('#clear-filters').forEach((b) => b.addEventListener('click', () => dash.setParams({ type: '', store: '' })));
 document.querySelectorAll('#pseason-select').forEach((s) => s.addEventListener('change', () => dash.setParams({ pseason: s.value })));
+document.querySelectorAll('#gsel-select').forEach((s) => s.addEventListener('change', () => dash.setParams({ gsel: s.value })));
 dash.onData(() => {
   const p = dash.params();
   document.querySelectorAll('#type-select').forEach((s) => { if (document.activeElement !== s) s.value = p.type || ''; });
   document.querySelectorAll('#clear-filters').forEach((b) => { b.hidden = !p.type && !p.store; });
   document.querySelectorAll('#pseason-select').forEach((s) => { if (document.activeElement !== s) s.value = p.pseason || ''; });
+  document.querySelectorAll('#gsel-select').forEach((s) => { if (document.activeElement !== s) s.value = p.gsel || '전체'; });
 });
 
 dash.draw('store-select', (sel) => {
@@ -1501,8 +1568,8 @@ dash.draw('gender-week-rows', (tb) => {
 
 dash.draw('gender-item-rows', (tb) => {
   const d = dash.data('gender_items');
-  if (d.status !== 'ok') return FJ.rowsMsg(tb, 7, d.status === 'error' ? '성별 데이터를 불러오지 못했습니다.' : '—');
-  if (!d.data.length) return FJ.rowsMsg(tb, 7, '이 조건에 맞는 매출이 없습니다.');
+  if (d.status !== 'ok') return FJ.rowsMsg(tb, 10, d.status === 'error' ? '성별 데이터를 불러오지 못했습니다.' : '—');
+  if (!d.data.length) return FJ.rowsMsg(tb, 10, '이 조건에 맞는 매출이 없습니다.');
   const maxIn = d3.max(d.data, (r) => Math.max(r.man_in || 0, r.woman_in || 0)) || 1;
   const shareCell = (v, color) => {
     const td = document.createElement('td'); td.className = 'n';
@@ -1524,9 +1591,49 @@ dash.draw('gender-item-rows', (tb) => {
     const n2 = document.createElement('div'); n2.className = 'fj-cd'; n2.textContent = r.line;
     name.append(n1, n2);
     tr.append(name, FJ.td(FJ.won(r.man), 'n'), shareCell(r.man_in, dash.colors[0]), FJ.td(FJ.won(r.woman), 'n'), shareCell(r.woman_in, dash.colors[1]),
-      mixTd, FJ.td(FJ.pct(r.woman_ratio), 'n'));
+      mixTd, FJ.td(FJ.pct(r.woman_ratio), 'n'),
+      FJ.td(FJ.signed(r.man_wow), 'n ' + FJ.tone(r.man_wow)), FJ.td(FJ.signed(r.woman_wow), 'n ' + FJ.tone(r.woman_wow)), FJ.td(FJ.pp(r.woman_ratio_change), 'n m'));
     return tr;
   }));
+});
+
+dash.draw('gender-item-weeks', (el) => {
+  const d = dash.data('gender_item_weekly');
+  if (FJ.notOk(el, d)) return;
+  if (!d.data.some((r) => r.net !== 0)) return FJ.empty(el, '이 조건에 맞는 매출이 없습니다.');
+  const weeks = Array.from(d3.group(d.data, (r) => r.week), ([w, v]) => ({ w, start: v[0].start, end: v[0].end }));
+  const items = Array.from(d3.rollup(d.data, (v) => ({ net: d3.sum(v, (r) => r.net), line: v[0].line }), (r) => r.item))
+    .filter(([, x]) => x.net !== 0).sort((a, b) => b[1].net - a[1].net);
+  const cell = new Map(d.data.map((r) => [r.item + '|' + r.week, r]));
+  const lastW = weeks[weeks.length - 1].w;
+  const table = document.createElement('table'); table.className = 'fj-table fj-pivot';
+  const th = (t, c) => { const x = document.createElement('th'); x.textContent = t; x.className = c || ''; return x; };
+  const hr = document.createElement('tr');
+  hr.append(th('아이템'), ...weeks.map((k) => th(`${k.w} ${+k.start.slice(5, 7)}/${+k.start.slice(8, 10)}–${+k.end.slice(8, 10)}`, 'n')), th('최근 주 비중', 'n'));
+  const thead = document.createElement('thead'); thead.appendChild(hr);
+  const tbody = document.createElement('tbody');
+  items.forEach(([item, x]) => {
+    const tr = document.createElement('tr');
+    const name = document.createElement('td');
+    const n1 = document.createElement('div'); n1.textContent = item;
+    const n2 = document.createElement('div'); n2.className = 'fj-cd'; n2.textContent = x.line;
+    name.append(n1, n2); tr.appendChild(name);
+    weeks.forEach((k) => {
+      const r = cell.get(item + '|' + k.w);
+      const td = document.createElement('td'); td.className = 'n';
+      const a = document.createElement('div'); a.textContent = r && r.net ? FJ.won(r.net) : '—';
+      const b = document.createElement('div'); b.className = 'fj-cd ' + FJ.tone(r && r.wow); b.textContent = r && r.wow != null ? FJ.signed(r.wow) : '';
+      td.append(a, b); tr.appendChild(td);
+    });
+    const lr = cell.get(item + '|' + lastW);
+    const td = document.createElement('td'); td.className = 'n';
+    const a = document.createElement('div'); a.textContent = FJ.pct(lr && lr.share);
+    const b = document.createElement('div'); b.className = 'fj-cd'; b.textContent = lr && lr.share_change != null ? FJ.pp(lr.share_change) : '';
+    td.append(a, b); tr.appendChild(td);
+    tbody.appendChild(tr);
+  });
+  table.append(thead, tbody);
+  el.replaceChildren(table);
 });
 
 dash.draw('gender-store-rows', (tb) => {
