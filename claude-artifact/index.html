@@ -56,6 +56,12 @@
 .fj-halo { paint-order: stroke; stroke: var(--color-bg); stroke-width: 4px; stroke-linejoin: round; }
 .fj-up { color: var(--color-ok); }
 .fj-down { color: var(--color-bad); }
+.fj-best { color: var(--color-ok); }
+.fj-worst { color: var(--color-bad); }
+.fj-strip-dot { cursor: default; }
+.fj-link { appearance: none; border: 0; background: none; padding: 0; font: inherit; cursor: pointer; text-align: left; text-decoration: underline; text-decoration-color: color-mix(in srgb, currentColor 35%, transparent); text-underline-offset: 3px; }
+.fj-link.is-on { font-weight: var(--cds-font-weight-medium); text-decoration-color: currentColor; }
+.fj-link:focus-visible { outline: 2px solid var(--color-fg); outline-offset: 2px; }
 .fj-foot { color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); }
 .fj-foot summary { cursor: pointer; }
 .fj-foot ul { margin: var(--cds-gap-sm) 0 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 4px; max-width: 78ch; }
@@ -237,6 +243,34 @@
     </div>
   </section>
 
+  <section class="fj-section" id="retailers">
+    <div class="fj-sec-title">
+      <h2>유통사별 베스트·워스트 매장</h2>
+      <span class="fj-label">순매출 기준. 같은 유통사라도 백화점과 아울렛은 따로 비교합니다. 매장 이름을 누르면 그 매장만 봅니다.</span>
+    </div>
+    <div class="fj-tablewrap">
+      <table class="fj-table" id="retailer-table" data-source="retailers" data-row-key="retailer">
+        <thead><tr>
+          <th data-field="retailer">유통사</th>
+          <th class="n" data-field="stores">매장 수</th>
+          <th class="n" data-field="net">순매출</th>
+          <th class="n" data-field="per_store">매장당 평균</th>
+          <th data-field="best_store">베스트 매장</th>
+          <th class="n" data-field="best_net">베스트 매출</th>
+          <th data-field="worst_store">워스트 매장</th>
+          <th class="n" data-field="worst_net">워스트 매출</th>
+          <th class="n" data-field="gap">격차</th>
+        </tr></thead>
+        <tbody data-draw="retailer-rows"></tbody>
+      </table>
+    </div>
+    <div class="fj-sec-title">
+      <span class="fj-label">유통사별 매장 매출 분포. 점 하나가 매장 하나입니다.</span>
+      <div class="fj-legend" data-draw="strip-legend"></div>
+    </div>
+    <div class="fj-chart" id="retailer-strip" data-draw="retailer-strip" data-source="retailer_stores"></div>
+  </section>
+
   <div class="fj-grid2">
     <section class="fj-section" id="types">
       <div class="fj-sec-title">
@@ -310,6 +344,7 @@
       <li>객단가 = 판매 줄의 판매금액 ÷ 판매 영수증 수 (영수증 = 일자·매장·판매번호가 같은 묶음).</li>
       <li>평균 할인율 = 1 − 순매출 ÷ (TAG가 × 수량).</li>
       <li>유통 형태는 매장코드 첫 글자로 나눴습니다: C 백화점, D 아울렛, B 가두점, A 기타.</li>
+      <li>유통사는 매장 이름(롯데·현대·신세계·갤러리아·AK)으로 나누고, 백화점과 아울렛은 따로 묶었습니다. 사용중지 매장과 순매출이 0 이하인 매장은 베스트·워스트 비교에서 뺐습니다. 격차 = 베스트 매출 ÷ 워스트 매출.</li>
       <li>회원 = 고객번호가 있는 판매, 비회원 = 고객번호가 없는 판매. 객단가는 영수증 안에 고객번호가 하나라도 있으면 회원 영수증으로 셉니다.</li>
       <li>신규 가입 = 고객번호가 이번 달(F + 연월) 번호인 회원 수. 자료에서 처음 구매한 날·매장에 한 번만 셉니다. 가입만 하고 구매하지 않은 회원은 판매 자료에 없어서 빠집니다.</li>
       <li>주는 일요일부터 토요일까지입니다. 전주 대비는 전주의 같은 요일들과 비교하므로, 덜 끝난 주도 같은 날 수끼리 비교됩니다.</li>
@@ -336,6 +371,13 @@ window.FJ = (() => {
   const shiftDays = (s, n) => new Date(Date.parse(s + 'T00:00:00Z') + n * 864e5).toISOString().slice(0, 10);
   // 한 주의 시작 = 일요일
   const weekStart = (s) => shiftDays(s, -new Date(s + 'T00:00:00Z').getUTCDay());
+  // 유통사 = 매장명의 롯데·현대·신세계·갤러리아·AK, 백화점과 아울렛은 따로
+  const retailer = (r) => {
+    const n = r.store || '';
+    const c = /롯데/.test(n) ? '롯데' : /현대/.test(n) ? '현대' : /신세계/.test(n) ? '신세계' : /갤러리아/.test(n) ? '갤러리아' : /AK/.test(n) ? 'AK플라자' : '';
+    if (c && (r.type === '백화점' || r.type === '아울렛')) return `${c} ${r.type}`;
+    return r.type === '가두점' ? '가두점' : '기타';
+  };
   function notOk(el, d) {
     if (d.status === 'ok') return false;
     const p = document.createElement('p');
@@ -423,7 +465,7 @@ window.FJ = (() => {
     tr.appendChild(td); tb.replaceChildren(tr);
   }
   function td(v, c) { const x = document.createElement('td'); x.textContent = v; x.className = c || ''; return x; }
-  return { won, wonShort, pct, int, dow, md, isWeekend, signed, tone, shiftDays, weekStart, notOk, empty, bars, hbars, rowsMsg, td };
+  return { won, wonShort, pct, int, dow, md, isWeekend, signed, tone, shiftDays, weekStart, retailer, notOk, empty, bars, hbars, rowsMsg, td };
 })();
 </script>
 
@@ -621,6 +663,36 @@ dash.calc('member_weekly', {
       return row;
     });
   },
+});
+
+dash.calc('retailer_stores', {
+  inputs: ['stores'],
+  title: '유통사별 매장 매출',
+  description: '선택한 유통 형태의 매장을 유통사(백화점/아울렛 구분)로 묶고 매출 순위를 매김. 사용중지 매장과 순매출 0 이하 매장은 뺌',
+  fn: (stores) => {
+    const active = stores.filter((r) => r.net > 0 && !/사용중지/.test(r.store));
+    const out = [];
+    for (const [retailer, v] of d3.group(active, window.FJ.retailer)) {
+      const sorted = v.slice().sort((a, b) => b.net - a.net);
+      sorted.forEach((r, i) => out.push({ retailer, store_code: r.store_code, store: r.store, net: r.net, wow: r.wow,
+        rank: i + 1, of: sorted.length, role: i === 0 ? 'best' : i === sorted.length - 1 ? 'worst' : '' }));
+    }
+    return out;
+  },
+});
+
+dash.calc('retailers', {
+  inputs: ['retailer_stores'],
+  title: '유통사별 베스트·워스트 매장',
+  description: '유통사별 매장 수, 순매출, 매장당 평균, 매출 1위(베스트)와 최하위(워스트) 매장, 그 차이 (순매출 순)',
+  fn: (rows) => Array.from(d3.group(rows, (r) => r.retailer), ([retailer, v]) => {
+    const best = v.find((r) => r.rank === 1), worst = v.length > 1 ? v.find((r) => r.rank === v.length) : null;
+    const net = d3.sum(v, (r) => r.net);
+    return { retailer, stores: v.length, net, per_store: net / v.length,
+      best_store: best.store, best_code: best.store_code, best_net: best.net, best_wow: best.wow,
+      worst_store: worst ? worst.store : null, worst_code: worst ? worst.store_code : null, worst_net: worst ? worst.net : null, worst_wow: worst ? worst.wow : null,
+      gap: worst && worst.net ? best.net / worst.net : null };
+  }).sort((a, b) => b.net - a.net),
 });
 
 dash.calc('type_mix', {
@@ -993,6 +1065,94 @@ dash.draw('member-week-rows', (tb) => {
       FJ.td(FJ.pct(r.member_share), 'n'), FJ.td(FJ.int(r.new_members) + '명', 'n'), FJ.td(FJ.signed(r.new_wow), 'n ' + FJ.tone(r.new_wow)));
     return tr;
   }));
+});
+
+// ── 유통사별 베스트·워스트 ──
+dash.draw('retailer-rows', (tb) => {
+  const d = dash.data('retailers');
+  if (d.status !== 'ok') return FJ.rowsMsg(tb, 9, d.status === 'error' ? '매장 데이터를 불러오지 못했습니다.' : '—');
+  if (!d.data.length) return FJ.rowsMsg(tb, 9, '이 조건에 맞는 매장이 없습니다.');
+  const picked = dash.params().store || '';
+  const storeCell = (name, code, cls) => {
+    const td = document.createElement('td');
+    if (!name) { td.textContent = '—'; td.className = 'm'; return td; }
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'fj-link ' + cls + (code === picked ? ' is-on' : ''); b.textContent = name;
+    b.addEventListener('click', () => dash.setParams({ store: code === picked ? '' : code }));
+    td.appendChild(b);
+    return td;
+  };
+  tb.replaceChildren(...d.data.map((r) => {
+    const tr = document.createElement('tr');
+    tr.dataset.key = r.retailer;
+    tr.append(FJ.td(r.retailer), FJ.td(FJ.int(r.stores), 'n'), FJ.td(FJ.won(r.net), 'n'), FJ.td(FJ.won(r.per_store), 'n'),
+      storeCell(r.best_store, r.best_code, 'fj-best'), FJ.td(FJ.won(r.best_net), 'n'),
+      storeCell(r.worst_store, r.worst_code, 'fj-worst'), FJ.td(r.worst_net == null ? '—' : FJ.won(r.worst_net), 'n'),
+      FJ.td(r.gap == null ? '—' : r.gap.toFixed(1) + '배', 'n m'));
+    return tr;
+  }));
+});
+
+dash.draw('strip-legend', (el) => {
+  el.replaceChildren(...[['베스트', 'var(--color-ok)'], ['워스트', 'var(--color-bad)'], ['그 밖의 매장', 'var(--cds-chart-muted)']].map(([n, c]) => {
+    const it = document.createElement('span');
+    const sw = document.createElement('i'); sw.className = 'fj-sw'; sw.style.background = c; sw.style.borderRadius = '50%';
+    it.append(sw, document.createTextNode(n));
+    return it;
+  }));
+});
+
+dash.draw('retailer-strip', (el) => {
+  const d = dash.data('retailer_stores'), order = dash.data('retailers');
+  if (FJ.notOk(el, d)) return;
+  if (!d.data.length) return FJ.empty(el, '이 조건에 맞는 매장이 없습니다.');
+  const groups = order.status === 'ok' ? order.data.map((r) => r.retailer) : Array.from(new Set(d.data.map((r) => r.retailer)));
+  const picked = dash.params().store || '';
+  el.replaceChildren();
+  const rowH = 34, W = el.clientWidth || 600, m = { t: 6, r: 16, b: 24, l: 90 };
+  const H = m.t + m.b + rowH * groups.length;
+  const svg = d3.select(el).append('svg').attr('width', '100%').attr('height', H).attr('viewBox', `0 0 ${W} ${H}`)
+    .attr('role', 'img').attr('aria-label', '유통사별 매장 순매출 분포. 베스트는 초록, 워스트는 빨강');
+  const names = svg.append('g').attr('class', 'fj-axis').selectAll('text').data(groups).join('text').text((g) => g).attr('dy', '0.32em');
+  m.l = Math.ceil(d3.max(names.nodes(), (n) => n.getComputedTextLength()) || 60) + 14;
+  const yb = d3.scaleBand().domain(groups).range([m.t, H - m.b]);
+  const cy = (g) => yb(g) + yb.bandwidth() / 2;
+  names.attr('x', 0).attr('y', cy);
+  const x = d3.scaleLinear().domain([0, d3.max(d.data, (r) => r.net) || 1]).nice().range([m.l, W - m.r]);
+  const ticks = x.ticks(Math.max(2, Math.floor((W - m.l) / 90)));
+  svg.insert('g', ':first-child').attr('class', 'fj-grid').selectAll('line').data(ticks).join('line')
+    .attr('x1', (v) => x(v)).attr('x2', (v) => x(v)).attr('y1', m.t).attr('y2', H - m.b);
+  svg.append('g').attr('class', 'fj-axis').selectAll('text').data(ticks).join('text')
+    .attr('x', (v) => x(v)).attr('y', H - 6).attr('text-anchor', 'middle').text(FJ.wonShort);
+  svg.append('g').selectAll('line').data(groups).join('line').attr('class', 'fj-base')
+    .attr('x1', m.l).attr('x2', W - m.r).attr('y1', cy).attr('y2', cy).style('opacity', 0.5);
+  const fill = (r) => r.role === 'best' ? 'var(--color-ok)' : r.role === 'worst' ? 'var(--color-bad)' : 'var(--cds-chart-muted)';
+  const dots = svg.append('g').selectAll('circle').data(d.data.slice().sort((a, b) => (a.role ? 1 : 0) - (b.role ? 1 : 0))).join('circle')
+    .attr('class', 'fj-strip-dot').attr('cx', (r) => x(r.net)).attr('cy', (r) => cy(r.retailer))
+    .attr('r', (r) => (r.role ? 6 : 4.5)).style('fill', fill)
+    .style('stroke', (r) => (r.store_code === picked ? 'var(--color-fg)' : 'var(--color-bg)')).style('stroke-width', (r) => (r.store_code === picked ? 2.5 : 1.5));
+  const t = document.createElement('div'); t.className = 'fj-tip'; t.hidden = true; el.appendChild(t);
+  const show = (r) => {
+    const lines = [[r.store], ['유통사', r.retailer], ['순매출', FJ.won(r.net)], ['유통사 내 순위', `${r.rank} / ${r.of}`], ['최근 주 전주 대비', FJ.signed(r.wow)]];
+    t.replaceChildren(...lines.map(([a, b], j) => { const row = document.createElement('div');
+      if (j === 0) { const s = document.createElement('b'); s.textContent = a; row.appendChild(s); return row; }
+      const s = document.createElement('span'); s.textContent = a + ' '; row.append(s, document.createTextNode(b)); return row; }));
+    t.hidden = false;
+    const px = x(r.net), w = t.offsetWidth;
+    let left = px + 12; if (left + w > W) left = px - 12 - w;
+    t.style.left = Math.max(0, left) + 'px'; t.style.top = Math.max(0, cy(r.retailer) - 20) + 'px';
+  };
+  svg.append('rect').attr('x', m.l - 8).attr('y', m.t).attr('width', W - m.l - m.r + 16).attr('height', H - m.t - m.b).style('fill', 'transparent')
+    .on('pointermove', (ev) => {
+      const [px, py] = d3.pointer(ev);
+      const g = groups[Math.max(0, Math.min(groups.length - 1, Math.floor((py - m.t) / yb.step())))];
+      const inRow = d.data.filter((r) => r.retailer === g);
+      const r = inRow[d3.minIndex(inRow, (q) => Math.abs(x(q.net) - px))];
+      if (!r) return;
+      dots.style('opacity', (q) => (q === r ? 1 : 0.55));
+      show(r);
+    })
+    .on('pointerleave', () => { t.hidden = true; dots.style('opacity', 1); });
 });
 
 // ── 매장 ──
