@@ -101,6 +101,7 @@
 .fj-target-bar { position: relative; height: 14px; border-radius: 7px; background: var(--cds-chart-grid); overflow: hidden; }
 .fj-target-bar i { position: absolute; top: 0; bottom: 0; left: 0; }
 .fj-table tr.fj-group td { background: var(--color-panel); font-size: var(--cds-font-size-caption); font-weight: var(--cds-font-weight-medium); color: var(--color-fg-muted); padding-top: 10px; }
+.fj-cat-head { grid-column: 1 / -1; margin: 8px 0 0; font-size: var(--cds-font-size-heading); font-weight: var(--cds-font-weight-medium); }
 .fj-foot { color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); }
 .fj-foot summary { cursor: pointer; }
 .fj-foot ul { margin: var(--cds-gap-sm) 0 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 4px; max-width: 78ch; }
@@ -281,7 +282,7 @@
     <div class="fj-grid2">
       <section class="fj-section"><div class="fj-sec-title"><h2>유통사별</h2><span class="fj-label">비중 · 전년 대비 · 전월 대비</span></div>
         <div class="fj-chart short" data-draw="mdet-retail" data-source="mdet_retail"></div></section>
-      <section class="fj-section"><div class="fj-sec-title"><h2>아이템별</h2><span class="fj-label">상위 12개 · 비중 · 전년 대비</span></div>
+      <section class="fj-section"><div class="fj-sec-title"><h2>카테고리·아이템별</h2><span class="fj-label">어패럴·슈즈·글로브별 상위 8개 · 비중 · 전년 대비</span></div>
         <div class="fj-chart short" data-draw="mdet-items" data-source="mdet_items"></div></section>
     </div>
     <div class="fj-grid2">
@@ -728,22 +729,13 @@
     </section>
   </div>
 
-  <div class="fj-grid2">
-    <section class="fj-section" id="lines">
-      <div class="fj-sec-title">
-        <h2>라인별 매출</h2>
-        <span class="fj-label">J line은 의류, Shoes는 골프화입니다.</span>
-      </div>
-      <div class="fj-chart short" id="line-chart" data-draw="lines" data-source="lines"></div>
-    </section>
-    <section class="fj-section" id="items">
-      <div class="fj-sec-title">
-        <h2>아이템별 매출</h2>
-        <span class="fj-label">상위 10개 아이템</span>
-      </div>
-      <div class="fj-chart short" id="item-chart" data-draw="items" data-source="items"></div>
-    </section>
-  </div>
+  <section class="fj-section" id="categories">
+    <div class="fj-sec-title">
+      <h2>카테고리별 매출 · 어패럴 / 슈즈 / 글로브</h2>
+      <span class="fj-label">카테고리 합계 아래에 아이템별 매출을 봅니다. 전년 대비는 작년 같은 날짜, 전주 대비는 최근 주와 전주의 같은 요일들을 비교합니다. 슈즈는 Shoes·S(임시) 라인, 글로브는 Glove 라인, 어패럴은 J line(ACC 포함)과 양말입니다.</span>
+    </div>
+    <div class="fj-rcards" data-draw="cat-cards" data-source="cat_items"></div>
+  </section>
 
   <section class="fj-section" id="products">
     <div class="fj-sec-title">
@@ -769,7 +761,7 @@
 
   <section class="fj-section" id="year-items">
     <div class="fj-sec-title">
-      <h2>상품 년도별 아이템 매출</h2>
+      <h2>상품 년도별 카테고리·아이템 매출</h2>
       <span class="fj-label">판매는 모두 이 기간이고, 년도는 상품의 년도(엑셀 년도 열)입니다. 각 칸은 순매출이고, 아래 작은 글씨는 그 아이템 안 비중입니다.</span>
     </div>
     <div class="fj-tablewrap" id="year-item-table" data-draw="year-item-table" data-source="year_item"></div>
@@ -777,7 +769,7 @@
 
   <section class="fj-section" id="product-ranks">
     <div class="fj-sec-title">
-      <h2>아이템별 베스트 5·워스트 5 상품</h2>
+      <h2>카테고리·아이템별 베스트 5·워스트 5 상품</h2>
       <span class="fj-label">고른 상품 년도·시즌 안에서 상품코드 기준 순매출(색상·사이즈 합산)로 순위를 매깁니다. 워스트는 베스트에 들지 않은 하위 5개입니다. 이 기간에 팔린 상품만 넣고, 순매출이 0 이하인 상품은 뺐습니다.</span>
     </div>
     <div class="fj-controls">
@@ -952,6 +944,11 @@ window.FJ = (() => {
   }
   function td(v, c) { const x = document.createElement('td'); x.textContent = v; x.className = c || ''; return x; }
   // 유통사 순서: 백화점(롯데·현대·신세계·갤러리아·AK) → 아울렛(롯데·현대·신세계) → 가두점 → 기타
+  // 상품 카테고리: 라인으로 나눔 (Shoes·S(임시) = 슈즈, Glove = 글로브, J line·Socks = 어패럴)
+  const CAT_ORDER = ['어패럴', '슈즈', '글로브', '기타'];
+  const cat = (line) => (line === 'Shoes' || line === 'S(임시)' ? '슈즈' : line === 'Glove' ? '글로브' : line === 'J line' || line === 'Socks' ? '어패럴' : '기타');
+  const ik = (r) => `${cat(r.line)}·${r.item}`; // 카테고리·아이템 (같은 아이템 이름이 다른 카테고리에 있어도 나뉨)
+  const catRank = (c) => { const i = CAT_ORDER.indexOf(c); return i < 0 ? 9 : i; };
   const TYPE_ORDER = ['백화점', '아울렛', '가두점', '기타'], RET_ORDER = ['롯데', '현대', '신세계', '갤러리아', 'AK플라자'];
   const retailerRank = (r) => {
     const t = TYPE_ORDER.indexOf(r.type), n = retailer(r).split(' ')[0], k = RET_ORDER.indexOf(n);
@@ -976,7 +973,24 @@ window.FJ = (() => {
     });
     tb.replaceChildren(...out);
   }
-  return { won, wonShort, pct, int, dow, md, isWeekend, signed, tone, pp, sameDateLY, sameDayLY, compact, retailerRank, groupTbody, shiftDays, weekStart, retailer, notOk, empty, bars, hbars, rowsMsg, td };
+  // 이미 그려진 표 줄(tr, data-key = 카테고리·아이템)을 카테고리별로 묶고 소제목 줄을 넣음
+  function groupCatTbody(tb, rows, cols, valKey = 'net') {
+    const byKey = new Map(rows.map((r) => [r.key, r]));
+    const trs = Array.from(tb.children).filter((tr) => tr.dataset && byKey.has(tr.dataset.key));
+    if (!trs.length) return;
+    const total = d3.sum(trs, (tr) => +byKey.get(tr.dataset.key)[valKey] || 0);
+    const groups = Array.from(d3.group(trs, (tr) => byKey.get(tr.dataset.key).cat), ([c, list]) => ({ c, list, sum: d3.sum(list, (tr) => +byKey.get(tr.dataset.key)[valKey] || 0) }))
+      .sort((a, b) => catRank(a.c) - catRank(b.c));
+    const out = [];
+    groups.forEach((g) => {
+      const h = document.createElement('tr'); h.className = 'fj-group';
+      const td = document.createElement('td'); td.colSpan = cols;
+      td.textContent = `${g.c} · ${won(g.sum)}` + (total ? ` (${pct(g.sum / total)})` : '');
+      h.appendChild(td); out.push(h, ...g.list);
+    });
+    tb.replaceChildren(...out);
+  }
+  return { groupCatTbody, won, wonShort, pct, int, dow, md, isWeekend, signed, tone, pp, sameDateLY, sameDayLY, compact, retailerRank, groupTbody, cat, ik, catRank, CAT_ORDER, shiftDays, weekStart, retailer, notOk, empty, bars, hbars, rowsMsg, td };
 })();
 </script>
 
@@ -1273,11 +1287,12 @@ dash.calc('gender_items', {
     const rows = gid.filter((r) => codes.has(r.store_code));
     const sum = (v, f) => d3.sum(v.filter(f), (r) => +r.net);
     const manAll = sum(rows, (r) => r.gender === '남성'), womanAll = sum(rows, (r) => r.gender === '여성');
-    return Array.from(d3.group(rows, (r) => r.item), ([item, v]) => {
+    return Array.from(d3.group(rows, window.FJ.ik), ([key, v]) => {
+      const [cat, item] = key.split('·');
       const man = sum(v, (r) => r.gender === '남성'), woman = sum(v, (r) => r.gender === '여성');
       const cm = sum(v, (r) => r.gender === '남성' && cur.has(r.date)), pm = sum(v, (r) => r.gender === '남성' && prev.has(r.date));
       const cw = sum(v, (r) => r.gender === '여성' && cur.has(r.date)), pw = sum(v, (r) => r.gender === '여성' && prev.has(r.date));
-      return { item, line: v[0].line, man, woman, total: sum(v, () => true),
+      return { key, cat, item, line: v[0].line, man, woman, total: sum(v, () => true),
         man_in: manAll ? man / manAll : null, woman_in: womanAll ? woman / womanAll : null,
         man_ratio: man + woman > 0 ? man / (man + woman) : null, woman_ratio: man + woman > 0 ? woman / (man + woman) : null,
         man_wow: hasPrev && pm > 0 ? cm / pm - 1 : null, woman_wow: hasPrev && pw > 0 ? cw / pw - 1 : null,
@@ -1297,12 +1312,13 @@ dash.calc('gender_item_weekly', {
     const rows = gid.filter((r) => codes.has(r.store_code) && (g === '전체' || r.gender === g));
     const dates = Array.from(new Set(storeDaily.map((r) => r.date))).sort();
     const all = new Set(dates);
-    const by = d3.rollup(rows, (v) => d3.sum(v, (r) => +r.net), (r) => r.item, (r) => r.date);
+    const by = d3.rollup(rows, (v) => d3.sum(v, (r) => +r.net), window.FJ.ik, (r) => r.date);
     const tot = d3.rollup(rows, (v) => d3.sum(v, (r) => +r.net), (r) => r.date);
     const weeks = Array.from(new Set(dates.map(window.FJ.weekStart))).sort();
     const out = [];
-    for (const [item, m] of by) {
-      const line = (rows.find((r) => r.item === item) || {}).line || '';
+    for (const [key, m] of by) {
+      const [cat, item] = key.split('·');
+      const line = (rows.find((r) => window.FJ.ik(r) === key) || {}).line || '';
       let prevShare = null;
       weeks.forEach((w, i) => {
         const ds = dates.filter((d) => window.FJ.weekStart(d) === w);
@@ -1311,7 +1327,7 @@ dash.calc('gender_item_weekly', {
         const net = d3.sum(ds, (d) => m.get(d) || 0), pnet = d3.sum(pds, (d) => m.get(d) || 0);
         const total = d3.sum(ds, (d) => tot.get(d) || 0);
         const share = total ? net / total : null;
-        out.push({ item, line, gender: g, week: `${i + 1}주차`, start: ds[0], end: ds[ds.length - 1], net,
+        out.push({ key, cat, item, line, gender: g, week: `${i + 1}주차`, start: ds[0], end: ds[ds.length - 1], net,
           wow: hasPrev && pnet > 0 ? net / pnet - 1 : null, share,
           share_change: hasPrev && share != null && prevShare != null ? share - prevShare : null });
         prevShare = share;
@@ -1474,7 +1490,7 @@ dash.calc('gender_ly', {
       out.push({ gender, item, net: n, ly_net: l, yoy: l > 0 ? n / l - 1 : null });
     };
     ['남성', '여성'].forEach((g) => push(g, '전체', (r) => r.gender === g));
-    Array.from(new Set(cur.map((r) => r.item))).forEach((it) => push('전체', it, (r) => r.item === it));
+    Array.from(new Set(cur.map(window.FJ.ik))).forEach((it) => push('전체', it, (r) => window.FJ.ik(r) === it));
     return out;
   },
 });
@@ -1673,17 +1689,18 @@ dash.calc('item_month', {
     const hist = mi.filter((r) => r.month !== curMonth && window.FJ.mf(r, p) && (g === '전체' || r.gender === g));
     const cur = gid.filter((r) => codes.has(r.store_code) && (g === '전체' || r.gender === g)).map((r) => ({ ...r, month: r.date.slice(0, 7) }));
     const out = [];
-    for (const [k, v] of d3.group(hist.concat(cur), (r) => `${r.item}|${r.month}`)) {
-      const [item, month] = k.split('|');
-      out.push({ item, line: v[0].line, month, net: d3.sum(v, (r) => +r.net) });
+    for (const [k, v] of d3.group(hist.concat(cur), (r) => `${window.FJ.ik(r)}|${r.month}`)) {
+      const [key, month] = k.split('|'), [cat, item] = key.split('·');
+      out.push({ key, cat, item, line: v[0].line, month, net: d3.sum(v, (r) => +r.net) });
     }
     const lyCut = window.FJ.sameDateLY(d3.max(storeDaily, (r) => r.date)), lyCurM = lyCut.slice(0, 7);
     const lyCodes = window.FJ.lyPick(lyStore, p);
     const lyFull = lyMi.filter((r) => r.month.startsWith(lyCut.slice(0, 4)) && r.month < lyCurM && window.FJ.mf(r, p) && (g === '전체' || r.gender === g));
     const lyPart = lyGid.filter((r) => r.date.startsWith(lyCurM) && r.date <= lyCut && lyCodes.has(r.store_code) && (g === '전체' || r.gender === g));
-    const items = new Set(out.map((r) => r.item));
-    for (const [item, v] of d3.group(lyFull.concat(lyPart), (r) => r.item)) {
-      if (items.has(item)) out.push({ item, line: v[0].line, month: 'LY', net: d3.sum(v, (r) => +r.net) });
+    const items = new Set(out.map((r) => r.key));
+    for (const [key, v] of d3.group(lyFull.concat(lyPart), window.FJ.ik)) {
+      const [cat, item] = key.split('·');
+      if (items.has(key)) out.push({ key, cat, item, line: v[0].line, month: 'LY', net: d3.sum(v, (r) => +r.net) });
     }
     return out;
   },
@@ -1776,7 +1793,7 @@ dash.calc('annual_stores', {
 dash.calc('annual_mix', {
   inputs: ['month_item', 'ly_month_item', 'month_saletype', 'ly_month_saletype', 'store_daily'],
   title: '상품 구성 연간',
-  description: '다 끝난 달(1월~지난달)의 라인·아이템·성별·판매형태별 순매출과 비중을 올해와 작년 같은 달끼리 비교',
+  description: '다 끝난 달(1월~지난달)의 카테고리(어패럴·슈즈·글로브)·아이템·성별·판매형태별 순매출과 비중을 올해와 작년 같은 달끼리 비교',
   fn: (mi, lyMi, ms, lyMs, storeDaily) => {
     const p = dash.params();
     const cm = window.FJ.curMonthOf(storeDaily), y = cm.slice(0, 4), ly0 = String(+y - 1);
@@ -1790,8 +1807,8 @@ dash.calc('annual_mix', {
       const tt = d3.sum(t.values()), lt = d3.sum(l.values());
       for (const [k, net] of t) { const ln = l.get(k) || 0; out.push({ dim, key: k, net, share: tt ? net / tt : null, ly_net: ln, ly_share: lt ? ln / lt : null, yoy: ln > 0 ? net / ln - 1 : null }); }
     };
-    add('라인', tyI, lyI, (r) => r.line);
-    add('아이템', tyI, lyI, (r) => r.item);
+    add('카테고리', tyI, lyI, (r) => window.FJ.cat(r.line));
+    add('아이템', tyI, lyI, window.FJ.ik);
     add('성별', tyI, lyI, (r) => r.gender);
     add('판매형태', tyS, lyS, (r) => r.sale_type);
     const months = Array.from(new Set(tyI.map((r) => r.month))).sort();
@@ -1936,14 +1953,14 @@ dash.calc('mdet_retail', {
 dash.calc('mdet_items', {
   inputs: ['month_item', 'ly_month_item', 'gender_item_daily', 'hist_store_daily', 'store_daily'],
   title: '월 상세 아이템별',
-  description: '고른 달의 아이템별 순매출, 비중, 작년 같은 달 대비 (상위 12개)',
+  description: '고른 달의 카테고리(어패럴·슈즈·글로브)·아이템별 순매출, 비중, 작년 같은 달 대비',
   fn: (mi, lyMi, gid, hist, cur) => {
     const p = dash.params(), m = window.FJ.selMonth(cur, hist), lyM = (+m.slice(0, 4) - 1) + m.slice(4), f = (r) => window.FJ.mf(r, p);
     const rows = m === window.FJ.curMonthOf(cur) ? gid.filter((r) => window.FJ.pick(cur, p).has(r.store_code)) : mi.filter((r) => r.month === m && f(r));
-    const t = d3.rollup(rows, (v) => d3.sum(v, (r) => +r.net), (r) => r.item), l = d3.rollup(lyMi.filter((r) => r.month === lyM && f(r)), (v) => d3.sum(v, (r) => +r.net), (r) => r.item);
+    const t = d3.rollup(rows, (v) => d3.sum(v, (r) => +r.net), window.FJ.ik), l = d3.rollup(lyMi.filter((r) => r.month === lyM && f(r)), (v) => d3.sum(v, (r) => +r.net), window.FJ.ik);
     const total = d3.sum(t.values());
-    return Array.from(t, ([item, net]) => ({ item, net, share: total ? net / total : null, yoy: l.get(item) > 0 ? net / l.get(item) - 1 : null }))
-      .sort((a, b) => b.net - a.net).slice(0, 12);
+    return Array.from(t, ([key, net]) => { const [cat, item] = key.split('·'); return { key, cat, item, net, share: total ? net / total : null, yoy: l.get(key) > 0 ? net / l.get(key) - 1 : null }; })
+      .filter((r) => r.net !== 0).sort((a, b) => window.FJ.catRank(a.cat) - window.FJ.catRank(b.cat) || b.net - a.net);
   },
 });
 
@@ -2021,9 +2038,9 @@ dash.calc('brief_items', {
     const codes = window.FJ.pick(cur, dash.params());
     const last = d3.max(cur, (r) => r.date), lw = window.FJ.shiftDays(last, -7);
     const rows = gid.filter((r) => codes.has(r.store_code));
-    const t = d3.rollup(rows.filter((r) => r.date === last), (v) => d3.sum(v, (r) => +r.net), (r) => r.item);
-    const b = d3.rollup(rows.filter((r) => r.date === lw), (v) => d3.sum(v, (r) => +r.net), (r) => r.item);
-    return Array.from(t, ([item, net]) => ({ item, net, wow: b.get(item) > 0 ? net / b.get(item) - 1 : null })).sort((a, b2) => b2.net - a.net);
+    const t = d3.rollup(rows.filter((r) => r.date === last), (v) => d3.sum(v, (r) => +r.net), window.FJ.ik);
+    const b = d3.rollup(rows.filter((r) => r.date === lw), (v) => d3.sum(v, (r) => +r.net), window.FJ.ik);
+    return Array.from(t, ([key, net]) => { const [cat, it] = key.split('·'); return { key, cat, item: `${it} (${cat})`, net, wow: b.get(key) > 0 ? net / b.get(key) - 1 : null }; }).sort((a, b2) => b2.net - a.net);
   },
 });
 
@@ -2066,6 +2083,33 @@ dash.calc('target_progress', {
       return { level: r.level, key: r.key, name, target, net, rate: target ? net / target : null, proj, proj_rate: target ? proj / target : null,
         need_per_day: left > 0 ? Math.max(0, target - net) / left : null };
     });
+  },
+});
+
+dash.calc('cat_items', {
+  inputs: ['gender_item_daily', 'ly_gender_item_daily', 'store_daily', 'ly_store_daily'],
+  title: '카테고리·아이템별 매출',
+  description: '선택한 유통 형태·매장의 카테고리(어패럴·슈즈·글로브)와 그 안 아이템별 순매출, 수량, 비중, 작년 같은 날짜 대비, 최근 주의 전주 같은 요일 대비',
+  fn: (gid, lyGid, storeDaily, lyStore) => {
+    const p = dash.params();
+    const codes = window.FJ.pick(storeDaily, p), lyCodes = window.FJ.lyPick(lyStore, p);
+    const a = window.FJ.sameDateLY(d3.min(storeDaily, (r) => r.date)), b = window.FJ.sameDateLY(d3.max(storeDaily, (r) => r.date));
+    const { cur, prev, hasPrev } = window.FJ.recentWeeks(storeDaily);
+    const rows = gid.filter((r) => codes.has(r.store_code));
+    const lyRows = lyGid.filter((r) => lyCodes.has(r.store_code) && r.date >= a && r.date <= b);
+    const sum = (v, f) => d3.sum(f ? v.filter(f) : v, (r) => +r.net);
+    const total = sum(rows);
+    const lyBy = d3.rollup(lyRows, (v) => d3.sum(v, (r) => +r.net), window.FJ.ik), lyCat = d3.rollup(lyRows, (v) => d3.sum(v, (r) => +r.net), (r) => window.FJ.cat(r.line));
+    const catInfo = new Map(Array.from(d3.group(rows, (r) => window.FJ.cat(r.line)), ([c, v]) => {
+      const net = sum(v), wk = sum(v, (r) => cur.has(r.date)), pw = sum(v, (r) => prev.has(r.date)), l = lyCat.get(c) || 0;
+      return [c, { cat_net: net, cat_share: total ? net / total : null, cat_yoy: l > 0 ? net / l - 1 : null, cat_wow: hasPrev && pw > 0 ? wk / pw - 1 : null }];
+    }));
+    return Array.from(d3.group(rows, window.FJ.ik), ([key, v]) => {
+      const [cat, item] = key.split('·');
+      const net = sum(v), wk = sum(v, (r) => cur.has(r.date)), pw = sum(v, (r) => prev.has(r.date)), l = lyBy.get(key) || 0, ci = catInfo.get(cat);
+      return { key, cat, item, net, qty: d3.sum(v, (r) => +r.qty), share_in_cat: ci.cat_net ? net / ci.cat_net : null,
+        yoy: l > 0 ? net / l - 1 : null, wow: hasPrev && pw > 0 ? wk / pw - 1 : null, ...ci };
+    }).filter((r) => r.net !== 0).sort((x, y) => window.FJ.catRank(x.cat) - window.FJ.catRank(y.cat) || y.net - x.net);
   },
 });
 
@@ -2148,9 +2192,10 @@ dash.calc('year_item', {
     const codes = window.FJ.pick(storeDaily, dash.params());
     const rows = productStore.filter((r) => codes.has(r.store_code));
     const out = [];
-    for (const [item, v] of d3.group(rows, (r) => r.item)) {
+    for (const [key, v] of d3.group(rows, window.FJ.ik)) {
+      const [cat, item] = key.split('·');
       for (const [year, w] of d3.group(v, (r) => { const yy = String(r.season).slice(0, 2); return /^\d\d$/.test(yy) ? '20' + yy : '년도 없음'; })) {
-        out.push({ item, line: w[0].line, year, net: d3.sum(w, (r) => +r.net), qty: d3.sum(w, (r) => +r.qty) });
+        out.push({ key, cat, item, line: w[0].line, year, net: d3.sum(w, (r) => +r.net), qty: d3.sum(w, (r) => +r.qty) });
       }
     }
     return out;
@@ -2173,14 +2218,15 @@ dash.calc('product_ranks', {
       qty: d3.sum(v, (r) => +r.qty), net: d3.sum(v, (r) => +r.net),
     }));
     const out = [];
-    for (const [item, v] of d3.group(products, (r) => r.item)) {
+    for (const [key, v] of d3.group(products, window.FJ.ik)) {
+      const [cat, item] = key.split('·');
       const sold = v.filter((r) => r.net > 0).sort((a, b) => b.net - a.net);
       const excluded = v.length - sold.length;
       const item_net = d3.sum(v, (r) => r.net), item_qty = d3.sum(v, (r) => r.qty);
       const nb = Math.min(5, sold.length), nw = Math.min(5, sold.length - nb);
       sold.forEach((r, i) => {
         const role = i < nb ? 'best' : i >= sold.length - nw ? 'worst' : '';
-        if (role) out.push({ ...r, item, rank: i + 1, of: sold.length, excluded, item_net, item_qty, role });
+        if (role) out.push({ ...r, key, cat, item, rank: i + 1, of: sold.length, excluded, item_net, item_qty, role });
       });
     }
     return out;
@@ -2557,9 +2603,14 @@ dash.draw('item-month', (el) => {
   if (FJ.notOk(el, d)) return;
   if (!d.data.length) return FJ.empty(el, '이 조건에 맞는 매출이 없습니다.');
   const months = Array.from(new Set(d.data.map((r) => r.month))).filter((m) => m !== 'LY').sort();
-  const rows = Array.from(d3.group(d.data, (r) => r.item), ([item, v]) => ({ name: item, note: v[0].line, v: new Map(v.map((r) => [r.month, r.net])), total: d3.sum(v.filter((r) => r.month !== 'LY'), (r) => r.net) }))
-    .filter((r) => r.total !== 0).sort((a, b) => b.total - a.total);
-  rows.push({ name: '합계', sub: true, v: d3.rollup(d.data, (v) => d3.sum(v, (r) => r.net), (r) => r.month) });
+  const items = Array.from(d3.group(d.data, (r) => r.key), ([key, v]) => ({ cat: v[0].cat, name: v[0].item, note: v[0].line, v: new Map(v.map((r) => [r.month, r.net])), total: d3.sum(v.filter((r) => r.month !== 'LY'), (r) => r.net) }))
+    .filter((r) => r.total !== 0);
+  const rows = [];
+  Array.from(d3.group(items, (r) => r.cat)).sort((a, b) => FJ.catRank(a[0]) - FJ.catRank(b[0])).forEach(([c, list]) => {
+    const v = new Map(); list.forEach((r) => r.v.forEach((x, k) => v.set(k, (v.get(k) || 0) + x)));
+    rows.push({ name: `${c} 합계`, sub: true, v }, ...list.sort((a, b) => b.total - a.total));
+  });
+  rows.push({ name: '전체 합계', sub: true, v: d3.rollup(d.data, (v) => d3.sum(v, (r) => r.net), (r) => r.month) });
   FJ.heatTable(el, { rows, months, label: '아이템', curMonth: months[months.length - 1] });
 });
 
@@ -2583,6 +2634,27 @@ dash.draw('store-month', (el) => {
   });
   FJ.heatTable(el, { rows, months, label: '매장', curMonth: months[months.length - 1], picked,
     onPick: (code) => dash.setParams({ store: code === picked ? '' : code }) });
+});
+
+// ── 카테고리 ──
+dash.draw('cat-cards', (el) => {
+  const d = dash.data('cat_items');
+  if (FJ.notOk(el, d)) return;
+  if (!d.data.length) return FJ.empty(el, '이 조건에 맞는 매출이 없습니다.');
+  const cats = Array.from(d3.group(d.data, (r) => r.cat), ([c, v]) => ({ c, v })).sort((a, b) => FJ.catRank(a.c) - FJ.catRank(b.c));
+  el.replaceChildren(...cats.map(({ c, v }) => {
+    const i = v[0];
+    const card = document.createElement('div'); card.className = 'fj-rcard';
+    const h = document.createElement('h3'); h.textContent = c;
+    const big = document.createElement('span'); big.className = 'fj-big'; big.textContent = FJ.won(i.cat_net);
+    const sub = document.createElement('span'); sub.className = 'fj-sub';
+    const add = (label, v2, tone) => { const b = document.createElement('b'); b.textContent = v2; if (tone) b.className = tone; sub.append(document.createTextNode(label), b); };
+    add('비중 ', FJ.pct(i.cat_share)); add(' · 전년 ', FJ.signed(i.cat_yoy), FJ.tone(i.cat_yoy)); add(' · 전주 ', FJ.signed(i.cat_wow), FJ.tone(i.cat_wow));
+    const list = document.createElement('div');
+    card.append(h, big, sub, list);
+    FJ.hbars(list, v.map((r) => ({ name: r.item, value: r.net, text: `${FJ.pct(r.share_in_cat)} · 전년 ${FJ.signed(r.yoy)} · 전주 ${FJ.signed(r.wow)} · ${FJ.int(r.qty)}개` })));
+    return card;
+  }));
 });
 
 // ── 연간 리포트 ──
@@ -2660,12 +2732,12 @@ dash.draw('annual-mix-cards', (el) => {
   const d = dash.data('annual_mix');
   if (FJ.notOk(el, d)) return;
   if (!d.data.length) return FJ.empty(el, '다 끝난 달 자료가 없습니다.');
-  el.replaceChildren(...['라인', '아이템', '성별', '판매형태'].map((dim) => {
+  el.replaceChildren(...['카테고리', '아이템', '성별', '판매형태'].map((dim) => {
     const rows = d.data.filter((r) => r.dim === dim && r.net > 0).sort((a, b) => b.net - a.net).slice(0, dim === '아이템' ? 10 : 8);
     const c = document.createElement('div'); c.className = 'fj-rcard';
     const h = document.createElement('h3'); h.textContent = dim;
     const wrap = document.createElement('div');
-    FJ.hbars(wrap, rows.map((r) => ({ name: r.key || '구분 없음', value: r.net,
+    FJ.hbars(wrap, rows.map((r) => ({ name: dim === '아이템' ? `${r.key.split('·')[1]} (${r.key.split('·')[0]})` : (r.key || '구분 없음'), value: r.net,
       text: `비중 ${FJ.pct(r.share)} (작년 ${FJ.pct(r.ly_share)}) · 전년 대비 ${FJ.signed(r.yoy)}` })));
     c.append(h, wrap); return c;
   }));
@@ -2765,7 +2837,14 @@ dash.draw('mdet-retail', (el) => {
 dash.draw('mdet-items', (el) => {
   const d = dash.data('mdet_items');
   if (FJ.notOk(el, d)) return;
-  FJ.hbars(el, d.data.map((r) => ({ name: r.item, value: r.net, text: `비중 ${FJ.pct(r.share)} · 전년 ${FJ.signed(r.yoy)}` })));
+  el.replaceChildren();
+  Array.from(d3.group(d.data, (r) => r.cat)).sort((a, b) => FJ.catRank(a[0]) - FJ.catRank(b[0])).forEach(([c, list]) => {
+    const h = document.createElement('div'); h.className = 'fj-rhead';
+    h.textContent = `${c} · ${FJ.won(d3.sum(list, (r) => r.net))} (${FJ.pct(d3.sum(list, (r) => r.share))})`;
+    const box = document.createElement('div');
+    el.append(h, box);
+    FJ.hbars(box, list.slice(0, 8).map((r) => ({ name: r.item, value: r.net, text: `비중 ${FJ.pct(r.share)} · 전년 ${FJ.signed(r.yoy)}` })));
+  });
 });
 dash.draw('mdet-store-rows', (tb) => {
   const d = dash.data('mdet_stores');
@@ -3252,7 +3331,7 @@ dash.draw('gender-item-rows', (tb) => {
   if (d.status !== 'ok') return FJ.rowsMsg(tb, 11, d.status === 'error' ? '성별 데이터를 불러오지 못했습니다.' : '—');
   if (!d.data.length) return FJ.rowsMsg(tb, 11, '이 조건에 맞는 매출이 없습니다.');
   const gl = dash.data('gender_ly');
-  const lyItem = new Map(gl.status === 'ok' ? gl.data.filter((r) => r.gender === '전체').map((r) => [r.item, r]) : []);
+  const lyItem = new Map(gl.status === 'ok' ? gl.data.filter((r) => r.gender === '전체').map((r) => [r.item, r]) : []); // item = 카테고리·아이템
   const maxIn = d3.max(d.data, (r) => Math.max(r.man_in || 0, r.woman_in || 0)) || 1;
   const shareCell = (v, color) => {
     const td = document.createElement('td'); td.className = 'n';
@@ -3263,7 +3342,7 @@ dash.draw('gender-item-rows', (tb) => {
   };
   tb.replaceChildren(...d.data.map((r) => {
     const tr = document.createElement('tr');
-    tr.dataset.key = r.item;
+    tr.dataset.key = r.key;
     const mixTd = document.createElement('td');
     const mix = document.createElement('div'); mix.className = 'fj-mix';
     const a = document.createElement('i'); a.style.width = ((r.man_ratio || 0) * 100).toFixed(1) + '%'; a.style.background = dash.colors[0];
@@ -3276,9 +3355,10 @@ dash.draw('gender-item-rows', (tb) => {
     tr.append(name, FJ.td(FJ.won(r.man), 'n'), shareCell(r.man_in, dash.colors[0]), FJ.td(FJ.won(r.woman), 'n'), shareCell(r.woman_in, dash.colors[1]),
       mixTd, FJ.td(FJ.pct(r.woman_ratio), 'n'),
       FJ.td(FJ.signed(r.man_wow), 'n ' + FJ.tone(r.man_wow)), FJ.td(FJ.signed(r.woman_wow), 'n ' + FJ.tone(r.woman_wow)), FJ.td(FJ.pp(r.woman_ratio_change), 'n m'),
-      FJ.td(FJ.signed((lyItem.get(r.item) || {}).yoy), 'n ' + FJ.tone((lyItem.get(r.item) || {}).yoy)));
+      FJ.td(FJ.signed((lyItem.get(r.key) || {}).yoy), 'n ' + FJ.tone((lyItem.get(r.key) || {}).yoy)));
     return tr;
   }));
+  FJ.groupCatTbody(tb, d.data, 11, 'total');
 });
 
 dash.draw('gender-item-weeks', (el) => {
@@ -3286,9 +3366,9 @@ dash.draw('gender-item-weeks', (el) => {
   if (FJ.notOk(el, d)) return;
   if (!d.data.some((r) => r.net !== 0)) return FJ.empty(el, '이 조건에 맞는 매출이 없습니다.');
   const weeks = Array.from(d3.group(d.data, (r) => r.week), ([w, v]) => ({ w, start: v[0].start, end: v[0].end }));
-  const items = Array.from(d3.rollup(d.data, (v) => ({ net: d3.sum(v, (r) => r.net), line: v[0].line }), (r) => r.item))
-    .filter(([, x]) => x.net !== 0).sort((a, b) => b[1].net - a[1].net);
-  const cell = new Map(d.data.map((r) => [r.item + '|' + r.week, r]));
+  const items = Array.from(d3.rollup(d.data, (v) => ({ net: d3.sum(v, (r) => r.net), line: v[0].line, cat: v[0].cat, name: v[0].item }), (r) => r.key))
+    .filter(([, x]) => x.net !== 0).sort((a, b) => FJ.catRank(a[1].cat) - FJ.catRank(b[1].cat) || b[1].net - a[1].net);
+  const cell = new Map(d.data.map((r) => [r.key + '|' + r.week, r]));
   const lastW = weeks[weeks.length - 1].w;
   const table = document.createElement('table'); table.className = 'fj-table fj-pivot';
   const th = (t, c) => { const x = document.createElement('th'); x.textContent = t; x.className = c || ''; return x; };
@@ -3296,10 +3376,17 @@ dash.draw('gender-item-weeks', (el) => {
   hr.append(th('아이템'), ...weeks.map((k) => th(`${k.w} ${+k.start.slice(5, 7)}/${+k.start.slice(8, 10)}–${+k.end.slice(8, 10)}`, 'n')), th('최근 주 비중', 'n'));
   const thead = document.createElement('thead'); thead.appendChild(hr);
   const tbody = document.createElement('tbody');
+  let lastCat = '';
   items.forEach(([item, x]) => {
+    if (x.cat !== lastCat) {
+      lastCat = x.cat;
+      const h = document.createElement('tr'); h.className = 'fj-group'; const td = document.createElement('td'); td.colSpan = weeks.length + 2;
+      const ct = d3.sum(items.filter(([, y]) => y.cat === x.cat), ([, y]) => y.net);
+      td.textContent = `${x.cat} · ${FJ.won(ct)}`; h.appendChild(td); tbody.appendChild(h);
+    }
     const tr = document.createElement('tr');
     const name = document.createElement('td');
-    const n1 = document.createElement('div'); n1.textContent = item;
+    const n1 = document.createElement('div'); n1.textContent = x.name;
     const n2 = document.createElement('div'); n2.className = 'fj-cd'; n2.textContent = x.line;
     name.append(n1, n2); tr.appendChild(name);
     weeks.forEach((k) => {
@@ -3426,8 +3513,9 @@ dash.draw('year-item-table', (el) => {
   if (FJ.notOk(el, d)) return;
   if (!d.data.length) return FJ.empty(el, '이 조건에 맞는 매출이 없습니다.');
   const years = Array.from(new Set(d.data.map((r) => r.year))).sort().reverse();
-  const items = Array.from(d3.rollup(d.data, (v) => d3.sum(v, (r) => r.net), (r) => r.item)).sort((a, b) => b[1] - a[1]);
-  const cell = new Map(d.data.map((r) => [r.item + '|' + r.year, r]));
+  const meta = new Map(d.data.map((r) => [r.key, r]));
+  const items = Array.from(d3.rollup(d.data, (v) => d3.sum(v, (r) => r.net), (r) => r.key)).sort((a, b) => FJ.catRank(meta.get(a[0]).cat) - FJ.catRank(meta.get(b[0]).cat) || b[1] - a[1]);
+  const cell = new Map(d.data.map((r) => [r.key + '|' + r.year, r]));
   const yearTotal = d3.rollup(d.data, (v) => d3.sum(v, (r) => r.net), (r) => r.year);
   const grand = d3.sum(d.data, (r) => r.net);
   const picked = dash.params().pyear ?? '2026';
@@ -3435,6 +3523,7 @@ dash.draw('year-item-table', (el) => {
   const thead = document.createElement('thead'); const hr = document.createElement('tr');
   const th = (t, c) => { const x = document.createElement('th'); x.textContent = t; x.className = c || ''; return x; };
   hr.append(th('아이템'), th('라인'), th('합계', 'n'), ...years.map((y) => th(`${y}년`, 'n' + (y === picked ? ' is-pick' : ''))));
+  const catTotal = (c) => { const v = d.data.filter((r) => r.cat === c); return { total: d3.sum(v, (r) => r.net), by: d3.rollup(v, (g) => d3.sum(g, (r) => r.net), (r) => r.year) }; };
   thead.appendChild(hr);
   const tbody = document.createElement('tbody');
   const valCell = (r, total, isPick) => {
@@ -3444,10 +3533,19 @@ dash.draw('year-item-table', (el) => {
     const b = document.createElement('div'); b.className = 'fj-cd'; b.textContent = total ? FJ.pct(r.net / total) : '';
     td.append(a, b); return td;
   };
-  items.forEach(([item, total]) => {
+  let lastCat = '';
+  items.forEach(([key, total]) => {
+    const m = meta.get(key);
+    if (m.cat !== lastCat) {
+      lastCat = m.cat; const ct = catTotal(m.cat);
+      const h = document.createElement('tr'); h.className = 'fj-total';
+      h.append(FJ.td(`${m.cat} 합계`), FJ.td(''), FJ.td(FJ.won(ct.total), 'n'), ...years.map((y) => valCell({ net: ct.by.get(y) || 0 }, ct.total, y === picked)));
+      tbody.appendChild(h);
+    }
     const tr = document.createElement('tr');
-    const line = (d.data.find((r) => r.item === item) || {}).line || '';
-    tr.append(FJ.td(item), FJ.td(line, 'm'), FJ.td(FJ.won(total), 'n'), ...years.map((y) => valCell(cell.get(item + '|' + y), total, y === picked)));
+    const line = m.line || '';
+    const item = m.item;
+    tr.append(FJ.td(item), FJ.td(line, 'm'), FJ.td(FJ.won(total), 'n'), ...years.map((y) => valCell(cell.get(key + '|' + y), total, y === picked)));
     tbody.appendChild(tr);
   });
   const ft = document.createElement('tr'); ft.className = 'fj-total';
@@ -3461,8 +3559,8 @@ dash.draw('product-cards', (el) => {
   const d = dash.data('product_ranks');
   if (FJ.notOk(el, d)) return;
   if (!d.data.length) return FJ.empty(el, '고른 상품 년도·시즌에 팔린 상품이 없습니다.');
-  const totals = d3.rollup(d.data, (v) => v[0].item_net, (r) => r.item);
-  const order = Array.from(totals.keys()).sort((a, b) => totals.get(b) - totals.get(a));
+  const totals = d3.rollup(d.data, (v) => v[0].item_net, (r) => r.key), catOf = new Map(d.data.map((r) => [r.key, r.cat]));
+  const order = Array.from(totals.keys()).sort((a, b) => FJ.catRank(catOf.get(a)) - FJ.catRank(catOf.get(b)) || totals.get(b) - totals.get(a));
   const list = (rows, cls, none) => {
     const ul = document.createElement('ul'); ul.className = 'fj-rlist';
     if (!rows.length) { const li = document.createElement('li'); li.className = 'none'; li.textContent = none; ul.appendChild(li); return ul; }
@@ -3479,10 +3577,17 @@ dash.draw('product-cards', (el) => {
     });
     return ul;
   };
-  el.replaceChildren(...order.map((item) => {
-    const rows = d.data.filter((r) => r.item === item);
+  let lastCat = '';
+  el.replaceChildren(...order.flatMap((key) => {
+    const rows = d.data.filter((r) => r.key === key);
+    const out = [];
+    if (catOf.get(key) !== lastCat) {
+      lastCat = catOf.get(key);
+      const ch = document.createElement('h3'); ch.className = 'fj-cat-head'; ch.textContent = lastCat; out.push(ch);
+    }
     const card = document.createElement('div'); card.className = 'fj-rcard';
-    const h = document.createElement('h3'); h.textContent = `${item}` + (rows[0] && rows[0].line ? ` · ${rows[0].line}` : '');
+    const h = document.createElement('h3'); h.textContent = `${rows[0].item}` + (rows[0] && rows[0].line ? ` · ${rows[0].line}` : '');
+    out.push(card);
     const sub = document.createElement('span'); sub.className = 'fj-sub';
     const head = rows[0] || {};
     sub.textContent = `순매출 ${FJ.won(head.item_net)} · ${FJ.int(head.item_qty)}개 · 팔린 상품 ${FJ.int(head.of)}개` + (head.excluded ? ` · 순매출 0 이하 ${FJ.int(head.excluded)}개 제외` : '');
@@ -3496,7 +3601,7 @@ dash.draw('product-cards', (el) => {
     const cols = document.createElement('div'); cols.className = 'fj-rcols stack';
     cols.append(col(`베스트 ${best.length}`, 'fj-best', best, '—'), col(worst.length ? `워스트 ${worst.length}` : '워스트', 'fj-worst', worst, '팔린 상품이 5개 이하라 없음'));
     card.append(h, sub, cols);
-    return card;
+    return out;
   }));
 });
 
