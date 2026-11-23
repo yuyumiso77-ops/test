@@ -165,6 +165,17 @@ function currentFile(name) {
   const base = path.join(root, 'data', name);
   return fs.existsSync(base) ? base : null;
 }
+// 이번 달 자료(srcName)를 한 달 합계로 바꿔 월별 기록(destName)에 붙입니다. 같은 달 줄이 있으면 바꿉니다.
+function appendMonthly(stage, srcName, destName, month, toRows) {
+  const src = currentFile(srcName);
+  if (!src) return;
+  const add = toRows(parseCsv(fs.readFileSync(src, 'utf8')));
+  const destFile = currentFile(destName);
+  const dest = destFile ? parseCsv(fs.readFileSync(destFile, 'utf8')) : { head: add.head, rows: [] };
+  const order = dest.head.map((h) => add.head.indexOf(h));
+  const keep = dest.rows.filter((r) => r[0] !== month);
+  fs.writeFileSync(path.join(stage, destName), toCsv(dest.head, keep.concat(add.rows.map((r) => order.map((i) => (i >= 0 ? r[i] : ''))))));
+}
 // 새 자료가 다른 달이면, 지금 달 자료를 월별 기록(hist_store_daily, month_item)에 붙여 둡니다
 function rollMonth(stage, newFirst) {
   const sdFile = currentFile('store_daily.csv');
@@ -196,6 +207,34 @@ function rollMonth(stage, newFirst) {
     for (const [k, o] of agg) { const [m, code, g, item, line] = k.split('\u0001'); rows.push([m, code, types.get(code) || '기타', g, item, line, String(o.net), String(o.qty)]); }
     fs.writeFileSync(path.join(stage, 'month_item.csv'), toCsv(head, rows));
   }
+  const typeOf = new Map(sd.rows.map((r) => [r[sd.head.indexOf('store_code')], r[sd.head.indexOf('type')]]));
+  // 회원: 매장별 한 달 합계
+  appendMonthly(stage, 'member_daily.csv', 'month_member.csv', oldMonth, (src) => {
+    const cols = ['member_net', 'nonmember_net', 'member_sales', 'nonmember_sales', 'member_receipts', 'nonmember_receipts', 'new_members', 'new_member_net'];
+    const by = new Map();
+    for (const r of src.rows) { const code = r[src.head.indexOf('store_code')]; const o = by.get(code) || cols.map(() => 0); cols.forEach((c, i) => { o[i] += Number(r[src.head.indexOf(c)]) || 0; }); by.set(code, o); }
+    return { head: ['month', 'store_code', 'type', ...cols], rows: [...by].map(([code, o]) => [oldMonth, code, typeOf.get(code) || '기타', ...o.map(String)]) };
+  });
+  // 판매형태: 매장·판매형태 합계 (원래 한 달 합계)
+  appendMonthly(stage, 'saletype_store.csv', 'month_saletype.csv', oldMonth, (src) => ({
+    head: ['month', 'store_code', 'type', ...src.head.slice(1)],
+    rows: src.rows.map((r) => [oldMonth, r[0], typeOf.get(r[0]) || '기타', ...r.slice(1)]) }));
+  // 상품: 유통 형태별 상위 60개
+  appendMonthly(stage, 'product_store.csv', 'month_product.csv', oldMonth, (src) => {
+    const ix = (h) => src.head.indexOf(h);
+    const by = new Map();
+    for (const r of src.rows) {
+      const t = typeOf.get(r[ix('store_code')]) || '기타', k = t + '\u0001' + r[ix('product_code')];
+      const o = by.get(k) || { t, code: r[ix('product_code')], name: r[ix('product_name')], line: r[ix('line')], item: r[ix('item')], season: r[ix('season')], qty: 0, net: 0 };
+      o.qty += Number(r[ix('qty')]) || 0; o.net += Number(r[ix('net')]) || 0; by.set(k, o);
+    }
+    const rows = [];
+    for (const t of new Set([...by.values()].map((o) => o.t))) {
+      [...by.values()].filter((o) => o.t === t).sort((a, b) => b.net - a.net).slice(0, 60)
+        .forEach((o) => rows.push([oldMonth, t, o.code, o.name, o.line, o.item, o.season, String(o.qty), String(o.net)]));
+    }
+    return { head: ['month', 'type', 'product_code', 'product_name', 'line', 'item', 'season', 'qty', 'net'], rows };
+  });
   return oldMonth;
 }
 
