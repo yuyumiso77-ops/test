@@ -49,7 +49,7 @@ body { background: var(--color-bg); color: var(--color-fg); font-family: var(--f
     member_daily: 'member_daily', gender_daily: 'gender_daily', gender_item_daily: 'gender_item_daily',
     ly_store_daily: 'ly_store_daily', ly_gender_item_daily: 'ly_gender_item_daily', ly_month_item: 'ly_month_item',
     hist_store_daily: 'hist_store_daily', month_item: 'month_item', month_member: 'month_member', ly_month_member: 'ly_month_member',
-    month_saletype: 'month_saletype', ly_month_saletype: 'ly_month_saletype', month_product: 'month_product', targets: 'targets',
+    month_saletype: 'month_saletype', ly_month_saletype: 'ly_month_saletype', month_product: 'month_product', month_product_store: 'month_product_store', targets: 'targets',
   };
   const raw = {}, pending = {}, failed = {}, calcs = {}, draws = {}, onDatas = [];
   const defaults = { type: '', store: '', pyear: '2026', pseason: '', gsel: '전체', mgsel: '전체' };
@@ -217,6 +217,9 @@ fetch('data/meta.json', { cache: 'no-store' }).then((r) => r.ok ? r.json() : nul
 .fj-target-bar i { position: absolute; top: 0; bottom: 0; left: 0; }
 .fj-table tr.fj-group td { background: var(--color-panel); font-size: var(--cds-font-size-caption); font-weight: var(--cds-font-weight-medium); color: var(--color-fg-muted); padding-top: 10px; }
 .fj-cat-head { grid-column: 1 / -1; margin: 8px 0 0; font-size: var(--cds-font-size-heading); font-weight: var(--cds-font-weight-medium); }
+.fj-stack { display: flex; flex-direction: column; gap: var(--cds-gap-xl); }
+.fj-topstores ol { margin: 0; padding-left: 1.3em; display: flex; flex-direction: column; gap: 1px; font-size: var(--cds-font-size-caption); white-space: nowrap; }
+.fj-topstores .m { color: var(--color-fg-muted); }
 .fj-foot { color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); }
 .fj-foot summary { cursor: pointer; }
 .fj-foot ul { margin: var(--cds-gap-sm) 0 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 4px; max-width: 78ch; }
@@ -400,7 +403,7 @@ fetch('data/meta.json', { cache: 'no-store' }).then((r) => r.ok ? r.json() : nul
       <section class="fj-section"><div class="fj-sec-title"><h2>카테고리·아이템별</h2><span class="fj-label">어패럴·골프화·장갑별 상위 8개 · 비중 · 전년 대비</span></div>
         <div class="fj-chart short" data-draw="mdet-items" data-source="mdet_items"></div></section>
     </div>
-    <div class="fj-grid2">
+    <div class="fj-stack">
       <section class="fj-section"><div class="fj-sec-title"><h2>매장별 매출</h2><span class="fj-label">유통사별로 묶고, 유통사 안에서 매출 순위</span></div>
         <div class="fj-tablewrap tall">
           <table class="fj-table" id="mdet-store-table" data-source="mdet_stores" data-row-key="store_code">
@@ -408,10 +411,10 @@ fetch('data/meta.json', { cache: 'no-store' }).then((r) => r.ok ? r.json() : nul
             <tbody data-draw="mdet-store-rows"></tbody>
           </table>
         </div></section>
-      <section class="fj-section"><div class="fj-sec-title"><h2>상품 베스트 20</h2><span class="fj-label">상품코드 기준 · 매장을 골랐을 때는 유통 형태 전체 기준</span></div>
+      <section class="fj-section"><div class="fj-sec-title"><h2>상품 베스트 20 · 많이 판 매장 1~5위</h2><span class="fj-label">상품코드 기준. 매장 순위는 그 달 그 상품의 매장별 순매출 순입니다(유통 형태를 고르면 그 형태 매장만). 지난 달에 매장을 골랐을 때 상품 순위는 유통 형태 전체 기준입니다.</span></div>
         <div class="fj-tablewrap tall">
-          <table class="fj-table" id="mdet-product-table" data-source="mdet_products" data-row-key="product_code">
-            <thead><tr><th class="n" data-field="rank">순위</th><th data-field="product_name">상품</th><th data-field="item">아이템</th><th class="n" data-field="qty">수량</th><th class="n" data-field="net">순매출</th></tr></thead>
+          <table class="fj-table" id="mdet-product-table" data-source="mdet_products mdet_product_stores" data-row-key="product_code">
+            <thead><tr><th class="n" data-field="rank">순위</th><th data-field="product_name">상품</th><th data-field="item">아이템</th><th class="n" data-field="qty">수량</th><th class="n" data-field="net">순매출</th><th>많이 판 매장 1~5위</th></tr></thead>
             <tbody data-draw="mdet-product-rows"></tbody>
           </table>
         </div></section>
@@ -2115,6 +2118,30 @@ dash.calc('mdet_products', {
   },
 });
 
+dash.calc('mdet_product_stores', {
+  inputs: ['mdet_products', 'month_product_store', 'product_store', 'hist_store_daily', 'store_daily'],
+  title: '상품별 많이 판 매장 1~5위',
+  description: '고른 달 상품 베스트 20 각각에 대해 매장별 순매출 1~5위 (유통 형태 필터 적용; 지난 달은 상품마다 상위 10개 매장 기록에서 고름)',
+  fn: (top, mps, ps, hist, cur) => {
+    const p = dash.params(), m = window.FJ.selMonth(cur, hist);
+    const codes = new Set(top.map((r) => r.product_code));
+    const info = new Map(cur.concat(hist).map((r) => [r.store_code, r]));
+    const okType = (code) => !p.type || (info.get(code) || {}).type === p.type;
+    let rows;
+    if (m === window.FJ.curMonthOf(cur)) {
+      rows = Array.from(d3.rollup(ps.filter((r) => codes.has(r.product_code)), (v) => ({ net: d3.sum(v, (r) => +r.net), qty: d3.sum(v, (r) => +r.qty) }), (r) => r.product_code, (r) => r.store_code))
+        .flatMap(([pc, m2]) => Array.from(m2, ([sc, o]) => ({ product_code: pc, store_code: sc, store: (info.get(sc) || {}).store || sc, ...o })));
+    } else {
+      rows = mps.filter((r) => r.month === m && codes.has(r.product_code)).map((r) => ({ product_code: r.product_code, store_code: r.store_code, store: r.store, net: +r.net, qty: +r.qty }));
+    }
+    const out = [];
+    for (const [pc, v] of d3.group(rows.filter((r) => r.net > 0 && okType(r.store_code)), (r) => r.product_code)) {
+      v.sort((a, b) => b.net - a.net).slice(0, 5).forEach((r, i) => out.push({ ...r, rank: i + 1 }));
+    }
+    return out;
+  },
+});
+
 // 당월: 어제 브리핑, 일별 실적표, 목표
 dash.calc('brief', {
   inputs: ['store_daily', 'ly_store_daily'],
@@ -2979,12 +3006,24 @@ dash.draw('mdet-store-rows', (tb) => {
 });
 dash.draw('mdet-product-rows', (tb) => {
   const d = dash.data('mdet_products');
-  if (d.status !== 'ok') return FJ.rowsMsg(tb, 5, d.status === 'error' ? '데이터를 불러오지 못했습니다.' : '—');
-  if (!d.data.length) return FJ.rowsMsg(tb, 5, '이 조건에 맞는 상품이 없습니다.');
+  if (d.status !== 'ok') return FJ.rowsMsg(tb, 6, d.status === 'error' ? '데이터를 불러오지 못했습니다.' : '—');
+  if (!d.data.length) return FJ.rowsMsg(tb, 6, '이 조건에 맞는 상품이 없습니다.');
+  const ms = dash.data('mdet_product_stores');
+  const stByProduct = d3.group(ms.status === 'ok' ? ms.data : [], (r) => r.product_code);
   tb.replaceChildren(...d.data.map((r) => {
     const tr = document.createElement('tr'); tr.dataset.key = r.product_code;
     const n = document.createElement('td'); const a = document.createElement('div'); a.textContent = r.product_name; const b = document.createElement('div'); b.className = 'fj-cd'; b.textContent = r.product_code; n.append(a, b);
-    tr.append(FJ.td(String(r.rank), 'n m'), n, FJ.td(r.item, 'm'), FJ.td(FJ.int(r.qty), 'n'), FJ.td(FJ.won(r.net), 'n'));
+    const st = document.createElement('td'); st.className = 'fj-topstores';
+    const ol = document.createElement('ol');
+    (stByProduct.get(r.product_code) || []).forEach((x) => {
+      const li = document.createElement('li');
+      const nm = document.createElement('span'); nm.textContent = x.store;
+      const v = document.createElement('span'); v.className = 'm'; v.textContent = ` ${FJ.compact(x.net)} · ${FJ.int(x.qty)}개`;
+      li.append(nm, v); ol.appendChild(li);
+    });
+    if (!ol.children.length) { const li = document.createElement('li'); li.textContent = '—'; ol.appendChild(li); }
+    st.appendChild(ol);
+    tr.append(FJ.td(String(r.rank), 'n m'), n, FJ.td(r.item, 'm'), FJ.td(FJ.int(r.qty), 'n'), FJ.td(FJ.won(r.net), 'n'), st);
     return tr;
   }));
 });

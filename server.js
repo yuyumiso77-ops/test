@@ -235,6 +235,27 @@ function rollMonth(stage, newFirst) {
     }
     return { head: ['month', 'type', 'product_code', 'product_name', 'line', 'item', 'season', 'qty', 'net'], rows };
   });
+  // 상품별 많이 판 매장 상위 10개 (위 상품 상위 목록에 든 상품만)
+  const storeName = new Map(sd.rows.map((r) => [r[sd.head.indexOf('store_code')], r[sd.head.indexOf('store')]]));
+  appendMonthly(stage, 'product_store.csv', 'month_product_store.csv', oldMonth, (src) => {
+    const ix = (h) => src.head.indexOf(h);
+    const tot = new Map(), per = new Map();
+    for (const r of src.rows) {
+      const pc = r[ix('product_code')], sc = r[ix('store_code')], t = typeOf.get(sc) || '기타';
+      const k = t + '\u0001' + pc; tot.set(k, (tot.get(k) || 0) + (Number(r[ix('net')]) || 0));
+      const k2 = pc + '\u0001' + sc; const o = per.get(k2) || { pc, sc, qty: 0, net: 0 };
+      o.qty += Number(r[ix('qty')]) || 0; o.net += Number(r[ix('net')]) || 0; per.set(k2, o);
+    }
+    const keep = new Set();
+    for (const t of new Set([...tot.keys()].map((k) => k.split('\u0001')[0]))) {
+      [...tot].filter(([k]) => k.startsWith(t + '\u0001')).sort((a, b) => b[1] - a[1]).slice(0, 60).forEach(([k]) => keep.add(k.split('\u0001')[1]));
+    }
+    const byP = new Map();
+    for (const o of per.values()) if (keep.has(o.pc) && o.net > 0) { if (!byP.has(o.pc)) byP.set(o.pc, []); byP.get(o.pc).push(o); }
+    const rows = [];
+    for (const [pc, list] of byP) list.sort((a, b) => b.net - a.net).slice(0, 10).forEach((o, i) => rows.push([oldMonth, pc, o.sc, storeName.get(o.sc) || o.sc, String(o.qty), String(o.net), String(i + 1)]));
+    return { head: ['month', 'product_code', 'store_code', 'store', 'qty', 'net', 'rank'], rows };
+  });
   return oldMonth;
 }
 
