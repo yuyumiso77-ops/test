@@ -210,7 +210,7 @@
   <section class="fj-section" id="annual-stores">
     <div class="fj-sec-title">
       <h2>매장별 연간 순위</h2>
-      <span class="fj-label">유통사별로 묶고, 유통사 안에서는 올해 누계 순입니다. 순위는 전체 매장 기준이고, 성장·하락 상위는 작년 같은 기간 1억원 이상 판 매장 중에서 고릅니다. 매장 이름을 누르면 그 매장만 봅니다.</span>
+      <span class="fj-label">유통사별로 묶고, 순위는 유통사 안에서 올해 누계 순입니다. 성장·하락 상위는 작년 같은 기간 1억원 이상 판 매장 중에서 고릅니다. 매장 이름을 누르면 그 매장만 봅니다.</span>
     </div>
     <div class="fj-rcards" data-draw="annual-store-movers" data-source="annual_stores"></div>
     <div class="fj-tablewrap tall">
@@ -282,11 +282,11 @@
     <div class="fj-grid2">
       <section class="fj-section"><div class="fj-sec-title"><h2>유통사별</h2><span class="fj-label">비중 · 전년 대비 · 전월 대비</span></div>
         <div class="fj-chart short" data-draw="mdet-retail" data-source="mdet_retail"></div></section>
-      <section class="fj-section"><div class="fj-sec-title"><h2>카테고리·아이템별</h2><span class="fj-label">어패럴·슈즈·글로브별 상위 8개 · 비중 · 전년 대비</span></div>
+      <section class="fj-section"><div class="fj-sec-title"><h2>카테고리·아이템별</h2><span class="fj-label">어패럴·골프화·장갑별 상위 8개 · 비중 · 전년 대비</span></div>
         <div class="fj-chart short" data-draw="mdet-items" data-source="mdet_items"></div></section>
     </div>
     <div class="fj-grid2">
-      <section class="fj-section"><div class="fj-sec-title"><h2>매장별 매출</h2><span class="fj-label">유통사별로 묶고, 유통사 안에서는 매출 순. 순위는 전체 매장 기준</span></div>
+      <section class="fj-section"><div class="fj-sec-title"><h2>매장별 매출</h2><span class="fj-label">유통사별로 묶고, 유통사 안에서 매출 순위</span></div>
         <div class="fj-tablewrap tall">
           <table class="fj-table" id="mdet-store-table" data-source="mdet_stores" data-row-key="store_code">
             <thead><tr><th class="n" data-field="rank">순위</th><th data-field="store">매장</th><th class="n" data-field="net">순매출</th><th class="n" data-field="mom">전월 대비</th><th class="n" data-field="yoy">전년 대비</th></tr></thead>
@@ -650,7 +650,7 @@
   <section class="fj-section" id="stores-section">
     <div class="fj-sec-title">
       <h2>매장별 매출</h2>
-      <span class="fj-label">유통사별로 묶고(백화점 롯데·현대·신세계·갤러리아·AK → 아울렛 롯데·현대·신세계 → 가두점), 유통사 안에서는 순매출 순입니다. 순위는 전체 매장 기준입니다. 전년 대비는 작년 같은 날짜와 비교하고, 전년 매출이 없는 매장은 "신규"로 표시합니다. 최근 주 전주 대비는 <span data-draw="recent-week" data-source="weekly">—</span> 기준입니다. 줄을 누르면 그 매장만 봅니다.</span>
+      <span class="fj-label">유통사별로 묶고(백화점 롯데·현대·신세계·갤러리아·AK → 아울렛 롯데·현대·신세계 → 가두점), 유통사 안에서는 순매출 순입니다. 순위는 유통사 안 순위입니다. 전년 대비는 작년 같은 날짜와 비교하고, 전년 매출이 없는 매장은 "신규"로 표시합니다. 최근 주 전주 대비는 <span data-draw="recent-week" data-source="weekly">—</span> 기준입니다. 줄을 누르면 그 매장만 봅니다.</span>
     </div>
     <div class="fj-tablewrap tall">
       <table class="fj-table" id="store-table" data-source="stores" data-row-key="store_code">
@@ -731,8 +731,8 @@
 
   <section class="fj-section" id="categories">
     <div class="fj-sec-title">
-      <h2>카테고리별 매출 · 어패럴 / 슈즈 / 글로브</h2>
-      <span class="fj-label">카테고리 합계 아래에 아이템별 매출을 봅니다. 전년 대비는 작년 같은 날짜, 전주 대비는 최근 주와 전주의 같은 요일들을 비교합니다. 슈즈는 Shoes·S(임시) 라인, 글로브는 Glove 라인, 어패럴은 J line(ACC 포함)과 양말입니다.</span>
+      <h2>카테고리별 매출 · 어패럴 / 골프화 / 장갑 / 기타</h2>
+      <span class="fj-label">카테고리 합계 아래에 아이템별 매출을 봅니다. 전년 대비는 작년 같은 날짜, 전주 대비는 최근 주와 전주의 같은 요일들을 비교합니다. 골프화는 Shoes·S(임시) 라인, 장갑는 Glove 라인, 어패럴은 J line(ACC 포함)과 양말입니다.</span>
     </div>
     <div class="fj-rcards" data-draw="cat-cards" data-source="cat_items"></div>
   </section>
@@ -944,9 +944,9 @@ window.FJ = (() => {
   }
   function td(v, c) { const x = document.createElement('td'); x.textContent = v; x.className = c || ''; return x; }
   // 유통사 순서: 백화점(롯데·현대·신세계·갤러리아·AK) → 아울렛(롯데·현대·신세계) → 가두점 → 기타
-  // 상품 카테고리: 라인으로 나눔 (Shoes·S(임시) = 슈즈, Glove = 글로브, J line·Socks = 어패럴)
-  const CAT_ORDER = ['어패럴', '슈즈', '글로브', '기타'];
-  const cat = (line) => (line === 'Shoes' || line === 'S(임시)' ? '슈즈' : line === 'Glove' ? '글로브' : line === 'J line' || line === 'Socks' ? '어패럴' : '기타');
+  // 상품 카테고리: 라인으로 나눔 (Shoes·S(임시) = 골프화, Glove = 장갑, J line·Socks = 어패럴)
+  const CAT_ORDER = ['어패럴', '골프화', '장갑', '기타'];
+  const cat = (line) => (line === 'Shoes' || line === 'S(임시)' ? '골프화' : line === 'Glove' ? '장갑' : line === 'J line' || line === 'Socks' ? '어패럴' : '기타');
   const ik = (r) => `${cat(r.line)}·${r.item}`; // 카테고리·아이템 (같은 아이템 이름이 다른 카테고리에 있어도 나뉨)
   const catRank = (c) => { const i = CAT_ORDER.indexOf(c); return i < 0 ? 9 : i; };
   const TYPE_ORDER = ['백화점', '아울렛', '가두점', '기타'], RET_ORDER = ['롯데', '현대', '신세계', '갤러리아', 'AK플라자'];
@@ -955,7 +955,7 @@ window.FJ = (() => {
     return (t < 0 ? 9 : t) * 10 + (k < 0 ? 9 : k);
   };
   // 이미 그려진 표 줄(tr, data-key = 매장코드)을 유통사별로 묶고 소제목 줄을 넣음
-  function groupTbody(tb, rows, cols, valKey = 'net') {
+  function groupTbody(tb, rows, cols, valKey = 'net', rankCol = -1) {
     const byCode = new Map(rows.map((r) => [r.store_code, r]));
     const trs = Array.from(tb.children).filter((tr) => tr.dataset && byCode.has(tr.dataset.key));
     if (!trs.length) return;
@@ -969,7 +969,10 @@ window.FJ = (() => {
       const h = document.createElement('tr'); h.className = 'fj-group';
       const td = document.createElement('td'); td.colSpan = cols;
       td.textContent = `${g.label} · ${g.list.length}개 매장 · ${won(g.sum)}` + (total ? ` (${pct(g.sum / total)})` : '');
-      h.appendChild(td); out.push(h, ...g.list);
+      h.appendChild(td);
+      // 순위는 유통사 안 순위로 다시 매김
+      if (rankCol >= 0) g.list.forEach((tr, i) => { if (tr.children[rankCol]) tr.children[rankCol].textContent = String(i + 1); });
+      out.push(h, ...g.list);
     });
     tb.replaceChildren(...out);
   }
@@ -1793,7 +1796,7 @@ dash.calc('annual_stores', {
 dash.calc('annual_mix', {
   inputs: ['month_item', 'ly_month_item', 'month_saletype', 'ly_month_saletype', 'store_daily'],
   title: '상품 구성 연간',
-  description: '다 끝난 달(1월~지난달)의 카테고리(어패럴·슈즈·글로브)·아이템·성별·판매형태별 순매출과 비중을 올해와 작년 같은 달끼리 비교',
+  description: '다 끝난 달(1월~지난달)의 카테고리(어패럴·골프화·장갑)·아이템·성별·판매형태별 순매출과 비중을 올해와 작년 같은 달끼리 비교',
   fn: (mi, lyMi, ms, lyMs, storeDaily) => {
     const p = dash.params();
     const cm = window.FJ.curMonthOf(storeDaily), y = cm.slice(0, 4), ly0 = String(+y - 1);
@@ -1953,7 +1956,7 @@ dash.calc('mdet_retail', {
 dash.calc('mdet_items', {
   inputs: ['month_item', 'ly_month_item', 'gender_item_daily', 'hist_store_daily', 'store_daily'],
   title: '월 상세 아이템별',
-  description: '고른 달의 카테고리(어패럴·슈즈·글로브)·아이템별 순매출, 비중, 작년 같은 달 대비',
+  description: '고른 달의 카테고리(어패럴·골프화·장갑)·아이템별 순매출, 비중, 작년 같은 달 대비',
   fn: (mi, lyMi, gid, hist, cur) => {
     const p = dash.params(), m = window.FJ.selMonth(cur, hist), lyM = (+m.slice(0, 4) - 1) + m.slice(4), f = (r) => window.FJ.mf(r, p);
     const rows = m === window.FJ.curMonthOf(cur) ? gid.filter((r) => window.FJ.pick(cur, p).has(r.store_code)) : mi.filter((r) => r.month === m && f(r));
@@ -2089,7 +2092,7 @@ dash.calc('target_progress', {
 dash.calc('cat_items', {
   inputs: ['gender_item_daily', 'ly_gender_item_daily', 'store_daily', 'ly_store_daily'],
   title: '카테고리·아이템별 매출',
-  description: '선택한 유통 형태·매장의 카테고리(어패럴·슈즈·글로브)와 그 안 아이템별 순매출, 수량, 비중, 작년 같은 날짜 대비, 최근 주의 전주 같은 요일 대비',
+  description: '선택한 유통 형태·매장의 카테고리(어패럴·골프화·장갑)와 그 안 아이템별 순매출, 수량, 비중, 작년 같은 날짜 대비, 최근 주의 전주 같은 요일 대비',
   fn: (gid, lyGid, storeDaily, lyStore) => {
     const p = dash.params();
     const codes = window.FJ.pick(storeDaily, p), lyCodes = window.FJ.lyPick(lyStore, p);
@@ -2720,7 +2723,7 @@ dash.draw('annual-store-rows', (tb) => {
       FJ.td(r.ly_net ? FJ.won(r.ly_net) : '—', 'n'), FJ.td(r.ly_net > 0 ? FJ.signed(r.yoy) : '신규', 'n ' + (r.ly_net > 0 ? FJ.tone(r.yoy) : 'm')));
     return tr;
   }));
-  FJ.groupTbody(tb, d.data, 7);
+  FJ.groupTbody(tb, d.data, 7, 'net', 0);
 });
 
 dash.draw('mix-range', (el) => {
@@ -2857,7 +2860,7 @@ dash.draw('mdet-store-rows', (tb) => {
     tr.append(FJ.td(String(r.rank), 'n m'), FJ.td(r.store), FJ.td(FJ.won(r.net), 'n'), FJ.td(FJ.signed(r.mom), 'n ' + FJ.tone(r.mom)), FJ.td(FJ.signed(r.yoy), 'n ' + FJ.tone(r.yoy)));
     return tr;
   }));
-  FJ.groupTbody(tb, d.data, 5);
+  FJ.groupTbody(tb, d.data, 5, 'net', 0);
 });
 dash.draw('mdet-product-rows', (tb) => {
   const d = dash.data('mdet_products');
@@ -3455,7 +3458,7 @@ dash.draw('store-rows', (tb) => {
       FJ.td(FJ.int(r.qty), 'n'), FJ.td(FJ.won(r.aov), 'n'), FJ.td(FJ.pct(r.return_rate), 'n'), FJ.td(FJ.pct(r.member_share), 'n'), FJ.td(FJ.int(r.new_members), 'n'), FJ.td(FJ.pct(r.share), 'n'));
     return tr;
   }));
-  FJ.groupTbody(tb, d.data, 13);
+  FJ.groupTbody(tb, d.data, 13, 'net', 0);
 });
 
 dash.draw('types', (el) => {
