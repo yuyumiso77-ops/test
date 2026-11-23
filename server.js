@@ -139,6 +139,66 @@ function readMeta() {
   try { return JSON.parse(fs.readFileSync(path.join(dataDir, 'meta.json'), 'utf8')); } catch { return null; }
 }
 
+// CSV 읽기/쓰기 (따옴표 처리 포함)
+function parseCsv(text) {
+  const rows = []; let row = [], cell = '', q = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (q) { if (c === '"') { if (text[i + 1] === '"') { cell += '"'; i++; } else q = false; } else cell += c; }
+    else if (c === '"') q = true;
+    else if (c === ',') { row.push(cell); cell = ''; }
+    else if (c === '\n') { row.push(cell); rows.push(row); row = []; cell = ''; }
+    else if (c !== '\r') cell += c;
+  }
+  if (cell || row.length) { row.push(cell); rows.push(row); }
+  const [head, ...body] = rows;
+  return { head, rows: body.filter((r) => r.length === head.length) };
+}
+function toCsv(head, rows) {
+  const esc = (v) => (/[",\n]/.test(v) ? `"${String(v).replace(/"/g, '""')}"` : v);
+  return [head.join(','), ...rows.map((r) => r.map(esc).join(','))].join('\n') + '\n';
+}
+// 지금 쓰는 자료 파일 (올린 것이 있으면 그것, 없으면 저장소 기본 자료)
+function currentFile(name) {
+  const up = path.join(dataDir, name);
+  if (fs.existsSync(up)) return up;
+  const base = path.join(root, 'data', name);
+  return fs.existsSync(base) ? base : null;
+}
+// 새 자료가 다른 달이면, 지금 달 자료를 월별 기록(hist_store_daily, month_item)에 붙여 둡니다
+function rollMonth(stage, newFirst) {
+  const sdFile = currentFile('store_daily.csv');
+  if (!sdFile) return null;
+  const sd = parseCsv(fs.readFileSync(sdFile, 'utf8'));
+  const di = sd.head.indexOf('date');
+  const oldMonth = sd.rows.length ? sd.rows[0][di].slice(0, 7) : '';
+  if (!oldMonth || oldMonth === newFirst.slice(0, 7)) return null;
+  const histFile = currentFile('hist_store_daily.csv');
+  const hist = histFile ? parseCsv(fs.readFileSync(histFile, 'utf8')) : { head: sd.head, rows: [] };
+  const hdi = hist.head.indexOf('date');
+  const keep = hist.rows.filter((r) => r[hdi].slice(0, 7) !== oldMonth);
+  const order = hist.head.map((h) => sd.head.indexOf(h));
+  fs.writeFileSync(path.join(stage, 'hist_store_daily.csv'), toCsv(hist.head, keep.concat(sd.rows.map((r) => order.map((i) => r[i])))));
+  const giFile = currentFile('gender_item_daily.csv'), miFile = currentFile('month_item.csv');
+  if (giFile) {
+    const gi = parseCsv(fs.readFileSync(giFile, 'utf8'));
+    const types = new Map(sd.rows.map((r) => [r[sd.head.indexOf('store_code')], r[sd.head.indexOf('type')]]));
+    const ix = (h) => gi.head.indexOf(h);
+    const agg = new Map();
+    for (const r of gi.rows) {
+      const k = [oldMonth, r[ix('store_code')], r[ix('gender')], r[ix('item')], r[ix('line')]].join('\u0001');
+      const o = agg.get(k) || { net: 0, qty: 0 };
+      o.net += Number(r[ix('net')]) || 0; o.qty += Number(r[ix('qty')]) || 0; agg.set(k, o);
+    }
+    const head = ['month', 'store_code', 'type', 'gender', 'item', 'line', 'net', 'qty'];
+    const mi = miFile ? parseCsv(fs.readFileSync(miFile, 'utf8')) : { head, rows: [] };
+    const rows = mi.rows.filter((r) => r[0] !== oldMonth);
+    for (const [k, o] of agg) { const [m, code, g, item, line] = k.split('\u0001'); rows.push([m, code, types.get(code) || '기타', g, item, line, String(o.net), String(o.qty)]); }
+    fs.writeFileSync(path.join(stage, 'month_item.csv'), toCsv(head, rows));
+  }
+  return oldMonth;
+}
+
 function handleUpload(req, res, by) {
   if (uploading) return json(res, 409, { ok: false, message: '다른 자료를 처리하는 중입니다. 1분 뒤에 다시 올려 주세요.' });
   const declared = Number(req.headers['content-length'] || 0);
@@ -162,12 +222,13 @@ function handleUpload(req, res, by) {
       fs.mkdirSync(dataDir, { recursive: true });
       const stage = fs.mkdtempSync(path.join(dataDir, '.incoming-'));
       for (const [name, body] of Object.entries(files)) fs.writeFileSync(path.join(stage, name), body);
+      const rolled = rollMonth(stage, meta.first);
       const name = decodeURIComponent(String(req.headers['x-file-name'] || '')).slice(0, 200);
-      const full = { ...meta, uploaded_at: new Date().toISOString(), file_name: name, by, persistent: !!volumeDir };
+      const full = { ...meta, uploaded_at: new Date().toISOString(), file_name: name, by, persistent: !!volumeDir, rolled_month: rolled };
       fs.writeFileSync(path.join(stage, 'meta.json'), JSON.stringify(full));
       for (const f of fs.readdirSync(stage)) fs.renameSync(path.join(stage, f), path.join(dataDir, f));
       fs.rmSync(stage, { recursive: true, force: true });
-      console.log(`자료 갱신: ${meta.first}~${meta.last}, ${meta.rows}줄 (${by})`);
+      console.log(`자료 갱신: ${meta.first}~${meta.last}, ${meta.rows}줄 (${by})${rolled ? `, ${rolled} 자료를 월별 기록에 추가` : ''}`);
       done(200, { ok: true, ...full });
     } catch (e) {
       console.error('자료 처리 실패:', e.message);
@@ -256,6 +317,7 @@ $('send').addEventListener('click', async () => {
     const body = document.createElement('span');
     body.textContent = d.ok ? fmt(d) : (d.message || '다시 시도해 주세요.');
     box.append(head, body);
+    if (d.ok && d.rolled_month) { const w = document.createElement('span'); w.className = 'muted'; w.textContent = '새 달 자료라서 ' + d.rolled_month + ' 자료를 월별 기록에 옮겨 두었습니다.'; box.appendChild(w); }
     if (d.ok && !d.persistent) { const w = document.createElement('span'); w.className = 'muted'; w.textContent = '주의: 저장 공간(Volume)이 연결되지 않아, 사이트가 다시 배포되면 이 자료가 사라집니다.'; box.appendChild(w); }
     if (d.ok) { const a = document.createElement('a'); a.href = '/'; a.textContent = '대시보드 보기'; box.appendChild(a); }
     box.hidden = false;

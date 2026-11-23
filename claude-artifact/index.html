@@ -88,6 +88,9 @@
 .fj-table .fj-cd.fj-up { color: var(--color-ok); }
 .fj-table .fj-cd.fj-down { color: var(--color-bad); }
 .fj-sw-line { height: 2px; width: 14px; border-radius: 0; background: var(--color-fg); opacity: 0.55; }
+.fj-heat td.v { position: relative; }
+.fj-heat th, .fj-heat td { padding-left: 8px; padding-right: 8px; }
+.fj-heat .sub td { font-weight: var(--cds-font-weight-medium); }
 .fj-foot { color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); }
 .fj-foot summary { cursor: pointer; }
 .fj-foot ul { margin: var(--cds-gap-sm) 0 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 4px; max-width: 78ch; }
@@ -96,7 +99,7 @@
 <div class="fj">
   <header class="fj-head" id="overview">
     <h1 class="fj-title">FJ 매출 현황</h1>
-    <p class="fj-lede" data-read lang="ko"><span data-draw="scope">—</span>의 <span data-draw="period" data-source="kpi" data-field="last" data-row="0">—</span> 순매출은 <b data-draw="k-net" data-source="kpi" data-field="net" data-row="0">—</b>(전년 같은 기간 대비 <b data-draw="y-yoy" data-source="yoy" data-field="yoy" data-row="0">—</b>), 확정금액은 <b data-draw="k-confirmed" data-source="kpi" data-field="confirmed" data-row="0">—</b>입니다. 지금 추세라면 <span data-draw="fc-month" data-source="forecast" data-field="last" data-row="0">—</span> 마감 매출은 약 <b data-draw="fc-projected" data-source="forecast" data-field="projected" data-row="0">—</b>으로 예상됩니다. 회원 매출 비중은 <b data-draw="m-member_share" data-source="members" data-field="member_share" data-row="0">—</b>, 신규 가입 회원은 <b data-draw="m-new_members" data-source="members" data-field="new_members" data-row="0">—</b>명입니다. 이 기간 매출 1위 매장은 <b data-draw="top-store" data-source="stores" data-field="store" data-row="0">—</b>입니다.</p>
+    <p class="fj-lede" data-read lang="ko"><span data-draw="scope">—</span>의 <span data-draw="period" data-source="kpi" data-field="last" data-row="0">—</span> 순매출은 <b data-draw="k-net" data-source="kpi" data-field="net" data-row="0">—</b>(전년 같은 기간 대비 <b data-draw="y-yoy" data-source="yoy" data-field="yoy" data-row="0">—</b>, 전월 같은 기간 대비 <b data-draw="mom-mom" data-source="mom" data-field="mom" data-row="0">—</b>), 확정금액은 <b data-draw="k-confirmed" data-source="kpi" data-field="confirmed" data-row="0">—</b>입니다. 지금 추세라면 <span data-draw="fc-month" data-source="forecast" data-field="last" data-row="0">—</span> 마감 매출은 약 <b data-draw="fc-projected" data-source="forecast" data-field="projected" data-row="0">—</b>으로 예상됩니다. 회원 매출 비중은 <b data-draw="m-member_share" data-source="members" data-field="member_share" data-row="0">—</b>, 신규 가입 회원은 <b data-draw="m-new_members" data-source="members" data-field="new_members" data-row="0">—</b>명입니다. 이 기간 매출 1위 매장은 <b data-draw="top-store" data-source="stores" data-field="store" data-row="0">—</b>입니다.</p>
     <p class="fj-note">ERP 판매정보현황 엑셀을 매장·일자·상품별로 합산했습니다. 순매출은 판매금액에서 반품을 뺀 금액입니다.</p>
   </header>
 
@@ -120,7 +123,8 @@
     <div class="fj-card" id="kpi-net">
       <span class="fj-label">순매출</span>
       <span class="fj-big" data-draw="k-net" data-source="kpi" data-field="net" data-row="0">—</span>
-      <span class="fj-sub">전년 동기 대비 <b data-draw="y-yoy" data-source="yoy" data-field="yoy" data-row="0">—</b> · 하루 평균 <b data-draw="k-per_day" data-source="kpi" data-field="per_day" data-row="0">—</b></span>
+      <span class="fj-sub">전년 동기 대비 <b data-draw="y-yoy" data-source="yoy" data-field="yoy" data-row="0">—</b> · 전월 동기 대비 <b data-draw="mom-mom" data-source="mom" data-field="mom" data-row="0">—</b></span>
+      <span class="fj-sub">하루 평균 <b data-draw="k-per_day" data-source="kpi" data-field="per_day" data-row="0">—</b></span>
     </div>
     <div class="fj-card" id="kpi-forecast">
       <span class="fj-label"><span data-draw="fc-month" data-source="forecast" data-field="last" data-row="0">—</span> 예상 마감</span>
@@ -171,6 +175,62 @@
     </div>
     <p class="fj-sub">실적 <b data-draw="fc-actual" data-source="forecast" data-field="actual" data-row="0">—</b> (<span data-draw="fc-done" data-source="forecast" data-field="days_done" data-row="0">—</span>일) · 남은 <span data-draw="fc-left" data-source="forecast" data-field="days_left" data-row="0">—</span>일 예상 <b data-draw="fc-rest" data-source="forecast" data-field="rest" data-row="0">—</b> · 예상 마감 대비 진행률 <b data-draw="fc-progress" data-source="forecast" data-field="progress" data-row="0">—</b></p>
     <div class="fj-chart" id="forecast-chart" data-draw="forecast-chart" data-source="forecast_daily forecast_ly"></div>
+  </section>
+
+  <section class="fj-section" id="monthly">
+    <div class="fj-sec-title">
+      <h2>2026년 월별 매출</h2>
+      <span class="fj-label">이번 달은 지금까지 실적(진한 막대)과 마감 예상(옅은 막대)입니다. 이번 달 전월 대비는 마감 예상 기준입니다.</span>
+    </div>
+    <div class="fj-kpis">
+      <div class="fj-card" id="kpi-ytd">
+        <span class="fj-label">올해 누계 · <span data-draw="ytd-range" data-source="ytd" data-field="to" data-row="0">—</span></span>
+        <span class="fj-big" data-draw="ytd-ytd" data-source="ytd" data-field="ytd" data-row="0">—</span>
+        <span class="fj-sub">이번 달 예상까지 <b data-draw="ytd-ytd_projected" data-source="ytd" data-field="ytd_projected" data-row="0">—</b></span>
+      </div>
+      <div class="fj-card" id="kpi-avg-month">
+        <span class="fj-label">월 평균 (다 끝난 달)</span>
+        <span class="fj-big" data-draw="ytd-avg_month" data-source="ytd" data-field="avg_month" data-row="0">—</span>
+        <span class="fj-sub">가장 많이 판 달 <b data-draw="ytd-best" data-source="ytd" data-field="best_month" data-row="0">—</b> <b data-draw="ytd-best_net" data-source="ytd" data-field="best_net" data-row="0">—</b></span>
+      </div>
+      <div class="fj-card" id="kpi-mom">
+        <span class="fj-label">이번 달 전월 대비 · 같은 날짜까지</span>
+        <span class="fj-big" data-draw="mom-mom" data-source="mom" data-field="mom" data-row="0">—</span>
+        <span class="fj-sub">지난달 같은 기간 <b data-draw="mom-prev_net" data-source="mom" data-field="prev_net" data-row="0">—</b></span>
+      </div>
+    </div>
+    <div class="fj-chart" id="monthly-chart" data-draw="monthly-chart" data-source="monthly"></div>
+    <div class="fj-tablewrap">
+      <table class="fj-table" id="monthly-table" data-source="monthly" data-row-key="month">
+        <thead><tr>
+          <th data-field="month">월</th>
+          <th class="n" data-field="net">순매출</th>
+          <th class="n" data-field="mom">전월 대비</th>
+          <th class="n" data-field="per_day">하루 평균</th>
+          <th class="n" data-field="receipts">영수증</th>
+          <th class="n" data-field="aov">객단가</th>
+          <th class="n" data-field="return_rate">반품률</th>
+          <th class="n" data-field="discount">평균 할인율</th>
+          <th class="n" data-field="stores">매장 수</th>
+        </tr></thead>
+        <tbody data-draw="monthly-rows"></tbody>
+      </table>
+    </div>
+    <div class="fj-sec-title"><span class="fj-label">유통사별 월 순매출 · 칸이 진할수록 그 줄에서 큰 달입니다.</span></div>
+    <div class="fj-tablewrap" id="retailer-month" data-draw="retailer-month" data-source="retailer_month"></div>
+    <div class="fj-sec-title"><span class="fj-label">아이템별 월 순매출</span></div>
+    <div class="fj-controls">
+      <label class="fj-ctl"><span class="fj-label">성별</span>
+        <select class="dash-select" id="mgsel-select" aria-label="성별">
+          <option value="전체">남성+여성 전체</option>
+          <option value="남성">남성</option>
+          <option value="여성">여성</option>
+        </select>
+      </label>
+    </div>
+    <div class="fj-tablewrap" id="item-month" data-draw="item-month" data-source="item_month"></div>
+    <div class="fj-sec-title"><span class="fj-label">매장별 월 순매출 · 올해 누계 순. 매장 이름을 누르면 그 매장만 봅니다.</span></div>
+    <div class="fj-tablewrap tall" id="store-month" data-draw="store-month" data-source="store_month"></div>
   </section>
 
   <section class="fj-section" id="weekly">
@@ -521,6 +581,7 @@
       <li>상품 년도는 엑셀의 년도 열, 시즌은 시즌 열입니다 (Fall·Winter = FW, Spring·Summer = SS, Four Season·Seasonless = 시즌 구분 없음). 아이템별 베스트·워스트는 고른 년도·시즌 안에서 상품코드(색상·사이즈 합산) 순매출 기준이며, 베스트는 상위 5개, 워스트는 베스트에 들지 않은 하위 5개입니다. 순매출이 0 이하인 상품과 이 기간에 안 팔린 상품은 빠집니다.</li>
       <li>남성·여성은 엑셀 성별 열(Man / Woman)입니다. 성별이 비어 있는 판매는 "구분 없음"으로 두고 비중 계산의 전체 매출에만 넣었습니다. 비중 변화(%p)는 최근 주 비중에서 전주 같은 요일들의 비중을 뺀 값입니다.</li>
       <li>전년 비교: 합계(순매출, 매장, 유통 형태, 남녀, 아이템)는 작년 같은 날짜(예: 11/1–22 ↔ 작년 11/1–22)와, 일별·주별은 364일 전 같은 요일과 비교합니다. "전년 흐름대로면" 마감 예상 = 이번 달 실적 + 작년 남은 날 매출 × (올해 ÷ 작년 같은 기간). 전년 자료는 ERP 판매정보현황 엑셀(작년 같은 달 전체)입니다.</li>
+      <li>월별 매출은 월마다 받은 ERP 판매정보현황 엑셀(2026년 1–10월)과 이번 달 자료를 합산했습니다. 1월 엑셀에는 수량이 수백만 개로 잘못 들어간 줄(0원)이 있어, 월별 화면은 금액 기준으로만 보여 줍니다. 표의 * 표시는 아직 끝나지 않은 이번 달입니다.</li>
       <li>회원 = 고객번호가 있는 판매, 비회원 = 고객번호가 없는 판매. 객단가는 영수증 안에 고객번호가 하나라도 있으면 회원 영수증으로 셉니다.</li>
       <li>신규 가입 = 고객번호가 이번 달(F + 연월) 번호인 회원 수. 자료에서 처음 구매한 날·매장에 한 번만 셉니다. 가입만 하고 구매하지 않은 회원은 판매 자료에 없어서 빠집니다.</li>
       <li>주는 일요일부터 토요일까지입니다. 전주 대비는 전주의 같은 요일들과 비교하므로, 덜 끝난 주도 같은 날 수끼리 비교됩니다.</li>
@@ -547,6 +608,8 @@ window.FJ = (() => {
   // 전년 비교: 같은 날짜(작년 같은 월·일)와 같은 요일(364일 전)
   const sameDateLY = (s) => (+s.slice(0, 4) - 1) + s.slice(4);
   const sameDayLY = (s) => shiftDays(s, -364);
+  // 표 칸에 맞는 짧은 금액: 9.1억, 3,520만
+  const compact = (v) => v == null || !isFinite(v) ? '—' : Math.abs(v) >= 1e8 ? (v / 1e8).toFixed(1) + '억' : Math.round(v / 1e4).toLocaleString(loc) + '만';
   const pp = (v) => v == null || !isFinite(v) ? '—' : (v >= 0 ? '+' : '') + (v * 100).toFixed(1) + '%p';
   const shiftDays = (s, n) => new Date(Date.parse(s + 'T00:00:00Z') + n * 864e5).toISOString().slice(0, 10);
   // 한 주의 시작 = 일요일
@@ -649,7 +712,7 @@ window.FJ = (() => {
     tr.appendChild(td); tb.replaceChildren(tr);
   }
   function td(v, c) { const x = document.createElement('td'); x.textContent = v; x.className = c || ''; return x; }
-  return { won, wonShort, pct, int, dow, md, isWeekend, signed, tone, pp, sameDateLY, sameDayLY, shiftDays, weekStart, retailer, notOk, empty, bars, hbars, rowsMsg, td };
+  return { won, wonShort, pct, int, dow, md, isWeekend, signed, tone, pp, sameDateLY, sameDayLY, compact, shiftDays, weekStart, retailer, notOk, empty, bars, hbars, rowsMsg, td };
 })();
 </script>
 
@@ -1195,6 +1258,127 @@ dash.calc('retailer_mix', {
   },
 });
 
+// 월별 자료: 1월~지난달은 hist_store_daily, 이번 달은 store_daily
+window.FJ.mf = (r, p) => (!p.type || r.type === p.type) && (!p.store || r.store_code === p.store);
+window.FJ.monthName = (m) => `${+m.slice(5, 7)}월`;
+
+dash.calc('monthly', {
+  inputs: ['hist_store_daily', 'store_daily', 'forecast'],
+  title: '월별 매출',
+  description: '선택한 유통 형태·매장의 올해 월별 순매출, 전월 대비(이번 달은 마감 예상 기준), 하루 평균, 영수증, 객단가, 반품률, 평균 할인율, 매출이 있는 매장 수',
+  fn: (hist, cur, fc) => {
+    const p = dash.params();
+    const curMonth = d3.max(cur, (r) => r.date).slice(0, 7);
+    const rows = hist.filter((r) => r.date.slice(0, 7) !== curMonth).concat(cur).filter((r) => window.FJ.mf(r, p));
+    const by = d3.group(rows, (r) => r.date.slice(0, 7));
+    let prev = null;
+    return Array.from(by.keys()).sort().map((m) => {
+      const v = by.get(m), s = (k) => d3.sum(v, (r) => +r[k]);
+      const net = s('net'), sales = s('sales'), rec = s('receipts'), tag = s('tag');
+      const perStore = d3.rollup(v, (g) => d3.sum(g, (r) => +r.net), (r) => r.store_code);
+      const days = new Set(v.map((r) => r.date)).size;
+      const partial = m === curMonth;
+      const projected = partial && fc && fc[0] ? fc[0].projected : null;
+      const row = { month: m, net, projected, partial, days, per_day: days ? net / days : null, receipts: rec,
+        aov: rec ? sales / rec : null, return_rate: sales ? s('returns') / sales : null, discount: tag ? 1 - net / tag : null,
+        stores: Array.from(perStore.values()).filter((x) => x > 0).length,
+        mom: prev && prev.net ? (partial && projected != null ? projected : net) / prev.net - 1 : null };
+      prev = row;
+      return row;
+    });
+  },
+});
+
+dash.calc('ytd', {
+  inputs: ['monthly'],
+  title: '올해 누계',
+  description: '올해 1월부터 마지막 판매일까지 누적 순매출, 월 평균(다 끝난 달 기준), 가장 많이 판 달',
+  fn: (months) => {
+    if (!months.length) return [];
+    const done = months.filter((m) => !m.partial);
+    const best = done.length ? done.reduce((a, b) => (b.net > a.net ? b : a)) : null;
+    const last = months[months.length - 1];
+    return [{ ytd: d3.sum(months, (m) => m.net), from: months[0].month, to: last.month,
+      ytd_projected: d3.sum(done, (m) => m.net) + (last.partial ? (last.projected ?? last.net) : 0),
+      avg_month: done.length ? d3.mean(done, (m) => m.net) : null, best_month: best ? best.month : null, best_net: best ? best.net : null }];
+  },
+});
+
+dash.calc('mom', {
+  inputs: ['hist_store_daily', 'store_daily'],
+  title: '전월 대비',
+  description: '선택한 유통 형태·매장의 이번 달 1일~마지막 판매일 순매출과 지난달 같은 날짜 구간 순매출, 전월 대비 증감',
+  fn: (hist, cur) => {
+    const p = dash.params();
+    const last = d3.max(cur, (r) => r.date), ym = last.slice(0, 7);
+    const d = new Date(Date.UTC(+ym.slice(0, 4), +ym.slice(5, 7) - 2, 1));
+    const pm = d.toISOString().slice(0, 7);
+    const pmDays = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate();
+    const to = `${pm}-${String(Math.min(+last.slice(8, 10), pmDays)).padStart(2, '0')}`;
+    const net = d3.sum(cur.filter((r) => window.FJ.mf(r, p)), (r) => +r.net);
+    const prevRows = hist.filter((r) => r.date >= `${pm}-01` && r.date <= to && window.FJ.mf(r, p));
+    const prev = d3.sum(prevRows, (r) => +r.net);
+    return [{ net, prev_net: prevRows.length ? prev : null, prev_from: `${pm}-01`, prev_to: to, mom: prevRows.length && prev ? net / prev - 1 : null }];
+  },
+});
+
+dash.calc('retailer_month', {
+  inputs: ['hist_store_daily', 'store_daily'],
+  title: '유통사별 월별 매출',
+  description: '선택한 유통 형태에서 유통사(백화점·아울렛 × 롯데·현대·신세계 등)별 월 순매출',
+  fn: (hist, cur) => {
+    const { type = '' } = dash.params();
+    const curMonth = d3.max(cur, (r) => r.date).slice(0, 7);
+    const rows = hist.filter((r) => r.date.slice(0, 7) !== curMonth).concat(cur).filter((r) => !type || r.type === type);
+    const groupOf = (r) => (r.type === '백화점' || r.type === '아울렛' ? r.type : r.type === '가두점' ? '가두점' : '기타');
+    const name = (r) => { const g = window.FJ.retailer(r); return g.endsWith(' 백화점') || g.endsWith(' 아울렛') ? g.split(' ')[0] : g; };
+    const out = [];
+    for (const [k, v] of d3.group(rows, (r) => `${groupOf(r)}|${name(r)}|${r.date.slice(0, 7)}`)) {
+      const [group, retailer, month] = k.split('|');
+      out.push({ key: `${group}|${retailer}`, group, retailer, month, net: d3.sum(v, (r) => +r.net) });
+    }
+    return out;
+  },
+});
+
+dash.calc('store_month', {
+  inputs: ['hist_store_daily', 'store_daily'],
+  title: '매장별 월별 매출',
+  description: '선택한 유통 형태의 매장별 월 순매출',
+  fn: (hist, cur) => {
+    const { type = '' } = dash.params();
+    const curMonth = d3.max(cur, (r) => r.date).slice(0, 7);
+    const rows = hist.filter((r) => r.date.slice(0, 7) !== curMonth).concat(cur).filter((r) => !type || r.type === type);
+    const names = new Map(cur.concat(hist).map((r) => [r.store_code, r]));
+    const out = [];
+    for (const [k, v] of d3.group(rows, (r) => `${r.store_code}|${r.date.slice(0, 7)}`)) {
+      const [store_code, month] = k.split('|');
+      out.push({ store_code, store: names.get(store_code).store, type: names.get(store_code).type, month, net: d3.sum(v, (r) => +r.net) });
+    }
+    return out;
+  },
+});
+
+dash.calc('item_month', {
+  inputs: ['month_item', 'gender_item_daily', 'store_daily'],
+  title: '아이템별 월별 매출',
+  description: '선택한 유통 형태·매장과 성별(전체/남성/여성)에서 아이템별 월 순매출',
+  fn: (mi, gid, storeDaily) => {
+    const p = dash.params();
+    const g = p.mgsel || '전체';
+    const codes = window.FJ.pick(storeDaily, p);
+    const curMonth = d3.max(storeDaily, (r) => r.date).slice(0, 7);
+    const hist = mi.filter((r) => r.month !== curMonth && window.FJ.mf(r, p) && (g === '전체' || r.gender === g));
+    const cur = gid.filter((r) => codes.has(r.store_code) && (g === '전체' || r.gender === g)).map((r) => ({ ...r, month: r.date.slice(0, 7) }));
+    const out = [];
+    for (const [k, v] of d3.group(hist.concat(cur), (r) => `${r.item}|${r.month}`)) {
+      const [item, month] = k.split('|');
+      out.push({ item, line: v[0].line, month, net: d3.sum(v, (r) => +r.net) });
+    }
+    return out;
+  },
+});
+
 dash.calc('type_mix', {
   inputs: ['store_daily'],
   title: '유통 형태별 매출',
@@ -1332,12 +1516,14 @@ document.querySelectorAll('#type-select').forEach((s) => s.addEventListener('cha
 document.querySelectorAll('#clear-filters').forEach((b) => b.addEventListener('click', () => dash.setParams({ type: '', store: '' })));
 document.querySelectorAll('#pseason-select').forEach((s) => s.addEventListener('change', () => dash.setParams({ pseason: s.value })));
 document.querySelectorAll('#gsel-select').forEach((s) => s.addEventListener('change', () => dash.setParams({ gsel: s.value })));
+document.querySelectorAll('#mgsel-select').forEach((s) => s.addEventListener('change', () => dash.setParams({ mgsel: s.value })));
 dash.onData(() => {
   const p = dash.params();
   document.querySelectorAll('#type-select').forEach((s) => { if (document.activeElement !== s) s.value = p.type || ''; });
   document.querySelectorAll('#clear-filters').forEach((b) => { b.hidden = !p.type && !p.store; });
   document.querySelectorAll('#pseason-select').forEach((s) => { if (document.activeElement !== s) s.value = p.pseason || ''; });
   document.querySelectorAll('#gsel-select').forEach((s) => { if (document.activeElement !== s) s.value = p.gsel || '전체'; });
+  document.querySelectorAll('#mgsel-select').forEach((s) => { if (document.activeElement !== s) s.value = p.mgsel || '전체'; });
 });
 
 dash.draw('store-select', (sel) => {
@@ -1491,6 +1677,177 @@ dash.draw('forecast-chart', (el) => {
       t.style.left = Math.max(0, left) + 'px'; t.style.top = Math.max(0, y(r.cum) - 20) + 'px';
     })
     .on('pointerleave', () => { t.hidden = true; guide.style('opacity', 0); });
+});
+
+// ── 월별 ──
+const YTD = { 'ytd-ytd': 'won', 'ytd-ytd_projected': 'won', 'ytd-avg_month': 'won', 'ytd-best_net': 'won' };
+Object.entries(YTD).forEach(([name, kind]) => dash.draw(name, (el) => {
+  const d = dash.data('ytd');
+  el.textContent = d.status === 'ok' && d.data && d.data.length ? FJ.won(d.data[0][name.slice(4)]) : '—';
+}));
+dash.draw('ytd-range', (el) => {
+  const d = dash.data('ytd'), k = dash.data('kpi');
+  el.textContent = d.status === 'ok' && d.data && d.data.length && k.status === 'ok' && k.data.length ? `1월 1일–${FJ.md(k.data[0].last)}` : '—';
+});
+dash.draw('ytd-best', (el) => {
+  const d = dash.data('ytd');
+  el.textContent = d.status === 'ok' && d.data && d.data.length && d.data[0].best_month ? FJ.monthName(d.data[0].best_month) : '—';
+});
+[['mom-mom', 'mom', 'signed'], ['mom-prev_net', 'prev_net', 'won']].forEach(([name, field, kind]) => dash.draw(name, (el) => {
+  const d = dash.data('mom');
+  if (d.status !== 'ok' || !d.data || !d.data.length) { el.textContent = '—'; el.className = ''; return; }
+  const v = d.data[0][field];
+  el.textContent = kind === 'won' ? FJ.won(v) : FJ.signed(v);
+  el.className = kind === 'signed' ? FJ.tone(v) : '';
+}));
+
+dash.draw('monthly-chart', (el) => {
+  const d = dash.data('monthly');
+  if (FJ.notOk(el, d)) return;
+  const rows = d.data;
+  if (!rows.length) return FJ.empty(el, '이 조건에 맞는 매출이 없습니다.');
+  el.replaceChildren();
+  const W = el.clientWidth || 600, H = 260, m = { t: 24, r: 6, b: 24, l: 40 };
+  const svg = d3.select(el).append('svg').attr('width', '100%').attr('height', H).attr('viewBox', `0 0 ${W} ${H}`)
+    .attr('role', 'img').attr('aria-label', '2026년 월별 순매출 막대 차트, 이번 달은 실적과 마감 예상');
+  const top = d3.max(rows, (r) => Math.max(r.net, r.projected || 0)) || 1;
+  const y = d3.scaleLinear().domain([0, top]).nice().range([H - m.b, m.t]);
+  const ticks = y.ticks(4);
+  const tl = svg.append('g').attr('class', 'fj-axis').selectAll('text').data(ticks).join('text').text(FJ.wonShort).attr('y', (v) => y(v)).attr('dy', '0.32em').attr('text-anchor', 'end');
+  m.l = Math.ceil(d3.max(tl.nodes(), (n) => n.getComputedTextLength()) || 28) + 10;
+  tl.attr('x', m.l - 8);
+  svg.insert('g', ':first-child').attr('class', 'fj-grid').selectAll('line').data(ticks.filter((t) => t > 0)).join('line')
+    .attr('x1', m.l).attr('x2', W - m.r).attr('y1', (v) => y(v)).attr('y2', (v) => y(v));
+  const x = d3.scaleBand().domain(rows.map((r) => r.month)).range([m.l, W - m.r]).padding(0.25);
+  const g = svg.append('g');
+  rows.forEach((r) => {
+    if (r.partial && r.projected > r.net) {
+      g.append('rect').attr('x', x(r.month)).attr('width', x.bandwidth()).attr('y', y(r.projected)).attr('height', y(r.net) - y(r.projected))
+        .attr('rx', 2).style('fill', dash.colors[0]).style('opacity', 0.28).attr('data-m', r.month).attr('data-base', 0.28);
+    }
+    g.append('rect').attr('x', x(r.month)).attr('width', x.bandwidth()).attr('y', y(Math.max(0, r.net))).attr('height', Math.abs(y(0) - y(r.net)))
+      .attr('rx', 2).style('fill', dash.colors[0]).attr('data-m', r.month).attr('data-base', 1);
+    const lab = r.partial && r.projected != null ? r.projected : r.net;
+    svg.append('text').attr('class', 'fj-axis').attr('x', x(r.month) + x.bandwidth() / 2).attr('y', y(lab) - 6).attr('text-anchor', 'middle')
+      .text((r.partial ? '예상 ' : '') + FJ.compact(lab));
+  });
+  svg.append('line').attr('class', 'fj-base').attr('x1', m.l).attr('x2', W - m.r).attr('y1', y(0)).attr('y2', y(0));
+  svg.append('g').attr('class', 'fj-axis').selectAll('text').data(rows).join('text')
+    .attr('x', (r) => x(r.month) + x.bandwidth() / 2).attr('y', H - 6).attr('text-anchor', 'middle').text((r) => FJ.monthName(r.month));
+  const t = document.createElement('div'); t.className = 'fj-tip'; t.hidden = true; el.appendChild(t);
+  svg.append('rect').attr('x', m.l).attr('y', m.t).attr('width', W - m.l - m.r).attr('height', H - m.t - m.b).style('fill', 'transparent')
+    .on('pointermove', (ev) => {
+      const [px] = d3.pointer(ev);
+      const r = rows[Math.max(0, Math.min(rows.length - 1, Math.floor((px - m.l - x.step() * x.paddingOuter()) / x.step())))];
+      g.selectAll('rect').style('opacity', function () { const base = +this.getAttribute('data-base'); return this.getAttribute('data-m') === r.month ? base : base * 0.45; });
+      const lines = [[`${FJ.monthName(r.month)}${r.partial ? ` (${r.days}일까지)` : ''}`], ['순매출', FJ.won(r.net)]];
+      if (r.partial && r.projected != null) lines.push(['마감 예상', FJ.won(r.projected)]);
+      lines.push([r.partial ? '전월 대비 (예상 기준)' : '전월 대비', FJ.signed(r.mom)], ['하루 평균', FJ.won(r.per_day)]);
+      t.replaceChildren(...lines.map(([a, b], j) => { const row = document.createElement('div');
+        if (j === 0) { const s = document.createElement('b'); s.textContent = a; row.appendChild(s); return row; }
+        const s = document.createElement('span'); s.textContent = a + ' '; row.append(s, document.createTextNode(b)); return row; }));
+      t.hidden = false;
+      const cx = x(r.month) + x.bandwidth() / 2, w = t.offsetWidth;
+      let left = cx + 14; if (left + w > W) left = cx - 14 - w;
+      t.style.left = Math.max(0, left) + 'px'; t.style.top = m.t + 'px';
+    })
+    .on('pointerleave', () => { t.hidden = true; g.selectAll('rect').style('opacity', function () { return +this.getAttribute('data-base'); }); });
+});
+
+dash.draw('monthly-rows', (tb) => {
+  const d = dash.data('monthly');
+  if (d.status !== 'ok') return FJ.rowsMsg(tb, 9, d.status === 'error' ? '월별 데이터를 불러오지 못했습니다.' : '—');
+  tb.replaceChildren(...d.data.slice().reverse().map((r) => {
+    const tr = document.createElement('tr'); tr.dataset.key = r.month;
+    const name = document.createElement('td');
+    name.textContent = FJ.monthName(r.month) + (r.partial ? ` (${r.days}일까지)` : '');
+    const net = document.createElement('td'); net.className = 'n';
+    const a = document.createElement('div'); a.textContent = FJ.won(r.net); net.appendChild(a);
+    if (r.partial && r.projected != null) { const b = document.createElement('div'); b.className = 'fj-cd'; b.textContent = `예상 ${FJ.won(r.projected)}`; net.appendChild(b); }
+    tr.append(name, net, FJ.td(FJ.signed(r.mom), 'n ' + FJ.tone(r.mom)), FJ.td(FJ.won(r.per_day), 'n'), FJ.td(FJ.int(r.receipts), 'n'),
+      FJ.td(FJ.won(r.aov), 'n'), FJ.td(FJ.pct(r.return_rate), 'n'), FJ.td(FJ.pct(r.discount), 'n'), FJ.td(FJ.int(r.stores), 'n'));
+    return tr;
+  }));
+});
+
+// 행 × 월 표 (칸 색은 그 줄의 최댓값 대비)
+FJ.heatTable = (el, { rows, months, label, sub, onPick, picked, curMonth }) => {
+  const table = document.createElement('table'); table.className = 'fj-table fj-heat';
+  const th = (t, c) => { const x = document.createElement('th'); x.textContent = t; x.className = c || ''; return x; };
+  const hr = document.createElement('tr');
+  hr.append(th(label), ...months.map((m) => th(FJ.monthName(m) + (m === curMonth ? '*' : ''), 'n')), th('누계', 'n'));
+  const thead = document.createElement('thead'); thead.appendChild(hr);
+  const tbody = document.createElement('tbody');
+  rows.forEach((r) => {
+    const tr = document.createElement('tr'); if (r.sub) tr.className = 'fj-total';
+    if (r.code && r.code === picked) tr.classList.add('is-picked');
+    const name = document.createElement('td');
+    if (onPick && r.code) {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'fj-link' + (r.code === picked ? ' is-on' : ''); b.textContent = r.name;
+      b.addEventListener('click', () => onPick(r.code)); name.appendChild(b);
+    } else name.textContent = r.name;
+    if (r.note) { const n2 = document.createElement('div'); n2.className = 'fj-cd'; n2.textContent = r.note; name.appendChild(n2); }
+    tr.appendChild(name);
+    const max = d3.max(months, (m) => r.v.get(m) || 0) || 1;
+    months.forEach((m) => {
+      const v = r.v.get(m);
+      const td = document.createElement('td'); td.className = 'n v';
+      td.textContent = v ? FJ.compact(v) : '—';
+      if (v > 0 && !r.sub) td.style.background = `color-mix(in srgb, ${dash.colors[0]} ${Math.round(v / max * 32)}%, transparent)`;
+      td.title = `${r.name} · ${FJ.monthName(m)} ${FJ.won(v || 0)}`;
+      tr.appendChild(td);
+    });
+    tr.appendChild(FJ.td(FJ.compact(d3.sum(months, (m) => r.v.get(m) || 0)), 'n'));
+    tbody.appendChild(tr);
+  });
+  table.append(thead, tbody);
+  el.replaceChildren(table);
+};
+
+dash.draw('retailer-month', (el) => {
+  const d = dash.data('retailer_month');
+  if (FJ.notOk(el, d)) return;
+  if (!d.data.length) return FJ.empty(el, '이 조건에 맞는 매출이 없습니다.');
+  const months = Array.from(new Set(d.data.map((r) => r.month))).sort();
+  const curMonth = months[months.length - 1];
+  const rows = [];
+  ['백화점', '아울렛', '가두점', '기타'].forEach((g) => {
+    const gv = d.data.filter((r) => r.group === g);
+    if (!gv.length) return;
+    const byR = d3.group(gv, (r) => r.retailer);
+    const items = Array.from(byR, ([n, v]) => ({ name: n === g ? g : `${n} ${g}`, v: new Map(v.map((r) => [r.month, r.net])), total: d3.sum(v, (r) => r.net) }))
+      .sort((a, b) => b.total - a.total);
+    if (g === '백화점' || g === '아울렛') {
+      items.forEach((i) => rows.push(i));
+      rows.push({ name: `${g} 소계`, sub: true, v: d3.rollup(gv, (v) => d3.sum(v, (r) => r.net), (r) => r.month) });
+    } else rows.push({ ...items[0], sub: true });
+  });
+  rows.push({ name: '합계', sub: true, v: d3.rollup(d.data, (v) => d3.sum(v, (r) => r.net), (r) => r.month) });
+  FJ.heatTable(el, { rows, months, label: '유통사', curMonth });
+});
+
+dash.draw('item-month', (el) => {
+  const d = dash.data('item_month');
+  if (FJ.notOk(el, d)) return;
+  if (!d.data.length) return FJ.empty(el, '이 조건에 맞는 매출이 없습니다.');
+  const months = Array.from(new Set(d.data.map((r) => r.month))).sort();
+  const rows = Array.from(d3.group(d.data, (r) => r.item), ([item, v]) => ({ name: item, note: v[0].line, v: new Map(v.map((r) => [r.month, r.net])), total: d3.sum(v, (r) => r.net) }))
+    .filter((r) => r.total !== 0).sort((a, b) => b.total - a.total);
+  rows.push({ name: '합계', sub: true, v: d3.rollup(d.data, (v) => d3.sum(v, (r) => r.net), (r) => r.month) });
+  FJ.heatTable(el, { rows, months, label: '아이템', curMonth: months[months.length - 1] });
+});
+
+dash.draw('store-month', (el) => {
+  const d = dash.data('store_month');
+  if (FJ.notOk(el, d)) return;
+  if (!d.data.length) return FJ.empty(el, '이 조건에 맞는 매장이 없습니다.');
+  const months = Array.from(new Set(d.data.map((r) => r.month))).sort();
+  const picked = dash.params().store || '';
+  const rows = Array.from(d3.group(d.data, (r) => r.store_code), ([code, v]) => ({ code, name: v[0].store, note: v[0].type,
+    v: new Map(v.map((r) => [r.month, r.net])), total: d3.sum(v, (r) => r.net) }))
+    .filter((r) => r.total > 0 && !/사용중지/.test(r.name)).sort((a, b) => b.total - a.total);
+  FJ.heatTable(el, { rows, months, label: '매장', curMonth: months[months.length - 1], picked,
+    onPick: (code) => dash.setParams({ store: code === picked ? '' : code }) });
 });
 
 // ── 주별 ──
