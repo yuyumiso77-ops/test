@@ -501,7 +501,7 @@
   <section class="fj-section" id="members-section">
     <div class="fj-sec-title">
       <h2>회원·비회원 매출</h2>
-      <span class="fj-label">고객번호가 있는 판매는 회원, 없는 판매는 비회원입니다. 신규 가입은 이번 달에 발급된 고객번호로 구매한 회원 수입니다.</span>
+      <span class="fj-label">고객번호가 있는 판매는 회원, 없는 판매는 비회원입니다. 회원 비중은 반품 전 판매금액 기준입니다. 신규 가입은 이번 달에 발급된 고객번호로 구매한 회원 수입니다.</span>
     </div>
     <div class="fj-kpis">
       <div class="fj-card" id="kpi-member">
@@ -821,7 +821,7 @@
       <li>전년 비교: 합계(순매출, 매장, 유통 형태, 남녀, 아이템)는 작년 같은 날짜(예: 11/1–22 ↔ 작년 11/1–22)와, 일별·주별은 364일 전 같은 요일과 비교합니다. "전년 흐름대로면" 마감 예상 = 이번 달 실적 + 작년 남은 날 매출 × (올해 ÷ 작년 같은 기간). 전년 자료는 ERP 판매정보현황 엑셀(작년 같은 달 전체)입니다.</li>
       <li>2026년 연간 예상 = 올해 누계 + 이번 달 남은 날 예상 + 남은 달은 작년 같은 달 × (올해 누계 ÷ 작년 같은 기간 누계). 작년 자료는 2025년 1–12월 판매정보현황 엑셀입니다.</li>
       <li>월별 매출은 월마다 받은 ERP 판매정보현황 엑셀(2026년 1–10월)과 이번 달 자료를 합산했습니다. 1월 엑셀에는 수량이 수백만 개로 잘못 들어간 줄(0원)이 있어, 월별 화면은 금액 기준으로만 보여 줍니다. 표의 * 표시는 아직 끝나지 않은 이번 달입니다.</li>
-      <li>회원 = 고객번호가 있는 판매, 비회원 = 고객번호가 없는 판매. 객단가는 영수증 안에 고객번호가 하나라도 있으면 회원 영수증으로 셉니다.</li>
+      <li>회원 = 고객번호가 있는 판매, 비회원 = 고객번호가 없는 판매. 회원 비중은 반품 전 판매금액 기준이라(영수증 안에 고객번호가 하나라도 있으면 회원 영수증) 비회원 반품이 많아도 100%를 넘지 않습니다. 객단가는 영수증 안에 고객번호가 하나라도 있으면 회원 영수증으로 셉니다.</li>
       <li>신규 가입 = 고객번호가 이번 달(F + 연월) 번호인 회원 수. 자료에서 처음 구매한 날·매장에 한 번만 셉니다. 가입만 하고 구매하지 않은 회원은 판매 자료에 없어서 빠집니다.</li>
       <li>주는 일요일부터 토요일까지입니다. 전주 대비는 전주의 같은 요일들과 비교하므로, 덜 끝난 주도 같은 날 수끼리 비교됩니다.</li>
       <li>월 마감 예상 = 이번 달 실적 + 남은 날마다 같은 요일의 이번 달 평균 매출. 범위는 그 요일의 최저·최고 매출로 계산했습니다. 블랙프라이데이 같은 행사나 월말 효과는 반영하지 않습니다.</li>
@@ -1036,7 +1036,7 @@ dash.calc('stores', {
     const prev = cur.map((d) => window.FJ.shiftDays(d, -7));
     const hasPrev = prev.every((d) => dates.has(d));
     const curSet = new Set(cur), prevSet = new Set(prev);
-    const mem = d3.rollup(memberDaily, (v) => ({ member: d3.sum(v, (r) => +r.member_net), fresh: d3.sum(v, (r) => +r.new_members) }), (r) => r.store_code);
+    const mem = d3.rollup(memberDaily, (v) => ({ ms: d3.sum(v, (r) => +r.member_sales), ns: d3.sum(v, (r) => +r.nonmember_sales), fresh: d3.sum(v, (r) => +r.new_members) }), (r) => r.store_code);
     const out = Array.from(d3.group(rows, (r) => r.store_code), ([store_code, v]) => {
       const s = (k) => d3.sum(v, (r) => +r[k]);
       const sales = s('sales'), receipts = s('receipts');
@@ -1045,7 +1045,7 @@ dash.calc('stores', {
       return { store_code, store: v[0].store, type: v[0].type, net: s('net'), confirmed: s('confirmed'), qty: s('qty'),
         aov: receipts ? sales / receipts : null, return_rate: sales ? s('returns') / sales : null,
         week_net: weekNet, wow: hasPrev && prevNet > 0 ? weekNet / prevNet - 1 : null,
-        member_share: s('net') ? ((mem.get(store_code) || {}).member || 0) / s('net') : null,
+        member_share: (() => { const o = mem.get(store_code) || {}; return o.ms + o.ns > 0 ? o.ms / (o.ms + o.ns) : null; })(), // 반품 전 판매금액 기준
         new_members: (mem.get(store_code) || {}).fresh || 0 };
     }).filter((r) => r.net !== 0 || r.qty !== 0);
     const total = d3.sum(out, (r) => r.net);
@@ -1138,7 +1138,9 @@ dash.calc('members', {
     const days = new Set(memberDaily.map((r) => r.date)).size;
     return [{
       member_net: m, nonmember_net: n,
-      member_share: total ? m / total : null, nonmember_share: total ? n / total : null,
+      // 비중은 반품 전 판매금액 기준 (비회원 반품이 많으면 순매출 비중이 100%를 넘을 수 있어서)
+      member_share: s('member_sales') + s('nonmember_sales') > 0 ? s('member_sales') / (s('member_sales') + s('nonmember_sales')) : null,
+      nonmember_share: s('member_sales') + s('nonmember_sales') > 0 ? s('nonmember_sales') / (s('member_sales') + s('nonmember_sales')) : null,
       member_aov: s('member_receipts') ? s('member_sales') / s('member_receipts') : null,
       nonmember_aov: s('nonmember_receipts') ? s('nonmember_sales') / s('nonmember_receipts') : null,
       new_members: s('new_members'), new_per_day: days ? s('new_members') / days : null,
@@ -1154,8 +1156,8 @@ dash.calc('member_trend', {
   fn: (memberDaily, storeDaily) => {
     const codes = window.FJ.pick(storeDaily, dash.params());
     const rows = memberDaily.filter((r) => codes.has(r.store_code));
-    const by = d3.rollup(rows, (v) => ({ member_net: d3.sum(v, (r) => +r.member_net), nonmember_net: d3.sum(v, (r) => +r.nonmember_net), new_members: d3.sum(v, (r) => +r.new_members) }), (r) => r.date);
-    return Array.from(new Set(memberDaily.map((r) => r.date))).sort().map((date) => ({ date, ...(by.get(date) || { member_net: 0, nonmember_net: 0, new_members: 0 }) }));
+    const by = d3.rollup(rows, (v) => ({ member_net: d3.sum(v, (r) => +r.member_net), nonmember_net: d3.sum(v, (r) => +r.nonmember_net), member_sales: d3.sum(v, (r) => +r.member_sales), nonmember_sales: d3.sum(v, (r) => +r.nonmember_sales), new_members: d3.sum(v, (r) => +r.new_members) }), (r) => r.date);
+    return Array.from(new Set(memberDaily.map((r) => r.date))).sort().map((date) => ({ date, ...(by.get(date) || { member_net: 0, nonmember_net: 0, member_sales: 0, nonmember_sales: 0, new_members: 0 }) }));
   },
 });
 
@@ -1168,8 +1170,9 @@ dash.calc('member_weekly', {
     let prev = null;
     return weeks.map((v, i) => {
       const m = d3.sum(v, (r) => r.member_net), n = d3.sum(v, (r) => r.nonmember_net), fresh = d3.sum(v, (r) => r.new_members);
+      const ms = d3.sum(v, (r) => r.member_sales), ns = d3.sum(v, (r) => r.nonmember_sales);
       const row = { week: `${i + 1}주차`, start: v[0].date, end: v[v.length - 1].date, member_net: m, nonmember_net: n,
-        member_share: m + n ? m / (m + n) : null, new_members: fresh, new_wow: prev && v.length === prev.days && prev.fresh ? fresh / prev.fresh - 1 : null };
+        member_share: ms + ns ? ms / (ms + ns) : null, new_members: fresh, new_wow: prev && v.length === prev.days && prev.fresh ? fresh / prev.fresh - 1 : null };
       prev = { days: v.length, fresh };
       return row;
     });
@@ -1807,7 +1810,7 @@ dash.calc('annual_member', {
     const rows = mm.filter((r) => r.month !== cm && r.month.startsWith(cm.slice(0, 4)) && window.FJ.mf(r, p)).concat(cur);
     const lyr = lyMm.filter((r) => window.FJ.mf(r, p));
     const roll = (v) => { const s = (k) => d3.sum(v, (r) => +r[k]); const m = s('member_net'), n = s('nonmember_net');
-      return { member_net: m, nonmember_net: n, share: m + n ? m / (m + n) : null, new_members: s('new_members'),
+      return { member_net: m, nonmember_net: n, share: s('member_sales') + s('nonmember_sales') ? s('member_sales') / (s('member_sales') + s('nonmember_sales')) : null, new_members: s('new_members'),
         member_sales: s('member_sales'), member_receipts: s('member_receipts'), nonmember_sales: s('nonmember_sales'), nonmember_receipts: s('nonmember_receipts'),
         member_aov: s('member_receipts') ? s('member_sales') / s('member_receipts') : null, nonmember_aov: s('nonmember_receipts') ? s('nonmember_sales') / s('nonmember_receipts') : null }; };
     const ty = d3.rollup(rows, roll, (r) => r.month), lyM = d3.rollup(lyr, roll, (r) => r.month);
@@ -1827,7 +1830,7 @@ dash.calc('annual_member_sum', {
     const lyMonths = new Set(months.map((m) => (+m.month.slice(0, 4) - 1) + m.month.slice(4)));
     const lyr = lyMm.filter((r) => lyMonths.has(r.month) && window.FJ.mf(r, p));
     const ls = (k) => d3.sum(lyr, (r) => +r[k]);
-    const m = s('member_net'), n = s('nonmember_net'), lm = ls('member_net'), ln = ls('nonmember_net');
+    const m = s('member_sales'), n = s('nonmember_sales'), lm = ls('member_sales'), ln = ls('nonmember_sales');
     return [{ share: m + n ? m / (m + n) : null, ly_share: lm + ln ? lm / (lm + ln) : null, new_members: s('new_members'), ly_new: ls('new_members'),
       member_aov: s('member_receipts') ? s('member_sales') / s('member_receipts') : null, nonmember_aov: s('nonmember_receipts') ? s('nonmember_sales') / s('nonmember_receipts') : null }];
   },
@@ -1854,7 +1857,7 @@ dash.calc('month_mix', {
     const p = dash.params();
     const cm = window.FJ.curMonthOf(storeDaily), codes = window.FJ.pick(storeDaily, p), f = (r) => window.FJ.mf(r, p);
     const share = (rows, keyOf, num, den) => d3.rollup(rows, (v) => { const d = d3.sum(v, den); return d ? d3.sum(v, num) / d : null; }, keyOf);
-    const mem = (rows) => share(rows, (r) => r.month, (r) => +r.member_net, (r) => +r.member_net + +r.nonmember_net);
+    const mem = (rows) => share(rows, (r) => r.month, (r) => +r.member_sales, (r) => +r.member_sales + +r.nonmember_sales);
     const man = (rows) => share(rows, (r) => r.month, (r) => (r.gender === '남성' ? +r.net : 0), (r) => (r.gender === '남성' || r.gender === '여성' ? +r.net : 0));
     const nor = (rows) => share(rows, (r) => r.month, (r) => (r.sale_type === '정상' ? +r.net : 0), (r) => +r.net);
     const curMd = md.filter((r) => codes.has(r.store_code)).map((r) => ({ ...r, month: cm }));
@@ -1895,7 +1898,7 @@ dash.calc('mdet_kpi', {
     const net = s(rows, 'net'), pn = s(prev, 'net'), ln = s(lyr, 'net'), rec = s(rows, 'receipts'), sales = s(rows, 'sales'), tag = s(rows, 'tag');
     const days = new Set(rows.map((r) => r.date)).size;
     const memRows = m === window.FJ.curMonthOf(cur) ? md.filter((r) => window.FJ.pick(cur, p).has(r.store_code)) : mm.filter((r) => r.month === m && f(r));
-    const mn = s(memRows, 'member_net'), nn = s(memRows, 'nonmember_net');
+    const mn = s(memRows, 'member_sales'), nn = s(memRows, 'nonmember_sales');
     return [{ month: m, net, mom: pn > 0 ? net / pn - 1 : null, yoy: ln > 0 ? net / ln - 1 : null, days, per_day: days ? net / days : null,
       receipts: rec, aov: rec ? sales / rec : null, discount: tag ? 1 - net / tag : null, return_rate: sales ? s(rows, 'returns') / sales : null,
       member_share: mn + nn ? mn / (mn + nn) : null, new_members: s(memRows, 'new_members') }];
@@ -3027,7 +3030,7 @@ dash.draw('member-chart', (el) => {
       const r = rows[Math.max(0, Math.min(rows.length - 1, Math.floor((px - m.l - x.step() * x.paddingOuter()) / x.step())))];
       g.selectAll('rect').style('opacity', function () { return this.getAttribute('data-d') === r.date ? 1 : 0.45; });
       const tot = r.member_net + r.nonmember_net;
-      const lines = [[`${FJ.md(r.date)} (${FJ.dow(r.date)})`], ['회원', `${FJ.won(r.member_net)} (${FJ.pct(tot ? r.member_net / tot : null)})`], ['비회원', FJ.won(r.nonmember_net)], ['신규 가입', FJ.int(r.new_members) + '명']];
+      const lines = [[`${FJ.md(r.date)} (${FJ.dow(r.date)})`], ['회원', `${FJ.won(r.member_net)} (판매금액 비중 ${FJ.pct(r.member_sales + r.nonmember_sales ? r.member_sales / (r.member_sales + r.nonmember_sales) : null)})`], ['비회원', FJ.won(r.nonmember_net)], ['신규 가입', FJ.int(r.new_members) + '명']];
       t.replaceChildren(...lines.map(([a, b], j) => { const row = document.createElement('div');
         if (j === 0) { const s = document.createElement('b'); s.textContent = a; row.appendChild(s); return row; }
         const s = document.createElement('span'); s.textContent = a + ' '; row.append(s, document.createTextNode(b)); return row; }));
