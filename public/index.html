@@ -223,6 +223,7 @@ fetch('data/meta.json', { cache: 'no-store' }).then((r) => r.ok ? r.json() : nul
 .fj-topstores .m { color: var(--color-fg-muted); }
 .fj-foot { color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); }
 .fj-foot summary { cursor: pointer; }
+.fj-ul { margin: 0; padding-left: 1.3em; display: flex; flex-direction: column; gap: 6px; max-width: 78ch; line-height: 1.55; }
 .fj-foot ul { margin: var(--cds-gap-sm) 0 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 4px; max-width: 78ch; }
 </style>
 
@@ -256,6 +257,7 @@ fetch('data/meta.json', { cache: 'no-store' }).then((r) => r.ok ? r.json() : nul
     <button type="button" role="tab" data-tab="tab-month" aria-selected="false">월별 매출 추이</button>
     <button type="button" role="tab" data-tab="tab-now" aria-selected="true" class="is-on">당월 매출 현황</button>
     <button type="button" role="tab" data-tab="tab-mgr" aria-selected="false">당월 담당자별 매출 실적</button>
+    <button type="button" role="tab" data-tab="tab-weak" aria-selected="false">부진 매장 개선 방안</button>
   </nav>
 
   <section class="fj-tab" id="tab-year" hidden>
@@ -962,24 +964,6 @@ fetch('data/meta.json', { cache: 'no-store' }).then((r) => r.ok ? r.json() : nul
     </div>
   </section>
 
-  <section class="fj-section" id="mgr-weak">
-    <div class="fj-sec-title">
-      <h2>부진 매장과 개선 방법</h2>
-      <span class="fj-label">집중 관리 = 이번 달 전년 대비 −15% 이하이고 최근 7일도 전년 같은 요일 대비 −15% 이하. 누계 회복 중 = 이번 달 −15% 이하, 최근 7일은 회복. 최근 급락 = 이번 달 +10% 미만, 최근 7일 전년 대비와 전주 대비 모두 −30% 이하. 작년 매출 1천만원 미만·폐점 예정 매장 제외. 개선 방법은 원인에 따라 자동으로 붙습니다.</span>
-    </div>
-    <p class="fj-lede" data-draw="weak-sum">—</p>
-    <div class="fj-tablewrap tall">
-      <table class="fj-table" id="weak-table" data-source="mgr_weak" data-row-key="store_code">
-        <thead><tr>
-          <th data-field="tier">구분</th><th data-field="manager">담당자</th><th data-field="store">매장</th>
-          <th data-field="fix">개선 방법</th><th data-field="cause">원인</th>
-          <th class="n" data-field="yoy">전년 대비</th><th class="n" data-field="w_yoy">최근 7일 전년 대비</th><th class="n" data-field="gap">차이</th><th class="n" data-field="net">순매출</th>
-        </tr></thead>
-        <tbody data-draw="weak-rows"></tbody>
-      </table>
-    </div>
-  </section>
-
   <section class="fj-section" id="mgr-monthly">
     <div class="fj-sec-title">
       <h2>담당자별 월 순매출</h2>
@@ -1007,6 +991,57 @@ fetch('data/meta.json', { cache: 'no-store' }).then((r) => r.ok ? r.json() : nul
         <tbody data-draw="mgr-year-rows"></tbody>
       </table>
     </div>
+  </section>
+  </section>
+
+  <section class="fj-tab" id="tab-weak" hidden>
+  <section class="fj-section" id="weak-head">
+    <div class="fj-sec-title">
+      <h2>담당자별 부진 매장 선별과 개선 방안</h2>
+      <span class="fj-label">달을 고르면 그 달 자료로 다시 고릅니다. 진행 중인 달은 마지막 판매일까지, 지난 달은 그 달 전체를 작년 같은 날짜와 비교합니다.</span>
+    </div>
+    <div class="fj-controls">
+      <label class="fj-ctl"><span class="fj-label">월</span>
+        <select class="dash-select" id="wmon-select" data-draw="wmon-select" aria-label="월"></select>
+      </label>
+    </div>
+    <p class="fj-lede" data-draw="weak-sum">—</p>
+    <ul class="fj-ul" data-draw="weak-points"></ul>
+  </section>
+
+  <section class="fj-section" id="weak-mgr">
+    <div class="fj-sec-title">
+      <h2>담당자별 요약</h2>
+      <span class="fj-label">집중 관리 = 그 달 전년 대비 −15% 이하이고 마지막 7일도 전년 같은 요일 대비 −15% 이하. 누계 회복 중 = 그 달 −15% 이하, 마지막 7일은 회복. 최근 급락 = 그 달 +10% 미만, 마지막 7일 전년 대비와 직전 7일 대비 모두 −30% 이하. 작년 매출 1천만원 미만·폐점 예정 매장 제외.</span>
+    </div>
+    <div class="fj-tablewrap">
+      <table class="fj-table" id="weak-mgr-table" data-source="mgr_weak" data-row-key="manager">
+        <thead><tr><th>담당자</th><th class="n">부진 매장</th><th class="n">집중 관리</th><th class="n">누계 회복 중</th><th class="n">최근 급락</th><th class="n">작년 대비 차이</th><th>주요 원인</th></tr></thead>
+        <tbody data-draw="weak-mgr-rows"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="fj-section" id="mgr-weak">
+    <div class="fj-sec-title">
+      <h2>매장별 원인과 개선 방법</h2>
+      <span class="fj-label">원인은 작년 같은 기간 대비 객수(영수증 수) −15% 이하, 객단가 −8% 이하, 반품률 25% 이상, 골프화 비중 10% 미만일 때 붙고, 개선 방법은 원인에 따라 붙습니다.</span>
+    </div>
+    <div class="fj-tablewrap tall">
+      <table class="fj-table" id="weak-table" data-source="mgr_weak" data-row-key="store_code">
+        <thead><tr>
+          <th data-field="tier">구분</th><th data-field="manager">담당자</th><th data-field="store">매장</th>
+          <th data-field="fix">개선 방법</th><th data-field="cause">원인</th>
+          <th class="n" data-field="yoy">전년 대비</th><th class="n" data-field="w_yoy">마지막 7일 전년 대비</th><th class="n" data-field="gap">차이</th><th class="n" data-field="net">순매출</th>
+        </tr></thead>
+        <tbody data-draw="weak-rows"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="fj-section" id="weak-actions">
+    <div class="fj-sec-title"><h2>공통 개선 방안과 실행 순서</h2></div>
+    <ol class="fj-ul" data-draw="weak-actions"></ol>
   </section>
   </section>
 
@@ -2400,41 +2435,80 @@ dash.calc('mgr_stores', {
   },
 });
 
-dash.calc('mgr_weak', {
-  inputs: ['managers', 'store_daily', 'ly_store_daily', 'member_daily', 'product_store'],
-  title: '부진 매장',
-  description: '담당 매장 중 전년 대비·최근 7일 전년 같은 요일 대비·전주 대비로 고른 부진 매장(tier 1 집중 관리, 2 누계 회복 중, 3 최근 급락)과 객수·객단가·반품률·골프화 비중으로 본 원인, 개선 방법',
-  fn: (managers, cur, ly, mem, ps) => {
-    const F = window.FJ, mm = F.mgrMap(managers);
-    if (!mm.size || !cur.length) return [];
-    const last = d3.max(cur, (r) => r.date), first = d3.min(cur, (r) => r.date);
+window.FJ.weakMonth = (hist, cur) => {
+  const cm = window.FJ.curMonthOf(cur), w = dash.params().wmon;
+  return w && (w === cm || hist.some((r) => r.date.startsWith(w))) ? w : cm;
+};
+dash.calc('weak_base', {
+  inputs: ['managers', 'hist_store_daily', 'store_daily', 'ly_store_daily', 'member_daily', 'product_store', 'month_member', 'month_item'],
+  title: '부진 매장 판단 자료',
+  description: '고른 달(wmon, 기본 이번 달)·유통 형태의 매장별 순매출, 작년 같은 날짜 순매출, 영수증, 판매·반품, 마지막 7일·직전 7일·작년 같은 요일 7일 순매출, 회원 판매, 골프화 비중, 담당자',
+  fn: (managers, hist, cur, ly, md, ps, mm, mi) => {
+    const F = window.FJ, mg = F.mgrMap(managers), { type = '' } = dash.params();
+    if (!cur.length) return [];
+    const cm = F.curMonthOf(cur), m = F.weakMonth(hist, cur), all = F.allDaily(hist, cur).filter((r) => !type || r.type === type);
+    const rows = all.filter((r) => r.date.startsWith(m)); if (!rows.length) return [];
+    const first = d3.min(rows, (r) => r.date), last = d3.max(rows, (r) => r.date);
     const w1a = F.shiftDays(last, -6), w0a = F.shiftDays(last, -13), w0b = F.shiftDays(last, -7);
     const la = F.sameDateLY(first), lb = F.sameDateLY(last), lwa = F.sameDayLY(w1a), lwb = F.sameDayLY(last);
-    const sum = (rows, k) => d3.rollup(rows, (v) => d3.sum(v, (r) => +r[k]), (r) => r.store_code);
-    const lyM = ly.filter((r) => r.date >= la && r.date <= lb);
-    const lyN = sum(lyM, 'net'), lyS = sum(lyM, 'sales'), lyR = sum(lyM, 'receipts'), lyW = sum(ly.filter((r) => r.date >= lwa && r.date <= lwb), 'net');
-    const ms = d3.rollup(mem, (v) => { const a = d3.sum(v, (r) => +r.member_sales), b = d3.sum(v, (r) => +r.nonmember_sales); return a + b ? a / (a + b) : null; }, (r) => r.store_code);
-    const sh = d3.rollup(ps, (v) => { const t = d3.sum(v, (r) => +r.net); return t ? d3.sum(v.filter((r) => F.cat(r.line) === '골프화'), (r) => +r.net) / t : null; }, (r) => r.store_code);
-    const out = [];
-    for (const [code, v] of d3.group(cur.filter((r) => mm.has(r.store_code) && !/사용중지|폐점/.test(r.store)), (r) => r.store_code)) {
+    const by = (rs, k) => d3.rollup(rs, (v) => d3.sum(v, (r) => +r[k]), (r) => r.store_code);
+    const lyM = ly.filter((r) => r.date >= la && r.date <= lb), lyN = by(lyM, 'net'), lyS = by(lyM, 'sales'), lyR = by(lyM, 'receipts');
+    const lyW = by(ly.filter((r) => r.date >= lwa && r.date <= lwb), 'net');
+    const w0 = by(all.filter((r) => r.date >= w0a && r.date <= w0b), 'net');
+    const mem = m === cm ? md : mm.filter((r) => r.month === m), ms = by(mem, 'member_sales'), ns = by(mem, 'nonmember_sales');
+    const pr = m === cm ? ps : mi.filter((r) => r.month === m);
+    const sh = d3.rollup(pr, (v) => { const t = d3.sum(v, (r) => +r.net); return t ? d3.sum(v.filter((r) => F.cat(r.line) === '골프화'), (r) => +r.net) / t : null; }, (r) => r.store_code);
+    return Array.from(d3.group(rows.filter((r) => !/사용중지|폐점/.test(r.store)), (r) => r.store_code), ([code, v]) => {
       const s = (k, fl) => d3.sum(fl ? v.filter(fl) : v, (r) => +r[k]);
-      const net = s('net'), l = lyN.get(code) || 0; if (l < 1e7) continue;
-      const w1 = s('net', (r) => r.date >= w1a), w0 = s('net', (r) => r.date >= w0a && r.date <= w0b), lw = lyW.get(code) || 0;
-      const yoy = net / l - 1, wy = lw > 0 ? w1 / lw - 1 : null, wow = w0 > 0 ? w1 / w0 - 1 : null;
-      const tier = yoy <= -0.15 ? (wy != null && wy <= -0.15 ? 1 : 2) : yoy < 0.1 && wy != null && wy <= -0.3 && wow != null && wow <= -0.3 && lw >= 3e6 ? 3 : 0;
+      return { month: m, first, last, store_code: code, store: v[0].store, type: v[0].type, manager: mg.get(code) || '', net: s('net'), sales: s('sales'), returns: s('returns'), receipts: s('receipts'),
+        ly_net: lyN.get(code) || 0, ly_sales: lyS.get(code) || 0, ly_receipts: lyR.get(code) || 0, w1: s('net', (r) => r.date >= w1a), w0: w0.get(code) || 0, lw: lyW.get(code) || 0,
+        member_sales: ms.get(code) || 0, nonmember_sales: ns.get(code) || 0, shoe_share: sh.get(code) ?? null };
+    });
+  },
+});
+
+dash.calc('mgr_weak', {
+  inputs: ['weak_base'],
+  title: '부진 매장',
+  description: '고른 달 담당 매장 중 전년 대비·마지막 7일 전년 같은 요일 대비·직전 7일 대비로 고른 부진 매장(tier 1 집중 관리, 2 누계 회복 중, 3 최근 급락)과 객수·객단가·반품률·골프화 비중으로 본 원인, 개선 방법',
+  fn: (base) => {
+    const F = window.FJ, out = [];
+    for (const r of base) {
+      if (!r.manager || r.ly_net < 1e7) continue;
+      const yoy = r.net / r.ly_net - 1, wy = r.lw > 0 ? r.w1 / r.lw - 1 : null, wow = r.w0 > 0 ? r.w1 / r.w0 - 1 : null;
+      const tier = yoy <= -0.15 ? (wy != null && wy <= -0.15 ? 1 : 2) : yoy < 0.1 && wy != null && wy <= -0.3 && wow != null && wow <= -0.3 && r.lw >= 3e6 ? 3 : 0;
       if (!tier) continue;
-      const rc = s('receipts'), lr = lyR.get(code) || 0, rcy = lr ? rc / lr - 1 : null;
-      const aovy = rc && lr ? (s('sales') / rc) / (lyS.get(code) / lr) - 1 : null, rr = s('sales') ? s('returns') / s('sales') : 0;
-      const m = ms.get(code), g = sh.get(code), c = [], f = [];
-      if (rcy != null && rcy <= -0.15) { c.push(`객수 ${F.signed(rcy)}`); f.push(m >= 0.6 ? '회원 문자·카톡으로 재방문 유도' : '입구 행사대·균일가로 집객, 회원 가입 유도'); }
-      if (aovy != null && aovy <= -0.08) { c.push(`객단가 ${F.signed(aovy)}`); f.push('상·하의·장갑 묶음 제안, 26FW 아우터 중심 진열'); }
-      if (rr >= 0.25) { c.push(`반품률 ${F.pct(rr)}`); f.push('반품 사유(사이즈·하자) 점검'); }
-      if (g != null && g < 0.1) { c.push(`골프화 ${F.pct(g)}`); f.push('골프화 진열·시착 제안 확대'); }
+      const rcy = r.ly_receipts ? r.receipts / r.ly_receipts - 1 : null, aovy = r.receipts && r.ly_receipts && r.ly_sales ? (r.sales / r.receipts) / (r.ly_sales / r.ly_receipts) - 1 : null;
+      const rr = r.sales ? r.returns / r.sales : 0, t = r.member_sales + r.nonmember_sales, m = t ? r.member_sales / t : null, g = r.shoe_share, c = [], f = [], k = [];
+      if (rcy != null && rcy <= -0.15) { c.push(`객수 ${F.signed(rcy)}`); k.push('객수'); f.push(m >= 0.6 ? '회원 문자·카톡으로 재방문 유도' : '입구 행사대·균일가로 집객, 회원 가입 유도'); }
+      if (aovy != null && aovy <= -0.08) { c.push(`객단가 ${F.signed(aovy)}`); k.push('객단가'); f.push('상·하의·장갑 묶음 제안, 시즌 아우터 중심 진열'); }
+      if (rr >= 0.25) { c.push(`반품률 ${F.pct(rr)}`); k.push('반품률'); f.push('반품 사유(사이즈·하자) 점검'); }
+      if (g != null && g < 0.1) { c.push(`골프화 ${F.pct(g)}`); k.push('골프화'); f.push('골프화 진열·시착 제안 확대'); }
       if (tier === 3) f.unshift('최근 주 매장 상황(인력·재고·위치) 확인');
       if (!f.length) f.push('주말 인력·재고 보강, 회원 안내');
-      out.push({ store_code: code, store: v[0].store, type: v[0].type, manager: mm.get(code), tier, net, ly_net: l, gap: net - l, yoy, w_yoy: wy, wow, rc_yoy: rcy, aov_yoy: aovy, return_rate: rr, member_share: m, shoe_share: g, cause: c.join(', ') || (tier === 3 ? '최근 7일 급락' : '객수·객단가 함께 소폭 하락'), fix: f.slice(0, 2).join(' / ') });
+      out.push({ store_code: r.store_code, store: r.store, type: r.type, manager: r.manager, tier, net: r.net, ly_net: r.ly_net, gap: r.net - r.ly_net, yoy, w_yoy: wy, wow, rc_yoy: rcy, aov_yoy: aovy, return_rate: rr, member_share: m, shoe_share: g, keys: k.join(','),
+        cause: c.join(', ') || (tier === 3 ? '최근 7일 급락' : '객수·객단가 함께 소폭 하락'), fix: f.slice(0, 2).join(' / ') });
     }
     return out.sort((a, b) => d3.ascending(a.manager, b.manager) || a.tier - b.tier || a.gap - b.gap);
+  },
+});
+
+dash.calc('weak_ctx', {
+  inputs: ['weak_base', 'store_daily'],
+  title: '부진 매장 판단 배경',
+  description: '고른 달의 전체(필터 범위) 전년 대비, 마지막 7일 전년 같은 요일 대비, 아울렛 전년 대비·객수·객단가 변화, 아울렛·백화점 회원 매출 비중, 진행 중인 달이면 남은 날',
+  fn: (b, cur) => {
+    if (!b.length) return [];
+    const s = (rs, k) => d3.sum(rs, (r) => r[k]), o = b.filter((r) => r.type === '아울렛'), dp = b.filter((r) => r.type === '백화점');
+    const mshare = (rs) => { const t = s(rs, 'member_sales') + s(rs, 'nonmember_sales'); return t ? s(rs, 'member_sales') / t : null; };
+    const r0 = b[0], isCur = r0.month === window.FJ.curMonthOf(cur);
+    const end = new Date(Date.UTC(+r0.month.slice(0, 4), +r0.month.slice(5, 7), 0)).toISOString().slice(0, 10);
+    return [{ month: r0.month, first: r0.first, last: r0.last, is_current: isCur, month_end: end,
+      days_left: isCur ? Math.round((Date.parse(end) - Date.parse(r0.last)) / 864e5) : 0,
+      yoy: s(b, 'ly_net') ? s(b, 'net') / s(b, 'ly_net') - 1 : null, w_yoy: s(b, 'lw') ? s(b, 'w1') / s(b, 'lw') - 1 : null,
+      outlet_yoy: s(o, 'ly_net') ? s(o, 'net') / s(o, 'ly_net') - 1 : null, outlet_rc: s(o, 'ly_receipts') ? s(o, 'receipts') / s(o, 'ly_receipts') - 1 : null,
+      outlet_aov: s(o, 'receipts') && s(o, 'ly_receipts') && s(o, 'ly_sales') ? (s(o, 'sales') / s(o, 'receipts')) / (s(o, 'ly_sales') / s(o, 'ly_receipts')) - 1 : null,
+      member_outlet: mshare(o), member_dept: mshare(dp) }];
   },
 });
 
@@ -2653,7 +2727,7 @@ function fjShowTab(id) {
   dash.setLink(id);
 }
 document.querySelectorAll('[data-tab]').forEach((b) => b.addEventListener('click', () => fjShowTab(b.dataset.tab)));
-fjShowTab(['tab-year', 'tab-month', 'tab-now', 'tab-mgr'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'tab-now');
+fjShowTab(['tab-year', 'tab-month', 'tab-now', 'tab-mgr', 'tab-weak'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'tab-now');
 
 // ── 필터 ──
 document.querySelectorAll('#type-select').forEach((s) => s.addEventListener('change', () => dash.setParams({ type: s.value, store: '' })));
@@ -3407,12 +3481,46 @@ dash.draw('mgr-rows', (tb) => {
     return tr;
   }));
 });
+FJ.ym = (m) => `${m.slice(0, 4)}년 ${+m.slice(5, 7)}월`;
+FJ.short = (n) => n.replace(/백화점|프리미엄|아울렛|\(.*?\)/g, ' ').replace(/\s+/g, ' ').trim();
+dash.draw('wmon-select', (sel) => {
+  const d = dash.data('hist_store_daily'), c = dash.data('store_daily');
+  if (d.status !== 'ok' || c.status !== 'ok' || !c.data.length) return;
+  const cm = FJ.curMonthOf(c.data), ms = Array.from(new Set(d.data.map((r) => r.date.slice(0, 7)).filter((m) => m !== cm))).sort().reverse();
+  sel.replaceChildren(new Option(FJ.ym(cm) + ' (진행 중)', cm), ...ms.map((m) => new Option(FJ.ym(m), m)));
+  sel.value = FJ.weakMonth(d.data, c.data);
+  sel.onchange = () => dash.setParams({ wmon: sel.value });
+});
 dash.draw('weak-sum', (el) => {
-  const d = dash.data('mgr_weak');
-  if (d.status !== 'ok') { el.textContent = '—'; return; }
-  if (!d.data.length) { el.textContent = '담당자 자료가 없거나 기준에 드는 부진 매장이 없습니다.'; return; }
+  const d = dash.data('mgr_weak'), x = dash.data('weak_ctx');
+  if (d.status !== 'ok' || x.status !== 'ok') { el.textContent = '—'; return; }
+  const c = x.data[0];
+  if (!c) { el.textContent = '이 달 자료가 없습니다.'; return; }
+  const per = `${FJ.md(c.first)}~${FJ.md(c.last)}`;
+  if (!d.data.length) { el.textContent = `${per} 기준으로 담당자 자료가 없거나 기준에 드는 부진 매장이 없습니다.`; return; }
   const n = (t) => d.data.filter((r) => r.tier === t).length, rc = d.data.filter((r) => r.rc_yoy != null && r.rc_yoy <= -0.15).length;
-  el.textContent = `집중 관리 ${n(1)}곳, 누계 회복 중 ${n(2)}곳, 최근 급락 ${n(3)}곳 · 작년 같은 기간보다 ${FJ.won(-d3.sum(d.data, (r) => r.gap))} 덜 팔았습니다. ${d.data.length}곳 중 ${rc}곳은 객수가 15% 넘게 줄었습니다.`;
+  el.textContent = `${per} 담당 매장 가운데 집중 관리 ${n(1)}곳, 누계 회복 중 ${n(2)}곳, 최근 급락 ${n(3)}곳을 골랐습니다. 이 ${d.data.length}곳은 작년 같은 기간보다 ${FJ.won(-d3.sum(d.data, (r) => r.gap))} 덜 팔았고, ${rc}곳은 객수가 15% 넘게 줄었습니다.`;
+});
+FJ.li = (el, items) => el.replaceChildren(...items.map(([h, t]) => { const li = document.createElement('li'); const b = document.createElement('b'); b.textContent = h; li.append(b, document.createTextNode(' ' + t)); return li; }));
+dash.draw('weak-points', (el) => {
+  const x = dash.data('weak_ctx'), c = x.status === 'ok' && x.data[0];
+  if (!c) return el.replaceChildren();
+  const it = [['전체 흐름:', `그 달 전년 대비 ${FJ.signed(c.yoy)}, 마지막 7일(${FJ.md(FJ.shiftDays(c.last, -6))}~${FJ.md(c.last)})은 작년 같은 요일 대비 ${FJ.signed(c.w_yoy)}.`]];
+  if (c.outlet_yoy != null) it.push(['아울렛:', `전년 대비 ${FJ.signed(c.outlet_yoy)} · 객수 ${FJ.signed(c.outlet_rc)} · 객단가 ${FJ.signed(c.outlet_aov)}.`]);
+  if (c.member_outlet != null && c.member_dept != null) it.push(['회원 비중:', `아울렛 ${FJ.pct(c.member_outlet)}, 백화점 ${FJ.pct(c.member_dept)}.` + (c.member_dept - c.member_outlet >= 0.2 ? ' 아울렛은 다음 방문을 부를 회원이 적습니다.' : '')]);
+  FJ.li(el, it);
+});
+dash.draw('weak-mgr-rows', (tb) => {
+  const d = dash.data('mgr_weak');
+  if (d.status !== 'ok') return FJ.rowsMsg(tb, 7, d.status === 'error' ? '자료를 불러오지 못했습니다.' : '—');
+  if (!d.data.length) return FJ.rowsMsg(tb, 7, '기준에 드는 매장이 없습니다.');
+  const g = Array.from(d3.group(d.data, (r) => r.manager), ([m, v]) => ({ m, v, gap: d3.sum(v, (r) => r.gap) })).sort((a, b) => a.gap - b.gap);
+  tb.replaceChildren(...g.map(({ m, v, gap }) => {
+    const tr = document.createElement('tr'), n = (t) => String(v.filter((r) => r.tier === t).length);
+    const k = Array.from(d3.rollup(v.flatMap((r) => r.keys ? r.keys.split(',') : []), (x) => x.length, (x) => x)).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([a, b]) => `${a} ${b}곳`).join(', ');
+    tr.append(FJ.td(m), FJ.td(String(v.length), 'n'), FJ.td(n(1), 'n'), FJ.td(n(2), 'n'), FJ.td(n(3), 'n'), FJ.td(FJ.compact(gap), 'n'), FJ.td(k || '—'));
+    return tr;
+  }));
 });
 dash.draw('weak-rows', (tb) => {
   const d = dash.data('mgr_weak');
@@ -3425,6 +3533,23 @@ dash.draw('weak-rows', (tb) => {
       FJ.td(FJ.signed(r.yoy), 'n ' + FJ.tone(r.yoy)), FJ.td(FJ.signed(r.w_yoy), 'n ' + FJ.tone(r.w_yoy)), FJ.td(FJ.compact(r.gap), 'n'), FJ.td(FJ.won(r.net), 'n'));
     return tr;
   }));
+});
+dash.draw('weak-actions', (el) => {
+  const d = dash.data('mgr_weak'), x = dash.data('weak_ctx'), c = x.status === 'ok' && x.data[0];
+  if (d.status !== 'ok' || !c || !d.data.length) return el.replaceChildren();
+  const W = d.data, nm = (rs) => rs.map((r) => FJ.short(r.store)).join(', '), has = (r, k) => (r.keys || '').split(',').includes(k);
+  const now = c.is_current && c.days_left > 0, d1 = FJ.shiftDays(c.last, 1);
+  const when = (a, b) => now ? `${FJ.md(FJ.shiftDays(c.last, a))}~${FJ.md(FJ.shiftDays(c.last, Math.min(b, c.days_left)))}` : '다음 달 첫 주';
+  const it = [], rcM = W.filter((r) => has(r, '객수') && r.member_share >= 0.6), t3 = W.filter((r) => r.tier === 3), out = W.filter((r) => r.type === '아울렛');
+  const shoe = W.filter((r) => has(r, '골프화')), ret = W.filter((r) => has(r, '반품률')), aov = W.filter((r) => has(r, '객단가'));
+  if (rcM.length) it.push([`${when(1, 2)} · 회원 문자·카톡:`, `객수가 줄고 회원 매출이 많은 ${rcM.length}곳에 먼저 보냅니다 (${nm(rcM.slice(0, 8))}${rcM.length > 8 ? ' 등' : ''}). 집중 관리 매장부터 챙깁니다.`]);
+  if (t3.length) it.push([`${when(1, 3)} · 현장 확인:`, `최근 급락 ${t3.length}곳의 인력, 영업 시간, 주력 상품 재고, 매장 위치 변화를 확인합니다 (${nm(t3)}).`]);
+  if (out.length) it.push([`${now ? `${FJ.md(d1)}~${FJ.md(c.month_end)}` : '다음 달 주말'} · 아울렛 집객:`, `입구 행사대와 균일가 상품을 두고, 구매 고객에게 회원 가입을 권합니다 (${nm(out)}).`]);
+  if (aov.length) it.push(['상시 · 객단가:', `상·하의·장갑 묶음 제안과 시즌 아우터 중심 진열로 객단가를 올립니다 (${nm(aov)}).`]);
+  if (shoe.length) it.push(['상시 · 골프화 동반 판매:', `골프화 비중이 10% 미만인 매장은 시착석 앞 진열과 의류 구매 고객 시착 제안을 늘립니다 (${nm(shoe)}).`]);
+  if (ret.length) it.push(['상시 · 반품률:', `반품률 25% 이상 매장은 반품 사유를 모아 사이즈·하자 문제인지 확인합니다 (${nm(ret)}).`]);
+  it.push([now ? `${FJ.md(c.month_end)} 마감 뒤 · 결과 확인:` : '결과 확인:', now ? '마감 자료를 올리고 이 탭에서 같은 달을 다시 골라 마지막 주 흐름을 봅니다.' : '다음 달을 골라 같은 매장이 나아졌는지 봅니다.']);
+  FJ.li(el, it);
 });
 dash.draw('mgr-filter', (sel) => {
   const d = dash.data('managers');
