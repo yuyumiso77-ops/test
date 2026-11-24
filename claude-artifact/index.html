@@ -232,6 +232,27 @@
     </div>
   </section>
 
+  <section class="fj-section" id="annual-managers">
+    <div class="fj-sec-title">
+      <h2>담당자별 연간 누계</h2>
+      <span class="fj-label">담당 매장의 1월 1일~마지막 판매일 합계를 작년 같은 기간과 비교합니다. 담당자는 지금 담당 기준입니다.</span>
+    </div>
+    <div class="fj-tablewrap">
+      <table class="fj-table" id="mgr-year-table" data-source="mgr_year" data-row-key="manager">
+        <thead><tr>
+          <th data-field="manager">담당자</th>
+          <th class="n" data-field="stores">매장 수</th>
+          <th class="n" data-field="net">올해 누계</th>
+          <th class="n" data-field="share">비중</th>
+          <th class="n" data-field="ly_net">작년 같은 기간</th>
+          <th class="n" data-field="yoy">전년 대비</th>
+          <th class="n" data-field="per_store">매장당</th>
+        </tr></thead>
+        <tbody data-draw="mgr-year-rows"></tbody>
+      </table>
+    </div>
+  </section>
+
   <section class="fj-section" id="annual-mix">
     <div class="fj-sec-title">
       <h2>상품 구성 연간</h2>
@@ -351,6 +372,8 @@
     <div class="fj-sec-title"><h2>월별 상세표</h2></div>
     <div class="fj-sec-title"><span class="fj-label">유통사별 월 순매출 · 칸이 진할수록 그 줄에서 큰 달입니다. 전년 누계 대비는 1월 1일부터 작년 같은 날짜까지와 비교합니다.</span></div>
     <div class="fj-tablewrap" id="retailer-month" data-draw="retailer-month" data-source="retailer_month"></div>
+    <div class="fj-sec-title"><span class="fj-label">담당자별 월 순매출 · 담당자는 지금 담당 기준입니다.</span></div>
+    <div class="fj-tablewrap" id="mgr-month" data-draw="mgr-month" data-source="mgr_month"></div>
     <div class="fj-sec-title"><span class="fj-label">아이템별 월 순매출</span></div>
     <div class="fj-controls">
       <label class="fj-ctl"><span class="fj-label">성별</span>
@@ -673,6 +696,50 @@
           <th class="n" data-field="share">비중</th>
         </tr></thead>
         <tbody data-draw="store-rows"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="fj-section" id="managers">
+    <div class="fj-sec-title">
+      <h2>담당자별 실적</h2>
+      <span class="fj-label">이번 달 담당 매장 합계입니다. 전년 대비는 작년 같은 날짜, 최근 주 전주 대비는 전주의 같은 요일들과 비교합니다. 마감 예상 = 담당 매장 실적 × (전체 마감 예상 ÷ 전체 실적).</span>
+    </div>
+    <p class="fj-empty" data-draw="mgr-empty" hidden>담당자 자료가 없습니다. 담당자 파일(매장코드·매장명·유통사·담당자)을 자료 올리기에서 올려 주세요.</p>
+    <div class="fj-tablewrap">
+      <table class="fj-table" id="mgr-table" data-source="mgr_now" data-row-key="manager">
+        <thead><tr>
+          <th data-field="manager">담당자</th>
+          <th class="n" data-field="stores">매장 수</th>
+          <th class="n" data-field="net">순매출</th>
+          <th class="n" data-field="share">비중</th>
+          <th class="n" data-field="yoy">전년 대비</th>
+          <th class="n" data-field="wow">최근 주 전주 대비</th>
+          <th class="n" data-field="projected">마감 예상</th>
+          <th class="n" data-field="aov">객단가</th>
+          <th class="n" data-field="return_rate">반품률</th>
+        </tr></thead>
+        <tbody data-draw="mgr-rows"></tbody>
+      </table>
+    </div>
+    <div class="fj-controls">
+      <label class="fj-ctl"><span class="fj-label">담당자</span>
+        <select class="dash-select" id="mgr-select" data-draw="mgr-select" data-source="mgr_now" aria-label="담당자"></select>
+      </label>
+    </div>
+    <div class="fj-tablewrap tall">
+      <table class="fj-table" id="mgr-store-table" data-source="mgr_stores" data-row-key="store_code">
+        <thead><tr>
+          <th class="n" data-field="rank">순위</th>
+          <th data-field="store">매장</th>
+          <th class="n" data-field="net">순매출</th>
+          <th class="n" data-field="share_in_mgr">담당 내 비중</th>
+          <th class="n" data-field="yoy">전년 대비</th>
+          <th class="n" data-field="wow">최근 주 전주 대비</th>
+          <th class="n" data-field="projected">마감 예상</th>
+          <th class="n" data-field="aov">객단가</th>
+        </tr></thead>
+        <tbody data-draw="mgr-store-rows"></tbody>
       </table>
     </div>
   </section>
@@ -2143,6 +2210,107 @@ dash.calc('cat_items', {
   },
 });
 
+// ── 담당자 ──
+window.FJ.mgrMap = (managers) => new Map(managers.filter((r) => r.store_code && r.manager).map((r) => [r.store_code, r.manager]));
+
+dash.calc('mgr_stores', {
+  inputs: ['managers', 'store_daily', 'ly_store_daily', 'forecast'],
+  title: '담당자별 매장 실적',
+  description: '선택한 유통 형태에서 담당 매장별 이번 달 순매출, 담당 내 비중, 작년 같은 날짜 대비, 최근 주 전주 대비, 마감 예상(매장 실적 × 전체 예상 ÷ 전체 실적), 객단가, 반품률',
+  fn: (managers, cur, ly, fc) => {
+    const { type = '' } = dash.params();
+    const mm = window.FJ.mgrMap(managers);
+    if (!mm.size) return [];
+    const a = window.FJ.sameDateLY(d3.min(cur, (r) => r.date)), b = window.FJ.sameDateLY(d3.max(cur, (r) => r.date));
+    const { cur: wk, prev, hasPrev } = window.FJ.recentWeeks(cur);
+    const f = fc && fc[0], allNet = d3.sum(cur, (r) => +r.net), scale = f && allNet ? f.projected / allNet : 1;
+    const lyBy = d3.rollup(ly.filter((r) => r.date >= a && r.date <= b), (v) => d3.sum(v, (r) => +r.net), (r) => r.store_code);
+    const rows = Array.from(d3.group(cur.filter((r) => mm.has(r.store_code) && (!type || r.type === type)), (r) => r.store_code), ([code, v]) => {
+      const s = (k, fl) => d3.sum(fl ? v.filter(fl) : v, (r) => +r[k]);
+      const net = s('net'), l = lyBy.get(code) || 0, w = s('net', (r) => wk.has(r.date)), pw = s('net', (r) => prev.has(r.date));
+      return { store_code: code, store: v[0].store, type: v[0].type, manager: mm.get(code), net, ly_net: l, yoy: l > 0 ? net / l - 1 : null,
+        wow: hasPrev && pw > 0 ? w / pw - 1 : null, projected: net * scale, sales: s('sales'), returns: s('returns'), receipts: s('receipts'),
+        aov: s('receipts') ? s('sales') / s('receipts') : null };
+    }).filter((r) => !/사용중지/.test(r.store));
+    const mgrTot = d3.rollup(rows, (v) => d3.sum(v, (r) => r.net), (r) => r.manager);
+    return rows.map((r) => ({ ...r, share_in_mgr: mgrTot.get(r.manager) ? r.net / mgrTot.get(r.manager) : null }));
+  },
+});
+
+dash.calc('mgr_now', {
+  inputs: ['mgr_stores'],
+  title: '담당자별 실적',
+  description: '담당자별 이번 달 담당 매장 수, 순매출, 비중, 작년 같은 날짜 대비, 최근 주 전주 대비, 마감 예상, 객단가, 반품률 (매장 합계)',
+  fn: (rows) => {
+    const total = d3.sum(rows, (r) => r.net);
+    return Array.from(d3.group(rows, (r) => r.manager), ([manager, v]) => {
+      const s = (k) => d3.sum(v, (r) => r[k] || 0);
+      const net = s('net'), l = s('ly_net');
+      return { manager, stores: v.filter((r) => r.net > 0).length, net, share: total ? net / total : null, ly_net: l, yoy: l > 0 ? net / l - 1 : null,
+        projected: s('projected'), aov: s('receipts') ? s('sales') / s('receipts') : null, return_rate: s('sales') ? s('returns') / s('sales') : null,
+        codes: v.map((r) => r.store_code).join(',') };
+    }).sort((a, b) => b.net - a.net);
+  },
+});
+
+dash.calc('mgr_week', {
+  inputs: ['managers', 'store_daily'],
+  title: '담당자별 최근 주 전주 대비',
+  description: '담당자별 최근 주(일~토) 순매출과 전주의 같은 요일들 순매출, 증감',
+  fn: (managers, cur) => {
+    const { type = '' } = dash.params();
+    const mm = window.FJ.mgrMap(managers);
+    const { cur: wk, prev, hasPrev } = window.FJ.recentWeeks(cur);
+    const rows = cur.filter((r) => mm.has(r.store_code) && (!type || r.type === type));
+    return Array.from(d3.group(rows, (r) => mm.get(r.store_code)), ([manager, v]) => {
+      const w = d3.sum(v.filter((r) => wk.has(r.date)), (r) => +r.net), pw = d3.sum(v.filter((r) => prev.has(r.date)), (r) => +r.net);
+      return { manager, week_net: w, prev_net: pw, wow: hasPrev && pw > 0 ? w / pw - 1 : null };
+    });
+  },
+});
+
+dash.calc('mgr_year', {
+  inputs: ['managers', 'hist_store_daily', 'store_daily', 'ly_store_daily'],
+  title: '담당자별 연간 누계',
+  description: '선택한 유통 형태에서 담당자별(지금 담당 기준) 올해 누계와 작년 같은 기간, 전년 대비, 비중, 매장 수, 매장당',
+  fn: (managers, hist, cur, ly) => {
+    const { type = '' } = dash.params();
+    const mm = window.FJ.mgrMap(managers);
+    if (!mm.size) return [];
+    const last = d3.max(cur, (r) => r.date), lyCut = window.FJ.sameDateLY(last);
+    const ty = window.FJ.allDaily(hist, cur).filter((r) => r.date.startsWith(last.slice(0, 4)) && mm.has(r.store_code) && (!type || r.type === type));
+    const lyr = ly.filter((r) => r.date.startsWith(lyCut.slice(0, 4)) && r.date <= lyCut && mm.has(r.store_code) && (!type || r.type === type));
+    const lyBy = d3.rollup(lyr, (v) => d3.sum(v, (r) => +r.net), (r) => mm.get(r.store_code));
+    const total = d3.sum(ty, (r) => +r.net);
+    return Array.from(d3.group(ty, (r) => mm.get(r.store_code)), ([manager, v]) => {
+      const net = d3.sum(v, (r) => +r.net), l = lyBy.get(manager) || 0;
+      const stores = Array.from(d3.rollup(v, (g) => d3.sum(g, (r) => +r.net), (r) => r.store_code).values()).filter((x) => x > 0).length;
+      return { manager, stores, net, share: total ? net / total : null, ly_net: l, yoy: l > 0 ? net / l - 1 : null, per_store: stores ? net / stores : null };
+    }).sort((a, b) => b.net - a.net);
+  },
+});
+
+dash.calc('mgr_month', {
+  inputs: ['managers', 'hist_store_daily', 'store_daily', 'ly_store_daily'],
+  title: '담당자별 월별 매출',
+  description: '선택한 유통 형태에서 담당자별(지금 담당 기준) 월 순매출과 작년 같은 기간 누계(month = LY)',
+  fn: (managers, hist, cur, ly) => {
+    const { type = '' } = dash.params();
+    const mm = window.FJ.mgrMap(managers);
+    if (!mm.size) return [];
+    const out = [];
+    const rows = window.FJ.allDaily(hist, cur).filter((r) => mm.has(r.store_code) && (!type || r.type === type));
+    for (const [k, v] of d3.group(rows, (r) => `${mm.get(r.store_code)}|${r.date.slice(0, 7)}`)) {
+      const [manager, month] = k.split('|'); out.push({ manager, month, net: d3.sum(v, (r) => +r.net) });
+    }
+    const lyCut = window.FJ.sameDateLY(d3.max(cur, (r) => r.date));
+    for (const [manager, v] of d3.group(ly.filter((r) => mm.has(r.store_code) && (!type || r.type === type) && r.date.startsWith(lyCut.slice(0, 4)) && r.date <= lyCut), (r) => mm.get(r.store_code))) {
+      out.push({ manager, month: 'LY', net: d3.sum(v, (r) => +r.net) });
+    }
+    return out;
+  },
+});
+
 dash.calc('type_mix', {
   inputs: ['store_daily'],
   title: '유통 형태별 매출',
@@ -3014,6 +3182,76 @@ dash.draw('target-view', (el) => {
     tbody.appendChild(tr);
   });
   table.append(thead, tbody); wrap.appendChild(table); el.replaceChildren(wrap);
+});
+
+// ── 담당자 ──
+dash.draw('mgr-empty', (el) => {
+  const d = dash.data('mgr_now');
+  el.hidden = !(d.status === 'ok' && !d.data.length);
+});
+dash.draw('mgr-rows', (tb) => {
+  const d = dash.data('mgr_now'), w = dash.data('mgr_week');
+  if (d.status !== 'ok') return FJ.rowsMsg(tb, 9, d.status === 'error' ? '담당자 자료를 불러오지 못했습니다.' : '—');
+  if (!d.data.length) return FJ.rowsMsg(tb, 9, '담당자 자료가 없습니다.');
+  const wk = new Map(w.status === 'ok' ? w.data.map((r) => [r.manager, r]) : []);
+  const picked = dash.params().mgr || d.data[0].manager;
+  tb.replaceChildren(...d.data.map((r) => {
+    const tr = document.createElement('tr'); tr.dataset.key = r.manager; tr.className = 'pick' + (r.manager === picked ? ' is-picked' : ''); tr.tabIndex = 0;
+    const go = () => dash.setParams({ mgr: r.manager });
+    tr.addEventListener('click', go); tr.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
+    const wo = (wk.get(r.manager) || {}).wow;
+    tr.append(FJ.td(r.manager), FJ.td(FJ.int(r.stores), 'n'), FJ.td(FJ.won(r.net), 'n'), FJ.td(FJ.pct(r.share), 'n'),
+      FJ.td(FJ.signed(r.yoy), 'n ' + FJ.tone(r.yoy)), FJ.td(FJ.signed(wo), 'n ' + FJ.tone(wo)), FJ.td(FJ.won(r.projected), 'n'),
+      FJ.td(FJ.won(r.aov), 'n'), FJ.td(FJ.pct(r.return_rate), 'n'));
+    return tr;
+  }));
+});
+dash.draw('mgr-select', (sel) => {
+  const d = dash.data('mgr_now');
+  const list = d.status === 'ok' ? d.data.map((r) => r.manager) : [];
+  sel.replaceChildren(...list.map((m) => new Option(m, m)));
+  sel.value = dash.params().mgr && list.includes(dash.params().mgr) ? dash.params().mgr : (list[0] || '');
+  sel.onchange = () => dash.setParams({ mgr: sel.value });
+});
+dash.draw('mgr-store-rows', (tb) => {
+  const d = dash.data('mgr_stores'), n = dash.data('mgr_now');
+  if (d.status !== 'ok') return FJ.rowsMsg(tb, 8, d.status === 'error' ? '담당자 자료를 불러오지 못했습니다.' : '—');
+  if (!d.data.length) return FJ.rowsMsg(tb, 8, '담당자 자료가 없습니다.');
+  const first = n.status === 'ok' && n.data.length ? n.data[0].manager : '';
+  const mgr = dash.params().mgr || first;
+  const rows = d.data.filter((r) => r.manager === mgr).sort((a, b) => b.net - a.net);
+  const picked = dash.params().store || '';
+  tb.replaceChildren(...rows.map((r, i) => {
+    const tr = document.createElement('tr'); tr.dataset.key = r.store_code; tr.className = 'pick' + (r.store_code === picked ? ' is-picked' : ''); tr.tabIndex = 0;
+    const go = () => dash.setParams({ store: r.store_code === picked ? '' : r.store_code });
+    tr.addEventListener('click', go); tr.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
+    tr.append(FJ.td(String(i + 1), 'n m'), FJ.td(r.store), FJ.td(FJ.won(r.net), 'n'), FJ.td(FJ.pct(r.share_in_mgr), 'n'),
+      FJ.td(r.ly_net > 0 ? FJ.signed(r.yoy) : '신규', 'n ' + (r.ly_net > 0 ? FJ.tone(r.yoy) : 'm')), FJ.td(FJ.signed(r.wow), 'n ' + FJ.tone(r.wow)),
+      FJ.td(FJ.won(r.projected), 'n'), FJ.td(FJ.won(r.aov), 'n'));
+    return tr;
+  }));
+  FJ.groupTbody(tb, rows, 8, 'net', 0);
+});
+dash.draw('mgr-year-rows', (tb) => {
+  const d = dash.data('mgr_year');
+  if (d.status !== 'ok') return FJ.rowsMsg(tb, 7, d.status === 'error' ? '담당자 자료를 불러오지 못했습니다.' : '—');
+  if (!d.data.length) return FJ.rowsMsg(tb, 7, '담당자 자료가 없습니다. 자료 올리기에서 담당자 파일을 올려 주세요.');
+  tb.replaceChildren(...d.data.map((r) => {
+    const tr = document.createElement('tr'); tr.dataset.key = r.manager;
+    tr.append(FJ.td(r.manager), FJ.td(FJ.int(r.stores), 'n'), FJ.td(FJ.won(r.net), 'n'), FJ.td(FJ.pct(r.share), 'n'), FJ.td(FJ.won(r.ly_net), 'n'),
+      FJ.td(FJ.signed(r.yoy), 'n ' + FJ.tone(r.yoy)), FJ.td(FJ.won(r.per_store), 'n'));
+    return tr;
+  }));
+});
+dash.draw('mgr-month', (el) => {
+  const d = dash.data('mgr_month');
+  if (FJ.notOk(el, d)) return;
+  if (!d.data.length) return FJ.empty(el, '담당자 자료가 없습니다. 자료 올리기에서 담당자 파일을 올려 주세요.');
+  const months = Array.from(new Set(d.data.map((r) => r.month))).filter((m) => m !== 'LY').sort();
+  const rows = Array.from(d3.group(d.data, (r) => r.manager), ([m, v]) => ({ name: m, v: new Map(v.map((r) => [r.month, r.net])), total: d3.sum(v.filter((r) => r.month !== 'LY'), (r) => r.net) }))
+    .sort((a, b) => b.total - a.total);
+  rows.push({ name: '합계', sub: true, v: d3.rollup(d.data, (v) => d3.sum(v, (r) => r.net), (r) => r.month) });
+  FJ.heatTable(el, { rows, months, label: '담당자', curMonth: months[months.length - 1] });
 });
 
 // ── 주별 ──

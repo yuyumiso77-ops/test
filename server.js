@@ -10,6 +10,7 @@ const os = require('os');
 const path = require('path');
 const crypto = require('crypto');
 const { aggregate } = require('./aggregate');
+const ExcelJS = require('exceljs');
 
 const root = path.join(__dirname, 'public');
 const port = Number(process.env.PORT) || 3000;
@@ -259,7 +260,33 @@ function rollMonth(stage, newFirst) {
   return oldMonth;
 }
 
-function handleUpload(req, res, by) {
+// 담당자 파일: 매장코드·매장명·유통사·담당자 열이 있는 엑셀 → managers.csv (저장소가 아니라 저장 공간에만 둡니다)
+const MANAGER_HEAD = ['store_code', 'store_name', 'channel', 'manager'];
+async function parseManagers(file) {
+  const wb = new ExcelJS.Workbook();
+  await wb.xlsx.readFile(file);
+  const cell = (c) => { const v = c && c.value; if (v == null) return ''; if (typeof v === 'object') return String(v.text ?? v.result ?? (v.richText ? v.richText.map((t) => t.text).join('') : '')).trim(); return String(v).trim(); };
+  for (const ws of wb.worksheets) {
+    let hdr = 0, col = null;
+    for (let i = 1; i <= Math.min(ws.rowCount, 20) && !col; i++) {
+      const vals = []; ws.getRow(i).eachCell({ includeEmpty: true }, (c, n) => { vals[n] = cell(c).replace(/\s/g, ''); });
+      const f = (re) => vals.findIndex((v) => v && re.test(v));
+      const code = f(/^매장코드$/), mgr = f(/^담당자$/);
+      if (code > 0 && mgr > 0) { hdr = i; col = { code, mgr, name: f(/^매장명$/), ch: f(/^(유통사|유통|채널|유통형태)$/) }; }
+    }
+    if (!col) continue;
+    const rows = [];
+    for (let i = hdr + 1; i <= ws.rowCount; i++) {
+      const r = ws.getRow(i), g = (n) => (n > 0 ? cell(r.getCell(n)) : '');
+      const code = g(col.code), mgr = g(col.mgr);
+      if (code && mgr) rows.push([code, g(col.name), g(col.ch), mgr]);
+    }
+    if (rows.length) return rows;
+  }
+  throw new Error('담당자 파일에서 "매장코드"와 "담당자" 열을 찾지 못했습니다.');
+}
+
+function handleUpload(req, res, by, kind = 'sales') {
   if (uploading) return json(res, 409, { ok: false, message: '다른 자료를 처리하는 중입니다. 1분 뒤에 다시 올려 주세요.' });
   const declared = Number(req.headers['content-length'] || 0);
   if (declared > MAX_UPLOAD) return json(res, 413, { ok: false, message: '파일이 너무 큽니다 (60MB까지).' });
@@ -278,6 +305,15 @@ function handleUpload(req, res, by) {
     if (failed) return;
     if (!size) return done(400, { ok: false, message: '파일이 비어 있습니다.' });
     try {
+      if (kind === 'managers') {
+        const rows = await parseManagers(tmp);
+        fs.mkdirSync(dataDir, { recursive: true });
+        const t = path.join(dataDir, `.managers-${Date.now()}.csv`);
+        fs.writeFileSync(t, toCsv(MANAGER_HEAD, rows)); fs.renameSync(t, path.join(dataDir, 'managers.csv'));
+        const mgrs = new Set(rows.map((r) => r[3]));
+        console.log(`담당자 자료 갱신: 매장 ${rows.length}곳, 담당자 ${mgrs.size}명 (${by})`);
+        return done(200, { ok: true, kind, stores: rows.length, managers: mgrs.size, persistent: !!volumeDir });
+      }
       const { files, meta } = await aggregate(tmp);
       fs.mkdirSync(dataDir, { recursive: true });
       const stage = fs.mkdtempSync(path.join(dataDir, '.incoming-'));
@@ -340,6 +376,12 @@ ol { margin: 0; padding-left: 1.3em; }
   </label>
   <button id="send" type="button" disabled>올리고 대시보드 갱신</button>
   <div class="box" id="result" hidden></div>
+  <h1 style="font-size:19px;margin-top:14px">담당자 파일</h1>
+  <p class="muted"><b>매장코드 · 매장명 · 유통사 · 담당자</b> 열이 있는 엑셀을 올리면 대시보드의 담당자별 실적이 채워집니다. 담당자가 바뀔 때만 다시 올리면 됩니다.</p>
+  <div class="box"><span class="muted">지금 담당자 자료</span><span id="mgr-current">확인하는 중…</span></div>
+  <label class="drop" for="mfile"><b id="mdrop-title">담당자 엑셀 고르기</b><span class="muted" id="mdrop-sub">.xlsx 파일 하나</span><input id="mfile" type="file" accept=".xlsx" hidden></label>
+  <button id="msend" type="button" disabled>담당자 자료 올리기</button>
+  <div class="box" id="mresult" hidden></div>
   <p class="muted"><a href="/">대시보드로 돌아가기</a> · <a href="/logout">로그아웃</a></p>
 </main>
 <script>
@@ -388,6 +430,34 @@ $('send').addEventListener('click', async () => {
   $('send').textContent = '올리고 대시보드 갱신'; $('send').disabled = false;
 });
 showCurrent();
+let mpicked = null;
+function showMgr() {
+  fetch('/data/managers.csv', { cache: 'no-store' }).then((r) => r.text()).then((t) => {
+    const rows = t.trim().split('\n').slice(1).filter(Boolean);
+    const m = new Set(rows.map((l) => l.split(',').pop()));
+    $('mgr-current').textContent = rows.length ? '매장 ' + rows.length + '곳 · 담당자 ' + m.size + '명' : '아직 올린 담당자 자료가 없습니다.';
+  }).catch(() => { $('mgr-current').textContent = '확인하지 못했습니다.'; });
+}
+$('mfile').addEventListener('change', (e) => {
+  const f = e.target.files[0]; if (!f) return;
+  if (!/\.xlsx$/i.test(f.name)) { $('mdrop-sub').textContent = '.xlsx 파일만 올릴 수 있습니다.'; return; }
+  mpicked = f; $('mdrop-title').textContent = f.name; $('mdrop-sub').textContent = '다른 파일을 고르려면 다시 누르세요'; $('msend').disabled = false;
+});
+$('msend').addEventListener('click', async () => {
+  if (!mpicked) return;
+  $('msend').disabled = true;
+  const box = $('mresult'); box.replaceChildren();
+  try {
+    const r = await fetch('/api/upload', { method: 'POST', headers: { 'Content-Type': 'application/octet-stream', 'X-Kind': 'managers', 'X-File-Name': encodeURIComponent(mpicked.name) }, body: mpicked });
+    const d = await r.json().catch(() => ({ ok: false, message: '서버 응답을 읽지 못했습니다.' }));
+    const head = document.createElement('span'); head.className = d.ok ? 'ok' : 'bad';
+    head.textContent = d.ok ? '담당자 자료를 올렸습니다. 매장 ' + d.stores + '곳 · 담당자 ' + d.managers + '명' : (d.message || '올리지 못했습니다.');
+    box.appendChild(head);
+    if (d.ok && !d.persistent) { const w = document.createElement('span'); w.className = 'muted'; w.textContent = '주의: 저장 공간(Volume)이 연결되지 않아, 사이트가 다시 배포되면 담당자 자료도 사라집니다.'; box.appendChild(w); }
+  } catch (e) { box.textContent = '연결이 끊겼습니다. 다시 올려 주세요.'; }
+  box.hidden = false; $('msend').disabled = false; showMgr();
+});
+showMgr();
 </script>
 </body>
 </html>`;
@@ -413,7 +483,7 @@ http.createServer((req, res) => {
   }
   if (pathname === '/api/upload' && req.method === 'POST' && uploadKey && req.headers['x-upload-key']) {
     if (!same(req.headers['x-upload-key'], uploadKey)) return json(res, 401, { ok: false, message: '업로드 키가 맞지 않습니다.' });
-    return handleUpload(req, res, 'api');
+    return handleUpload(req, res, 'api', req.headers['x-kind'] === 'managers' ? 'managers' : 'sales');
   }
   if (!loggedIn(req)) {
     if (pathname === '/' || pathname === '/upload' || pathname.endsWith('.html')) { res.writeHead(303, { Location: '/login' }); return res.end(); }
@@ -424,7 +494,7 @@ http.createServer((req, res) => {
   if (pathname === '/upload') return send(res, 200, uploadPage());
   if (pathname === '/api/upload') {
     if (req.method !== 'POST') { res.writeHead(405); return res.end(); }
-    return handleUpload(req, res, 'web');
+    return handleUpload(req, res, 'web', req.headers['x-kind'] === 'managers' ? 'managers' : 'sales');
   }
   // 올린 자료가 있으면 그것을, 없으면 저장소에 든 기본 자료를 보여 줍니다
   if (/^\/data\/[a-z_]+\.(csv|json)$/.test(pathname)) {
@@ -434,6 +504,8 @@ http.createServer((req, res) => {
       return fs.createReadStream(up).pipe(res);
     }
     if (pathname === '/data/meta.json') return json(res, 200, null);
+    // 담당자 자료는 저장소에 두지 않으므로, 올리지 않았으면 빈 표를 보냅니다
+    if (pathname === '/data/managers.csv') return send(res, 200, MANAGER_HEAD.join(',') + '\n', { 'Content-Type': 'text/csv; charset=utf-8' });
   }
 
   if (pathname.endsWith('/')) pathname += 'index.html';

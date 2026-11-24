@@ -4,3 +4,5 @@ node_modules/
 *.xls
 *.pkl
 uploaded/
+public/data/managers.csv
+managers*.csv
