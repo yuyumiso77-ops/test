@@ -143,6 +143,7 @@
     <button type="button" role="tab" data-tab="tab-now" aria-selected="true" class="is-on">당월 매출 현황</button>
     <button type="button" role="tab" data-tab="tab-mgr" aria-selected="false">당월 담당자별 매출 실적</button>
     <button type="button" role="tab" data-tab="tab-weak" aria-selected="false">부진 매장 개선 방안</button>
+    <button type="button" role="tab" data-tab="tab-comp" aria-selected="false">경쟁 브랜드 동향</button>
   </nav>
 
   <section class="fj-tab" id="tab-year" hidden>
@@ -927,6 +928,46 @@
   <section class="fj-section" id="weak-actions">
     <div class="fj-sec-title"><h2>공통 개선 방안과 실행 순서</h2></div>
     <ol class="fj-ul" data-draw="weak-actions"></ol>
+  </section>
+  </section>
+
+  <section class="fj-tab" id="tab-comp" hidden>
+  <section class="fj-section" id="comp-head">
+    <div class="fj-sec-title">
+      <h2>경쟁 브랜드 동향</h2>
+      <span class="fj-label">백화점 동업계 매출 자료로 우리 매장이 있는 롯데·현대 점포의 골프 브랜드만 비교합니다. 롯데는 총매출, 현대는 매출액 기준이고, 전년은 자료의 대비 실적·신장률로 구합니다. 점유율 = 그 점포들 골프 브랜드 합계 중 비중.</span>
+    </div>
+    <div class="fj-controls">
+      <label class="fj-ctl"><span class="fj-label">월</span><select class="dash-select" id="cmon-select" data-draw="cmon-select" aria-label="월"></select></label>
+      <label class="fj-ctl"><span class="fj-label">채널</span><select class="dash-select" id="cch-select" aria-label="채널"><option value="">매장+온라인</option><option value="오프라인">매장만</option></select></label>
+    </div>
+    <p class="fj-lede" data-draw="comp-sum">—</p>
+    <ul class="fj-ul" data-draw="comp-points"></ul>
+  </section>
+
+  <section class="fj-section" id="comp-brands">
+    <div class="fj-sec-title"><h2>브랜드 순위</h2><span class="fj-label">고른 달 매출 상위 20개 브랜드와 풋조이. 1위 점포 = 그 브랜드가 매출 1위인 점포 수.</span></div>
+    <div class="fj-tablewrap tall">
+      <table class="fj-table" id="comp-brand-table" data-source="comp_brand" data-row-key="brand">
+        <thead><tr><th class="n">순위</th><th>브랜드</th><th class="n">매출</th><th class="n">점유율</th><th class="n">점유율 변화</th><th class="n">전년 대비</th><th class="n">1위 점포</th></tr></thead>
+        <tbody data-draw="comp-brand-rows"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="fj-section" id="comp-trend">
+    <div class="fj-sec-title"><h2>월별 점유율 추이</h2><span class="fj-label">고른 달 상위 8개 브랜드와 풋조이의 달마다 점유율. 칸이 진할수록 높습니다.</span></div>
+    <div class="fj-tablewrap" data-draw="comp-trend" data-source="comp_trend"></div>
+  </section>
+
+  <section class="fj-section" id="comp-stores">
+    <div class="fj-sec-title"><h2>점포별 경쟁 현황</h2><span class="fj-label">점포마다 풋조이 순위와 점유율, 1위 브랜드. 유통사별로 묶고 풋조이 매출 순으로 놓습니다.</span></div>
+    <div class="fj-tablewrap tall">
+      <table class="fj-table" id="comp-store-table" data-source="comp_store" data-row-key="store_code">
+        <thead><tr><th>매장</th><th class="n">풋조이 매출</th><th class="n">풋조이 순위</th><th class="n">점유율</th><th class="n">점유율 변화</th><th class="n">풋조이 전년 대비</th><th class="n">점포 전체 전년 대비</th><th>1위 브랜드</th></tr></thead>
+        <tbody data-draw="comp-store-rows"></tbody>
+      </table>
+    </div>
   </section>
   </section>
 
@@ -2397,6 +2438,58 @@ dash.calc('weak_ctx', {
   },
 });
 
+// ── 경쟁 브랜드 ──
+window.FJ.OURS = '풋조이';
+window.FJ.compRows = (comp, cur, hist) => {
+  const { type = '', cch = '' } = dash.params(), info = new Map(hist.concat(cur).map((r) => [r.store_code, r]));
+  return comp.filter((r) => r.store_code && info.has(r.store_code) && (!cch || r.channel === cch) && (!type || info.get(r.store_code).type === type))
+    .map((r) => ({ ...r, net: +r.net, ly_net: +r.ly_net, store: info.get(r.store_code).store, type: info.get(r.store_code).type }));
+};
+window.FJ.compMonth = (comp) => { const ms = Array.from(new Set(comp.map((r) => r.month))).sort(), w = dash.params().cmon; return ms.includes(w) ? w : ms[ms.length - 1]; };
+dash.calc('comp_brand', {
+  inputs: ['competitors', 'store_daily', 'hist_store_daily'],
+  title: '경쟁 브랜드 순위',
+  description: '고른 달(cmon, 기본 마지막 달)·채널(cch)·유통 형태에서 우리 매장이 있는 점포의 브랜드별 매출, 점유율, 전년 점유율, 점유율 변화, 전년 대비, 매출 1위 점포 수',
+  fn: (comp, cur, hist) => {
+    const rows = window.FJ.compRows(comp, cur, hist), m = window.FJ.compMonth(rows), v = rows.filter((r) => r.month === m);
+    const T = d3.sum(v, (r) => r.net), L = d3.sum(v, (r) => r.ly_net);
+    const wins = d3.rollup(Array.from(d3.group(v, (r) => r.store_code), ([, g]) => d3.greatest(Array.from(d3.rollup(g, (x) => d3.sum(x, (r) => r.net), (r) => r.brand)), (a) => a[1])[0]), (x) => x.length, (b) => b);
+    return Array.from(d3.group(v, (r) => r.brand), ([brand, g]) => {
+      const net = d3.sum(g, (r) => r.net), ly = d3.sum(g, (r) => r.ly_net), sh = T ? net / T : null, lsh = L ? ly / L : null;
+      return { month: m, brand, net, ly_net: ly, share: sh, ly_share: lsh, share_pp: sh != null && lsh != null ? sh - lsh : null, yoy: ly > 0 ? net / ly - 1 : null, wins: wins.get(brand) || 0, stores: new Set(g.filter((r) => r.net > 0).map((r) => r.store_code)).size };
+    }).filter((r) => r.net > 0).sort((a, b) => b.net - a.net).map((r, i) => ({ rank: i + 1, ...r }));
+  },
+});
+dash.calc('comp_store', {
+  inputs: ['competitors', 'store_daily', 'hist_store_daily'],
+  title: '점포별 경쟁 현황',
+  description: '고른 달 점포(우리 매장)별 풋조이 매출·순위·점유율·점유율 변화·전년 대비, 점포 골프 브랜드 합계 전년 대비, 1위 브랜드',
+  fn: (comp, cur, hist) => {
+    const F = window.FJ, rows = F.compRows(comp, cur, hist), m = F.compMonth(rows);
+    return Array.from(d3.group(rows.filter((r) => r.month === m), (r) => r.store_code), ([code, g]) => {
+      const b = Array.from(d3.rollup(g, (x) => ({ net: d3.sum(x, (r) => r.net), ly: d3.sum(x, (r) => r.ly_net) }), (r) => r.brand), ([brand, o]) => ({ brand, ...o })).filter((x) => x.net > 0).sort((a, c) => c.net - a.net);
+      const T = d3.sum(b, (x) => x.net), L = d3.sum(g, (r) => r.ly_net), o = b.find((x) => x.brand === F.OURS), lyO = d3.sum(g.filter((r) => r.brand === F.OURS), (r) => r.ly_net);
+      const sh = o && T ? o.net / T : 0, lsh = L ? lyO / L : null;
+      return { store_code: code, store: g[0].store, type: g[0].type, zone: g[0].zone_store, net: o ? o.net : 0, rank: o ? b.indexOf(o) + 1 : null, brands: b.length, share: sh, share_pp: lsh != null ? sh - lsh : null,
+        yoy: lyO > 0 && o ? o.net / lyO - 1 : null, zone_yoy: L > 0 ? T / L - 1 : null, top: b[0] ? b[0].brand : '', top_share: b[0] && T ? b[0].net / T : null };
+    });
+  },
+});
+dash.calc('comp_trend', {
+  inputs: ['competitors', 'store_daily', 'hist_store_daily'],
+  title: '월별 브랜드 점유율',
+  description: '달마다 우리 매장이 있는 점포의 브랜드별 점유율 (고른 달 상위 8개 브랜드와 풋조이)',
+  fn: (comp, cur, hist) => {
+    const F = window.FJ, rows = F.compRows(comp, cur, hist), m = F.compMonth(rows);
+    const top = Array.from(d3.rollup(rows.filter((r) => r.month === m), (v) => d3.sum(v, (r) => r.net), (r) => r.brand)).sort((a, b) => b[1] - a[1]).slice(0, 8).map((x) => x[0]);
+    if (!top.includes(F.OURS)) top.push(F.OURS);
+    const tot = d3.rollup(rows, (v) => d3.sum(v, (r) => r.net), (r) => r.month), out = [];
+    for (const [k, v] of d3.rollup(rows.filter((r) => top.includes(r.brand)), (g) => d3.sum(g, (r) => r.net), (r) => r.brand, (r) => r.month))
+      for (const [mo, n] of v) out.push({ brand: k, month: mo, share: tot.get(mo) ? n / tot.get(mo) : null, order: top.indexOf(k) });
+    return out;
+  },
+});
+
 dash.calc('mgr_now', {
   inputs: ['mgr_stores'],
   title: '담당자별 실적',
@@ -2612,7 +2705,7 @@ function fjShowTab(id) {
   dash.setLink(id);
 }
 document.querySelectorAll('[data-tab]').forEach((b) => b.addEventListener('click', () => fjShowTab(b.dataset.tab)));
-fjShowTab(['tab-year', 'tab-month', 'tab-now', 'tab-mgr', 'tab-weak'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'tab-now');
+fjShowTab(['tab-year', 'tab-month', 'tab-now', 'tab-mgr', 'tab-weak', 'tab-comp'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'tab-now');
 
 // ── 필터 ──
 document.querySelectorAll('#type-select').forEach((s) => s.addEventListener('change', () => dash.setParams({ type: s.value, store: '' })));
@@ -3435,6 +3528,74 @@ dash.draw('weak-actions', (el) => {
   if (ret.length) it.push(['상시 · 반품률:', `반품률 25% 이상 매장은 반품 사유를 모아 사이즈·하자 문제인지 확인합니다 (${nm(ret)}).`]);
   it.push([now ? `${FJ.md(c.month_end)} 마감 뒤 · 결과 확인:` : '결과 확인:', now ? '마감 자료를 올리고 이 탭에서 같은 달을 다시 골라 마지막 주 흐름을 봅니다.' : '다음 달을 골라 같은 매장이 나아졌는지 봅니다.']);
   FJ.li(el, it);
+});
+dash.draw('cmon-select', (sel) => {
+  const d = dash.data('competitors');
+  if (d.status !== 'ok') return;
+  const ms = Array.from(new Set(d.data.map((r) => r.month))).sort().reverse();
+  sel.replaceChildren(...ms.map((m) => new Option(FJ.ym(m), m)));
+  sel.value = FJ.compMonth(d.data) || '';
+  sel.onchange = () => dash.setParams({ cmon: sel.value });
+  const ch = document.getElementById('cch-select'); ch.value = dash.params().cch || ''; ch.onchange = () => dash.setParams({ cch: ch.value });
+});
+dash.draw('comp-sum', (el) => {
+  const b = dash.data('comp_brand'), s = dash.data('comp_store');
+  if (b.status !== 'ok' || s.status !== 'ok') { el.textContent = '—'; return; }
+  if (!b.data.length) { el.textContent = '경쟁 브랜드 자료가 없습니다. 자료 올리기에서 백화점 동업계 매출 엑셀을 올려 주세요.'; return; }
+  const o = b.data.find((r) => r.brand === FJ.OURS), m = b.data[0].month, n = s.data.length, w = s.data.filter((r) => r.rank === 1).length;
+  el.textContent = o ? `${FJ.ym(m)} 우리 매장이 있는 ${n}개 점포에서 풋조이는 ${b.data.length}개 브랜드 중 ${o.rank}위, 점유율 ${FJ.pct(o.share)}(전년 ${FJ.pct(o.ly_share)}, ${FJ.pp(o.share_pp)})입니다. 매출은 전년 대비 ${FJ.signed(o.yoy)}, 1위 점포는 ${w}곳입니다.` : `${FJ.ym(m)} 자료에 풋조이 매출이 없습니다.`;
+});
+dash.draw('comp-points', (el) => {
+  const b = dash.data('comp_brand'), s = dash.data('comp_store');
+  if (b.status !== 'ok' || s.status !== 'ok' || !b.data.length) return el.replaceChildren();
+  const big = b.data.slice(0, 20).filter((r) => r.share_pp != null), up = big.slice().sort((a, c) => c.share_pp - a.share_pp).slice(0, 3), dn = big.slice().sort((a, c) => a.share_pp - c.share_pp).slice(0, 3);
+  const f = (r) => `${r.brand} ${FJ.pp(r.share_pp)}(전년 대비 ${FJ.signed(r.yoy)})`;
+  const it = [['점유율이 오른 브랜드:', up.map(f).join(', ') + '.'], ['점유율이 내린 브랜드:', dn.map(f).join(', ') + '.']];
+  const lose = s.data.filter((r) => r.share_pp != null && r.share_pp <= -0.02).sort((a, c) => a.share_pp - c.share_pp);
+  if (lose.length) it.push(['풋조이 점유율이 2%p 넘게 빠진 점포:', `${lose.length}곳 · ` + lose.slice(0, 6).map((r) => `${FJ.short(r.store)} ${FJ.pp(r.share_pp)}(1위 ${r.top})`).join(', ') + (lose.length > 6 ? ' 등' : '') + '.']);
+  FJ.li(el, it);
+});
+dash.draw('comp-brand-rows', (tb) => {
+  const d = dash.data('comp_brand');
+  if (d.status !== 'ok') return FJ.rowsMsg(tb, 7, d.status === 'error' ? '자료를 불러오지 못했습니다.' : '—');
+  if (!d.data.length) return FJ.rowsMsg(tb, 7, '경쟁 브랜드 자료가 없습니다.');
+  const rows = d.data.filter((r, i) => i < 20 || r.brand === FJ.OURS);
+  tb.replaceChildren(...rows.map((r) => {
+    const tr = document.createElement('tr'); tr.dataset.key = r.brand; if (r.brand === FJ.OURS) tr.className = 'is-picked';
+    tr.append(FJ.td(String(r.rank), 'n m'), FJ.td(r.brand), FJ.td(FJ.won(r.net), 'n'), FJ.td(FJ.pct(r.share), 'n'), FJ.td(FJ.pp(r.share_pp), 'n ' + FJ.tone(r.share_pp)),
+      FJ.td(FJ.signed(r.yoy), 'n ' + FJ.tone(r.yoy)), FJ.td(String(r.wins), 'n'));
+    return tr;
+  }));
+});
+dash.draw('comp-trend', (el) => {
+  const d = dash.data('comp_trend');
+  if (FJ.notOk(el, d)) return;
+  if (!d.data.length) return FJ.empty(el, '경쟁 브랜드 자료가 없습니다.');
+  const months = Array.from(new Set(d.data.map((r) => r.month))).sort();
+  const t = document.createElement('table'); t.className = 'fj-table fj-heat';
+  const hr = document.createElement('tr'), th = (x, c) => { const e = document.createElement('th'); e.textContent = x; e.className = c || ''; return e; };
+  hr.append(th('브랜드'), ...months.map((m) => th(FJ.monthName(m), 'n')));
+  const head = document.createElement('thead'); head.appendChild(hr);
+  const body = document.createElement('tbody'), mx = d3.max(d.data, (r) => r.share) || 1;
+  for (const [b, v] of Array.from(d3.group(d.data, (r) => r.brand)).sort((a, c) => a[1][0].order - c[1][0].order)) {
+    const tr = document.createElement('tr'); if (b === FJ.OURS) tr.className = 'is-picked';
+    const mm = new Map(v.map((r) => [r.month, r.share]));
+    tr.append(FJ.td(b), ...months.map((m) => { const x = mm.get(m), c = FJ.td(x == null ? '—' : FJ.pct(x), 'n v'); if (x > 0) c.style.background = `color-mix(in srgb, ${dash.colors[0]} ${Math.round(x / mx * 32)}%, transparent)`; return c; }));
+    body.appendChild(tr);
+  }
+  t.append(head, body); el.replaceChildren(t);
+});
+dash.draw('comp-store-rows', (tb) => {
+  const d = dash.data('comp_store');
+  if (d.status !== 'ok') return FJ.rowsMsg(tb, 8, d.status === 'error' ? '자료를 불러오지 못했습니다.' : '—');
+  if (!d.data.length) return FJ.rowsMsg(tb, 8, '경쟁 브랜드 자료가 없습니다.');
+  tb.replaceChildren(...d.data.map((r) => {
+    const tr = document.createElement('tr'); tr.dataset.key = r.store_code;
+    tr.append(FJ.td(r.store), FJ.td(FJ.won(r.net), 'n'), FJ.td(r.rank ? `${r.rank} / ${r.brands}` : '—', 'n'), FJ.td(FJ.pct(r.share), 'n'), FJ.td(FJ.pp(r.share_pp), 'n ' + FJ.tone(r.share_pp)),
+      FJ.td(FJ.signed(r.yoy), 'n ' + FJ.tone(r.yoy)), FJ.td(FJ.signed(r.zone_yoy), 'n ' + FJ.tone(r.zone_yoy)), FJ.td(r.top === FJ.OURS ? '풋조이' : `${r.top} ${FJ.pct(r.top_share)}`));
+    return tr;
+  }));
+  FJ.groupTbody(tb, d.data, 8, 'net');
 });
 dash.draw('mgr-filter', (sel) => {
   const d = dash.data('managers');

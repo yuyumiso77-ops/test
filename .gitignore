@@ -6,3 +6,4 @@ node_modules/
 uploaded/
 public/data/managers.csv
 managers*.csv
+competitors*.csv

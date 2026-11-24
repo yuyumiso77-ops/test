@@ -11,6 +11,7 @@ const path = require('path');
 const crypto = require('crypto');
 const { aggregate } = require('./aggregate');
 const ExcelJS = require('exceljs');
+const { parseCompetitors, HEAD: COMP_HEAD } = require('./competitors');
 
 const root = path.join(__dirname, 'public');
 const port = Number(process.env.PORT) || 3000;
@@ -314,6 +315,26 @@ function handleUpload(req, res, by, kind = 'sales') {
         console.log(`담당자 자료 갱신: 매장 ${rows.length}곳, 담당자 ${mgrs.size}명 (${by})`);
         return done(200, { ok: true, kind, stores: rows.length, managers: mgrs.size, persistent: !!volumeDir });
       }
+      if (kind === 'competitors') {
+        // 우리 매장 목록(매장코드 맞추기용)
+        const stores = new Map();
+        for (const f of ['hist_store_daily.csv', 'store_daily.csv']) {
+          const p = currentFile(f); if (!p) continue;
+          const t = parseCsv(fs.readFileSync(p, 'utf8')), ix = (h) => t.head.indexOf(h);
+          for (const r of t.rows) stores.set(r[ix('store_code')], { store_code: r[ix('store_code')], store: r[ix('store')], type: r[ix('type')] });
+        }
+        const add = await parseCompetitors(tmp, [...stores.values()]);
+        // 새 파일에 든 (월, 유통사)는 바꾸고, 나머지 달은 그대로 둡니다
+        const keys = new Set(add.map((r) => r[0] + '|' + r[1]));
+        const dest = path.join(dataDir, 'competitors.csv');
+        const old = fs.existsSync(dest) ? parseCsv(fs.readFileSync(dest, 'utf8')).rows.filter((r) => !keys.has(r[0] + '|' + r[1])) : [];
+        fs.mkdirSync(dataDir, { recursive: true });
+        const t = path.join(dataDir, `.competitors-${Date.now()}.csv`);
+        fs.writeFileSync(t, toCsv(COMP_HEAD, old.concat(add))); fs.renameSync(t, dest);
+        const months = [...new Set(add.map((r) => r[0]))].sort(), groups = [...new Set(add.map((r) => r[1]))];
+        console.log(`경쟁 브랜드 자료 갱신: ${groups.join('·')} ${months[0]}~${months[months.length - 1]}, ${add.length}줄 (${by})`);
+        return done(200, { ok: true, kind, rows: add.length, groups, months, matched: new Set(add.filter((r) => r[3]).map((r) => r[3])).size, persistent: !!volumeDir });
+      }
       const { files, meta } = await aggregate(tmp);
       fs.mkdirSync(dataDir, { recursive: true });
       const stage = fs.mkdtempSync(path.join(dataDir, '.incoming-'));
@@ -382,6 +403,12 @@ ol { margin: 0; padding-left: 1.3em; }
   <label class="drop" for="mfile"><b id="mdrop-title">담당자 엑셀 고르기</b><span class="muted" id="mdrop-sub">.xlsx 파일 하나</span><input id="mfile" type="file" accept=".xlsx" hidden></label>
   <button id="msend" type="button" disabled>담당자 자료 올리기</button>
   <div class="box" id="mresult" hidden></div>
+  <h1 style="font-size:19px;margin-top:14px">경쟁 브랜드 파일</h1>
+  <p class="muted">백화점 <b>동업계 매출 현황 엑셀</b>(롯데 Data_lotte, 현대 Data_hyundai 시트)을 올리면 경쟁 브랜드 동향 탭이 채워집니다. 파일에 든 달·유통사만 바뀌고, 다른 달은 그대로 남습니다.</p>
+  <div class="box"><span class="muted">지금 경쟁 브랜드 자료</span><span id="c-current">확인하는 중…</span></div>
+  <label class="drop" for="cfile"><b id="cdrop-title">동업계 매출 엑셀 고르기</b><span class="muted" id="cdrop-sub">.xlsx 파일 하나 (롯데·현대 따로면 하나씩 올리세요)</span><input id="cfile" type="file" accept=".xlsx" hidden></label>
+  <button id="csend" type="button" disabled>경쟁 브랜드 자료 올리기</button>
+  <div class="box" id="cresult" hidden></div>
   <p class="muted"><a href="/">대시보드로 돌아가기</a> · <a href="/logout">로그아웃</a></p>
 </main>
 <script>
@@ -458,6 +485,34 @@ $('msend').addEventListener('click', async () => {
   box.hidden = false; $('msend').disabled = false; showMgr();
 });
 showMgr();
+let cpicked = null;
+function showComp() {
+  fetch('/data/competitors.csv', { cache: 'no-store' }).then((r) => r.text()).then((t) => {
+    const rows = t.trim().split('\n').slice(1).filter(Boolean), ms = [...new Set(rows.map((l) => l.slice(0, 7)))].sort();
+    const g = [...new Set(rows.map((l) => l.split(',')[1]))].join('·');
+    $('c-current').textContent = rows.length ? g + ' · ' + ms[0] + ' ~ ' + ms[ms.length - 1] + ' · ' + rows.length.toLocaleString('ko-KR') + '줄' : '아직 올린 경쟁 브랜드 자료가 없습니다.';
+  }).catch(() => { $('c-current').textContent = '확인하지 못했습니다.'; });
+}
+$('cfile').addEventListener('change', (e) => {
+  const f = e.target.files[0]; if (!f) return;
+  if (!/\.xlsx$/i.test(f.name)) { $('cdrop-sub').textContent = '.xlsx 파일만 올릴 수 있습니다.'; return; }
+  cpicked = f; $('cdrop-title').textContent = f.name; $('cdrop-sub').textContent = '다른 파일을 고르려면 다시 누르세요'; $('csend').disabled = false;
+});
+$('csend').addEventListener('click', async () => {
+  if (!cpicked) return;
+  $('csend').disabled = true; $('csend').textContent = '처리하는 중…';
+  const box = $('cresult'); box.replaceChildren();
+  try {
+    const r = await fetch('/api/upload', { method: 'POST', headers: { 'Content-Type': 'application/octet-stream', 'X-Kind': 'competitors', 'X-File-Name': encodeURIComponent(cpicked.name) }, body: cpicked });
+    const d = await r.json().catch(() => ({ ok: false, message: '서버 응답을 읽지 못했습니다.' }));
+    const head = document.createElement('span'); head.className = d.ok ? 'ok' : 'bad';
+    head.textContent = d.ok ? '경쟁 브랜드 자료를 올렸습니다. ' + d.groups.join('·') + ' ' + d.months[0] + ' ~ ' + d.months[d.months.length - 1] + ' · 우리 매장과 맞춘 점포 ' + d.matched + '곳' : (d.message || '올리지 못했습니다.');
+    box.appendChild(head);
+    if (d.ok && !d.persistent) { const w = document.createElement('span'); w.className = 'muted'; w.textContent = '주의: 저장 공간(Volume)이 연결되지 않아, 다시 배포되면 이 자료가 사라집니다.'; box.appendChild(w); }
+  } catch (e) { box.textContent = '연결이 끊겼습니다. 다시 올려 주세요.'; }
+  box.hidden = false; $('csend').disabled = false; $('csend').textContent = '경쟁 브랜드 자료 올리기'; showComp();
+});
+showComp();
 </script>
 </body>
 </html>`;
@@ -483,7 +538,7 @@ http.createServer((req, res) => {
   }
   if (pathname === '/api/upload' && req.method === 'POST' && uploadKey && req.headers['x-upload-key']) {
     if (!same(req.headers['x-upload-key'], uploadKey)) return json(res, 401, { ok: false, message: '업로드 키가 맞지 않습니다.' });
-    return handleUpload(req, res, 'api', req.headers['x-kind'] === 'managers' ? 'managers' : 'sales');
+    return handleUpload(req, res, 'api', (['managers', 'competitors'].includes(req.headers['x-kind']) ? req.headers['x-kind'] : 'sales'));
   }
   if (!loggedIn(req)) {
     if (pathname === '/' || pathname === '/upload' || pathname.endsWith('.html')) { res.writeHead(303, { Location: '/login' }); return res.end(); }
@@ -494,7 +549,7 @@ http.createServer((req, res) => {
   if (pathname === '/upload') return send(res, 200, uploadPage());
   if (pathname === '/api/upload') {
     if (req.method !== 'POST') { res.writeHead(405); return res.end(); }
-    return handleUpload(req, res, 'web', req.headers['x-kind'] === 'managers' ? 'managers' : 'sales');
+    return handleUpload(req, res, 'web', (['managers', 'competitors'].includes(req.headers['x-kind']) ? req.headers['x-kind'] : 'sales'));
   }
   // 올린 자료가 있으면 그것을, 없으면 저장소에 든 기본 자료를 보여 줍니다
   if (/^\/data\/[a-z_]+\.(csv|json)$/.test(pathname)) {
@@ -506,6 +561,7 @@ http.createServer((req, res) => {
     if (pathname === '/data/meta.json') return json(res, 200, null);
     // 담당자 자료는 저장소에 두지 않으므로, 올리지 않았으면 빈 표를 보냅니다
     if (pathname === '/data/managers.csv') return send(res, 200, MANAGER_HEAD.join(',') + '\n', { 'Content-Type': 'text/csv; charset=utf-8' });
+    if (pathname === '/data/competitors.csv') return send(res, 200, COMP_HEAD.join(',') + '\n', { 'Content-Type': 'text/csv; charset=utf-8' });
   }
 
   if (pathname.endsWith('/')) pathname += 'index.html';
