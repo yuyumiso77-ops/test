@@ -847,6 +847,24 @@
     </div>
   </section>
 
+  <section class="fj-section" id="mgr-weak">
+    <div class="fj-sec-title">
+      <h2>부진 매장과 개선 방법</h2>
+      <span class="fj-label">집중 관리 = 이번 달 전년 대비 −15% 이하이고 최근 7일도 전년 같은 요일 대비 −15% 이하. 누계 회복 중 = 이번 달 −15% 이하, 최근 7일은 회복. 최근 급락 = 이번 달 +10% 미만, 최근 7일 전년 대비와 전주 대비 모두 −30% 이하. 작년 매출 1천만원 미만·폐점 예정 매장 제외. 개선 방법은 원인에 따라 자동으로 붙습니다.</span>
+    </div>
+    <p class="fj-lede" data-draw="weak-sum">—</p>
+    <div class="fj-tablewrap tall">
+      <table class="fj-table" id="weak-table" data-source="mgr_weak" data-row-key="store_code">
+        <thead><tr>
+          <th data-field="tier">구분</th><th data-field="manager">담당자</th><th data-field="store">매장</th>
+          <th class="n" data-field="net">순매출</th><th class="n" data-field="yoy">전년 대비</th><th class="n" data-field="gap">차이</th>
+          <th class="n" data-field="w_yoy">최근 7일 전년 대비</th><th data-field="cause">원인</th><th data-field="fix">개선 방법</th>
+        </tr></thead>
+        <tbody data-draw="weak-rows"></tbody>
+      </table>
+    </div>
+  </section>
+
   <section class="fj-section" id="mgr-monthly">
     <div class="fj-sec-title">
       <h2>담당자별 월 순매출</h2>
@@ -2246,6 +2264,44 @@ dash.calc('mgr_stores', {
   },
 });
 
+dash.calc('mgr_weak', {
+  inputs: ['managers', 'store_daily', 'ly_store_daily', 'member_daily', 'product_store'],
+  title: '부진 매장',
+  description: '담당 매장 중 전년 대비·최근 7일 전년 같은 요일 대비·전주 대비로 고른 부진 매장(tier 1 집중 관리, 2 누계 회복 중, 3 최근 급락)과 객수·객단가·반품률·골프화 비중으로 본 원인, 개선 방법',
+  fn: (managers, cur, ly, mem, ps) => {
+    const F = window.FJ, mm = F.mgrMap(managers);
+    if (!mm.size || !cur.length) return [];
+    const last = d3.max(cur, (r) => r.date), first = d3.min(cur, (r) => r.date);
+    const w1a = F.shiftDays(last, -6), w0a = F.shiftDays(last, -13), w0b = F.shiftDays(last, -7);
+    const la = F.sameDateLY(first), lb = F.sameDateLY(last), lwa = F.sameDayLY(w1a), lwb = F.sameDayLY(last);
+    const sum = (rows, k) => d3.rollup(rows, (v) => d3.sum(v, (r) => +r[k]), (r) => r.store_code);
+    const lyM = ly.filter((r) => r.date >= la && r.date <= lb);
+    const lyN = sum(lyM, 'net'), lyS = sum(lyM, 'sales'), lyR = sum(lyM, 'receipts'), lyW = sum(ly.filter((r) => r.date >= lwa && r.date <= lwb), 'net');
+    const ms = d3.rollup(mem, (v) => { const a = d3.sum(v, (r) => +r.member_sales), b = d3.sum(v, (r) => +r.nonmember_sales); return a + b ? a / (a + b) : null; }, (r) => r.store_code);
+    const sh = d3.rollup(ps, (v) => { const t = d3.sum(v, (r) => +r.net); return t ? d3.sum(v.filter((r) => F.cat(r.line) === '골프화'), (r) => +r.net) / t : null; }, (r) => r.store_code);
+    const out = [];
+    for (const [code, v] of d3.group(cur.filter((r) => mm.has(r.store_code) && !/사용중지|폐점/.test(r.store)), (r) => r.store_code)) {
+      const s = (k, fl) => d3.sum(fl ? v.filter(fl) : v, (r) => +r[k]);
+      const net = s('net'), l = lyN.get(code) || 0; if (l < 1e7) continue;
+      const w1 = s('net', (r) => r.date >= w1a), w0 = s('net', (r) => r.date >= w0a && r.date <= w0b), lw = lyW.get(code) || 0;
+      const yoy = net / l - 1, wy = lw > 0 ? w1 / lw - 1 : null, wow = w0 > 0 ? w1 / w0 - 1 : null;
+      const tier = yoy <= -0.15 ? (wy != null && wy <= -0.15 ? 1 : 2) : yoy < 0.1 && wy != null && wy <= -0.3 && wow != null && wow <= -0.3 && lw >= 3e6 ? 3 : 0;
+      if (!tier) continue;
+      const rc = s('receipts'), lr = lyR.get(code) || 0, rcy = lr ? rc / lr - 1 : null;
+      const aovy = rc && lr ? (s('sales') / rc) / (lyS.get(code) / lr) - 1 : null, rr = s('sales') ? s('returns') / s('sales') : 0;
+      const m = ms.get(code), g = sh.get(code), c = [], f = [];
+      if (rcy != null && rcy <= -0.15) { c.push(`객수 ${F.signed(rcy)}`); f.push(m >= 0.6 ? '회원 문자·카톡으로 재방문 유도' : '입구 행사대·균일가로 집객, 회원 가입 유도'); }
+      if (aovy != null && aovy <= -0.08) { c.push(`객단가 ${F.signed(aovy)}`); f.push('상·하의·장갑 묶음 제안, 26FW 아우터 중심 진열'); }
+      if (rr >= 0.25) { c.push(`반품률 ${F.pct(rr)}`); f.push('반품 사유(사이즈·하자) 점검'); }
+      if (g != null && g < 0.1) { c.push(`골프화 ${F.pct(g)}`); f.push('골프화 진열·시착 제안 확대'); }
+      if (tier === 3) f.unshift('최근 주 매장 상황(인력·재고·위치) 확인');
+      if (!f.length) f.push('주말 인력·재고 보강, 회원 안내');
+      out.push({ store_code: code, store: v[0].store, type: v[0].type, manager: mm.get(code), tier, net, ly_net: l, gap: net - l, yoy, w_yoy: wy, wow, rc_yoy: rcy, aov_yoy: aovy, return_rate: rr, member_share: m, shoe_share: g, cause: c.join(', ') || (tier === 3 ? '최근 7일 급락' : '객수·객단가 함께 소폭 하락'), fix: f.slice(0, 2).join(' / ') });
+    }
+    return out.sort((a, b) => d3.ascending(a.manager, b.manager) || a.tier - b.tier || a.gap - b.gap);
+  },
+});
+
 dash.calc('mgr_now', {
   inputs: ['mgr_stores'],
   title: '담당자별 실적',
@@ -3212,6 +3268,25 @@ dash.draw('mgr-rows', (tb) => {
     tr.append(FJ.td(r.manager), FJ.td(FJ.int(r.stores), 'n'), FJ.td(FJ.won(r.net), 'n'), FJ.td(FJ.pct(r.share), 'n'),
       FJ.td(FJ.signed(r.yoy), 'n ' + FJ.tone(r.yoy)), FJ.td(FJ.signed(wo), 'n ' + FJ.tone(wo)), FJ.td(FJ.won(r.projected), 'n'),
       FJ.td(FJ.won(r.aov), 'n'), FJ.td(FJ.pct(r.return_rate), 'n'));
+    return tr;
+  }));
+});
+dash.draw('weak-sum', (el) => {
+  const d = dash.data('mgr_weak');
+  if (d.status !== 'ok') { el.textContent = '—'; return; }
+  if (!d.data.length) { el.textContent = '담당자 자료가 없거나 기준에 드는 부진 매장이 없습니다.'; return; }
+  const n = (t) => d.data.filter((r) => r.tier === t).length, rc = d.data.filter((r) => r.rc_yoy != null && r.rc_yoy <= -0.15).length;
+  el.textContent = `집중 관리 ${n(1)}곳, 누계 회복 중 ${n(2)}곳, 최근 급락 ${n(3)}곳 · 작년 같은 기간보다 ${FJ.won(-d3.sum(d.data, (r) => r.gap))} 덜 팔았습니다. ${d.data.length}곳 중 ${rc}곳은 객수가 15% 넘게 줄었습니다.`;
+});
+dash.draw('weak-rows', (tb) => {
+  const d = dash.data('mgr_weak');
+  if (d.status !== 'ok') return FJ.rowsMsg(tb, 9, d.status === 'error' ? '자료를 불러오지 못했습니다.' : '—');
+  if (!d.data.length) return FJ.rowsMsg(tb, 9, '기준에 드는 매장이 없습니다.');
+  const T = ['', '집중 관리', '누계 회복 중', '최근 급락'];
+  tb.replaceChildren(...d.data.map((r) => {
+    const tr = document.createElement('tr'); tr.dataset.key = r.store_code;
+    tr.append(FJ.td(T[r.tier], r.tier === 1 ? 'fj-down' : ''), FJ.td(r.manager), FJ.td(r.store), FJ.td(FJ.won(r.net), 'n'), FJ.td(FJ.signed(r.yoy), 'n ' + FJ.tone(r.yoy)),
+      FJ.td(FJ.compact(r.gap), 'n'), FJ.td(FJ.signed(r.w_yoy), 'n ' + FJ.tone(r.w_yoy)), FJ.td(r.cause), FJ.td(r.fix));
     return tr;
   }));
 });
