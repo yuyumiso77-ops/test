@@ -972,8 +972,8 @@ fetch('data/meta.json', { cache: 'no-store' }).then((r) => r.ok ? r.json() : nul
       <table class="fj-table" id="weak-table" data-source="mgr_weak" data-row-key="store_code">
         <thead><tr>
           <th data-field="tier">구분</th><th data-field="manager">담당자</th><th data-field="store">매장</th>
-          <th class="n" data-field="net">순매출</th><th class="n" data-field="yoy">전년 대비</th><th class="n" data-field="gap">차이</th>
-          <th class="n" data-field="w_yoy">최근 7일 전년 대비</th><th data-field="cause">원인</th><th data-field="fix">개선 방법</th>
+          <th data-field="fix">개선 방법</th><th data-field="cause">원인</th>
+          <th class="n" data-field="yoy">전년 대비</th><th class="n" data-field="w_yoy">최근 7일 전년 대비</th><th class="n" data-field="gap">차이</th><th class="n" data-field="net">순매출</th>
         </tr></thead>
         <tbody data-draw="weak-rows"></tbody>
       </table>
@@ -3400,8 +3400,8 @@ dash.draw('weak-rows', (tb) => {
   const T = ['', '집중 관리', '누계 회복 중', '최근 급락'];
   tb.replaceChildren(...d.data.map((r) => {
     const tr = document.createElement('tr'); tr.dataset.key = r.store_code;
-    tr.append(FJ.td(T[r.tier], r.tier === 1 ? 'fj-down' : ''), FJ.td(r.manager), FJ.td(r.store), FJ.td(FJ.won(r.net), 'n'), FJ.td(FJ.signed(r.yoy), 'n ' + FJ.tone(r.yoy)),
-      FJ.td(FJ.compact(r.gap), 'n'), FJ.td(FJ.signed(r.w_yoy), 'n ' + FJ.tone(r.w_yoy)), FJ.td(r.cause), FJ.td(r.fix));
+    tr.append(FJ.td(T[r.tier], r.tier === 1 ? 'fj-down' : ''), FJ.td(r.manager), FJ.td(r.store), FJ.td(r.fix), FJ.td(r.cause),
+      FJ.td(FJ.signed(r.yoy), 'n ' + FJ.tone(r.yoy)), FJ.td(FJ.signed(r.w_yoy), 'n ' + FJ.tone(r.w_yoy)), FJ.td(FJ.compact(r.gap), 'n'), FJ.td(FJ.won(r.net), 'n'));
     return tr;
   }));
 });
