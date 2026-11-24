@@ -95,6 +95,7 @@
 .fj-tabs button { appearance: none; border: 0; background: transparent; color: var(--color-fg-muted); font: inherit; font-size: var(--cds-font-size-body); font-weight: var(--cds-font-weight-medium); padding: 10px 16px; border-bottom: 2px solid transparent; margin-bottom: -1px; cursor: pointer; white-space: nowrap; }
 .fj-tabs button.is-on { color: var(--color-fg); border-bottom-color: var(--color-fg); }
 .fj-tabs button:focus-visible { outline: 2px solid var(--color-fg); outline-offset: -2px; }
+@media (max-width: 640px) { .fj-tabs { flex-wrap: wrap; overflow-x: visible; } .fj-tabs button { padding: 8px 10px; } }
 .fj-tab { display: flex; flex-direction: column; gap: var(--cds-gap-xl); }
 .fj-mini { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .fj-mini h3 { margin: 0; font-size: var(--cds-font-size-body); font-weight: var(--cds-font-weight-medium); }
@@ -136,10 +137,10 @@
   </div>
 
   <nav class="fj-tabs" role="tablist" aria-label="보기">
-    <button type="button" role="tab" data-tab="tab-year" aria-selected="false">연간 리포트</button>
-    <button type="button" role="tab" data-tab="tab-month" aria-selected="false">월별</button>
-    <button type="button" role="tab" data-tab="tab-now" aria-selected="true" class="is-on">당월</button>
-    <button type="button" role="tab" data-tab="tab-mgr" aria-selected="false">담당자별</button>
+    <button type="button" role="tab" data-tab="tab-year" aria-selected="false">연간 매출 실적</button>
+    <button type="button" role="tab" data-tab="tab-month" aria-selected="false">월별 매출 추이</button>
+    <button type="button" role="tab" data-tab="tab-now" aria-selected="true" class="is-on">당월 매출 현황</button>
+    <button type="button" role="tab" data-tab="tab-mgr" aria-selected="false">당월 담당자별 매출 실적</button>
   </nav>
 
   <section class="fj-tab" id="tab-year" hidden>
