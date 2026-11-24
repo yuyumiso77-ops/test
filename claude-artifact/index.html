@@ -935,14 +935,23 @@
   <section class="fj-section" id="comp-head">
     <div class="fj-sec-title">
       <h2>경쟁 브랜드 동향</h2>
-      <span class="fj-label">백화점 동업계 매출 자료로 우리 매장이 있는 롯데·현대 점포의 골프 브랜드만 비교합니다. 롯데는 총매출, 현대는 매출액 기준이고, 전년은 자료의 대비 실적·신장률로 구합니다. 점유율 = 그 점포들 골프 브랜드 합계 중 비중.</span>
+      <span class="fj-label">백화점 동업계 매출 자료로 우리 매장이 있는 롯데·현대 점포의 골프 브랜드만 비교합니다. 롯데는 총매출, 현대는 매출액 기준이고, 전년은 자료의 대비 실적·신장률로 구합니다. 점유율 = 그 점포들 골프 브랜드 합계 중 비중. 맨 위 유통 형태·담당자·매장 필터도 함께 적용됩니다.</span>
     </div>
     <div class="fj-controls">
       <label class="fj-ctl"><span class="fj-label">월</span><select class="dash-select" id="cmon-select" data-draw="cmon-select" aria-label="월"></select></label>
+      <label class="fj-ctl"><span class="fj-label">백화점</span><select class="dash-select" id="cgrp-select" aria-label="백화점"><option value="">롯데+현대</option><option value="롯데">롯데</option><option value="현대">현대</option></select></label>
       <label class="fj-ctl"><span class="fj-label">채널</span><select class="dash-select" id="cch-select" aria-label="채널"><option value="">매장+온라인</option><option value="오프라인">매장만</option></select></label>
     </div>
     <p class="fj-lede" data-draw="comp-sum">—</p>
     <ul class="fj-ul" data-draw="comp-points"></ul>
+  </section>
+
+  <section class="fj-section" id="comp-flow">
+    <div class="fj-sec-title"><h2>브랜드 매출 흐름 (올해 vs 작년)</h2><span class="fj-label">막대는 올해 달마다 매출, 회색 선은 작년 같은 달입니다. 아래 표에서 브랜드를 누르면 차트가 그 브랜드로 바뀝니다. 표 칸은 초록이 작년 같은 달보다 많이, 빨강이 적게 판 달이고, 칸에 마우스를 올리면 작년 금액이 보입니다.</span></div>
+    <div class="fj-controls"><label class="fj-ctl"><span class="fj-label">브랜드</span><select class="dash-select" id="cbrand-select" data-draw="cbrand-select" aria-label="브랜드"></select></label></div>
+    <p class="fj-label" data-draw="comp-flow-sum"></p>
+    <div class="fj-chart" data-draw="comp-flow-chart" data-source="comp_monthly"></div>
+    <div class="fj-tablewrap tall" data-draw="comp-flow-table" data-source="comp_monthly"></div>
   </section>
 
   <section class="fj-section" id="comp-brands">
@@ -2441,8 +2450,8 @@ dash.calc('weak_ctx', {
 // ── 경쟁 브랜드 ──
 window.FJ.OURS = '풋조이';
 window.FJ.compRows = (comp, cur, hist) => {
-  const { type = '', cch = '' } = dash.params(), info = new Map(hist.concat(cur).map((r) => [r.store_code, r]));
-  return comp.filter((r) => r.store_code && info.has(r.store_code) && (!cch || r.channel === cch) && (!type || info.get(r.store_code).type === type))
+  const { type = '', cch = '', cgrp = '', store = '' } = dash.params(), info = new Map(hist.concat(cur).map((r) => [r.store_code, r]));
+  return comp.filter((r) => r.store_code && info.has(r.store_code) && (!cch || r.channel === cch) && (!cgrp || r.group === cgrp) && (!store || r.store_code === store) && (!type || info.get(r.store_code).type === type))
     .map((r) => ({ ...r, net: +r.net, ly_net: +r.ly_net, store: info.get(r.store_code).store, type: info.get(r.store_code).type }));
 };
 window.FJ.compMonth = (comp) => { const ms = Array.from(new Set(comp.map((r) => r.month))).sort(), w = dash.params().cmon; return ms.includes(w) ? w : ms[ms.length - 1]; };
@@ -2475,6 +2484,19 @@ dash.calc('comp_store', {
     });
   },
 });
+dash.calc('comp_monthly', {
+  inputs: ['competitors', 'store_daily', 'hist_store_daily'],
+  title: '브랜드별 월 매출 (올해·작년)',
+  description: '필터 범위(백화점·채널·유통 형태·담당자·매장) 점포의 브랜드별 달마다 매출(net)과 작년 같은 달 매출(ly_net); order = 올해 누계 순위',
+  fn: (comp, cur, hist) => {
+    const rows = window.FJ.compRows(comp, cur, hist), tot = d3.rollup(rows, (v) => d3.sum(v, (r) => r.net), (r) => r.brand);
+    const ord = Array.from(tot).sort((a, b) => b[1] - a[1]).map((x) => x[0]), out = [];
+    for (const [b, v] of d3.rollup(rows, (g) => ({ net: d3.sum(g, (r) => r.net), ly_net: d3.sum(g, (r) => r.ly_net) }), (r) => r.brand, (r) => r.month))
+      for (const [m, o] of v) out.push({ brand: b, month: m, ...o, order: ord.indexOf(b) + 1 });
+    return out;
+  },
+});
+
 dash.calc('comp_trend', {
   inputs: ['competitors', 'store_daily', 'hist_store_daily'],
   title: '월별 브랜드 점유율',
@@ -3529,6 +3551,59 @@ dash.draw('weak-actions', (el) => {
   it.push([now ? `${FJ.md(c.month_end)} 마감 뒤 · 결과 확인:` : '결과 확인:', now ? '마감 자료를 올리고 이 탭에서 같은 달을 다시 골라 마지막 주 흐름을 봅니다.' : '다음 달을 골라 같은 매장이 나아졌는지 봅니다.']);
   FJ.li(el, it);
 });
+FJ.cbrand = (list) => { const b = dash.params().cbrand; return list.includes(b) ? b : list.includes(FJ.OURS) ? FJ.OURS : list[0]; };
+dash.draw('cbrand-select', (sel) => {
+  const d = dash.data('comp_monthly');
+  if (d.status !== 'ok') return;
+  const list = Array.from(new Set(d.data.slice().sort((a, b) => a.order - b.order).map((r) => r.brand)));
+  sel.replaceChildren(...list.map((b) => new Option(b, b)));
+  sel.value = FJ.cbrand(list) || '';
+  sel.onchange = () => dash.setParams({ cbrand: sel.value });
+});
+FJ.flow = (d) => {
+  const list = Array.from(new Set(d.slice().sort((a, b) => a.order - b.order).map((r) => r.brand))), b = FJ.cbrand(list);
+  return { b, v: d.filter((r) => r.brand === b).sort((x, y) => d3.ascending(x.month, y.month)) };
+};
+dash.draw('comp-flow-sum', (el) => {
+  const d = dash.data('comp_monthly');
+  if (d.status !== 'ok' || !d.data.length) { el.textContent = ''; return; }
+  const { b, v } = FJ.flow(d.data), n = d3.sum(v, (r) => r.net), l = d3.sum(v, (r) => r.ly_net), ms = v.map((r) => r.month), all = d.data.filter((r) => ms.includes(r.month));
+  const sh = n / d3.sum(all, (r) => r.net), lsh = l / (d3.sum(all, (r) => r.ly_net) || 1), last = v[v.length - 1];
+  el.textContent = `${b} · ${FJ.monthName(ms[0])}~${FJ.monthName(ms[ms.length - 1])} 누계 ${FJ.won(n)} (전년 ${FJ.won(l)}, ${FJ.signed(l ? n / l - 1 : null)}) · 점유율 ${FJ.pct(sh)} (전년 ${FJ.pct(lsh)}, ${FJ.pp(sh - lsh)}) · ${FJ.monthName(last.month)} 전년 대비 ${FJ.signed(last.ly_net ? last.net / last.ly_net - 1 : null)}`;
+});
+dash.draw('comp-flow-chart', (el) => {
+  const d = dash.data('comp_monthly');
+  if (FJ.notOk(el, d)) return;
+  if (!d.data.length) return FJ.empty(el, '경쟁 브랜드 자료가 없습니다.');
+  const { b, v } = FJ.flow(d.data);
+  FJ.bars(el, v.map((r) => ({ key: r.month, label: FJ.monthName(r.month), value: r.net, ref: r.ly_net || null, color: b === FJ.OURS ? dash.colors[0] : dash.colors[1],
+    tip: [[`${b} · ${FJ.ym(r.month)}`], ['올해', FJ.won(r.net)], ['작년 같은 달', `${FJ.won(r.ly_net)} · ${FJ.signed(r.ly_net ? r.net / r.ly_net - 1 : null)}`]] })), `${b} 월별 매출 막대 차트, 회색 선은 작년 같은 달`);
+});
+dash.draw('comp-flow-table', (el) => {
+  const d = dash.data('comp_monthly');
+  if (FJ.notOk(el, d)) return;
+  if (!d.data.length) return FJ.empty(el, '경쟁 브랜드 자료가 없습니다.');
+  const months = Array.from(new Set(d.data.map((r) => r.month))).sort(), pick = FJ.flow(d.data).b;
+  const by = d3.group(d.data, (r) => r.brand), list = Array.from(by.keys()).sort((a, b) => by.get(a)[0].order - by.get(b)[0].order).filter((b, i) => i < 15 || b === FJ.OURS);
+  const t = document.createElement('table'); t.className = 'fj-table fj-heat';
+  const th = (x, c) => { const e = document.createElement('th'); e.textContent = x; e.className = c || ''; return e; }, hr = document.createElement('tr');
+  hr.append(th('브랜드'), ...months.map((m) => th(FJ.monthName(m), 'n')), th('올해 누계', 'n'), th('전년 누계', 'n'), th('전년 대비', 'n'));
+  const head = document.createElement('thead'); head.appendChild(hr);
+  const body = document.createElement('tbody');
+  for (const b of list) {
+    const mm = new Map(by.get(b).map((r) => [r.month, r])), n = d3.sum(by.get(b), (r) => r.net), l = d3.sum(by.get(b), (r) => r.ly_net), y = l ? n / l - 1 : null;
+    const tr = document.createElement('tr'); tr.className = 'pick' + (b === pick ? ' is-picked' : ''); tr.tabIndex = 0;
+    const go = () => dash.setParams({ cbrand: b });
+    tr.addEventListener('click', go); tr.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
+    tr.append(FJ.td(b), ...months.map((m) => {
+      const r = mm.get(m), g = r && r.ly_net ? r.net / r.ly_net - 1 : null, c = FJ.td(r ? FJ.compact(r.net) : '—', 'n v');
+      if (g != null) { c.title = `${b} · ${FJ.ym(m)} ${FJ.won(r.net)} (전년 ${FJ.won(r.ly_net)}, ${FJ.signed(g)})`; c.style.background = `color-mix(in srgb, ${g >= 0 ? 'var(--color-ok)' : 'var(--color-bad)'} ${Math.round(Math.min(Math.abs(g), 0.5) * 40)}%, transparent)`; }
+      return c;
+    }), FJ.td(FJ.compact(n), 'n'), FJ.td(FJ.compact(l), 'n'), FJ.td(FJ.signed(y), 'n ' + FJ.tone(y)));
+    body.appendChild(tr);
+  }
+  t.append(head, body); el.replaceChildren(t);
+});
 dash.draw('cmon-select', (sel) => {
   const d = dash.data('competitors');
   if (d.status !== 'ok') return;
@@ -3537,6 +3612,7 @@ dash.draw('cmon-select', (sel) => {
   sel.value = FJ.compMonth(d.data) || '';
   sel.onchange = () => dash.setParams({ cmon: sel.value });
   const ch = document.getElementById('cch-select'); ch.value = dash.params().cch || ''; ch.onchange = () => dash.setParams({ cch: ch.value });
+  const gp = document.getElementById('cgrp-select'); gp.value = dash.params().cgrp || ''; gp.onchange = () => dash.setParams({ cgrp: gp.value });
 });
 dash.draw('comp-sum', (el) => {
   const b = dash.data('comp_brand'), s = dash.data('comp_store');
