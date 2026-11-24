@@ -251,6 +251,7 @@ fetch('data/meta.json', { cache: 'no-store' }).then((r) => r.ok ? r.json() : nul
     <button type="button" role="tab" data-tab="tab-year" aria-selected="false">연간 리포트</button>
     <button type="button" role="tab" data-tab="tab-month" aria-selected="false">월별</button>
     <button type="button" role="tab" data-tab="tab-now" aria-selected="true" class="is-on">당월</button>
+    <button type="button" role="tab" data-tab="tab-mgr" aria-selected="false">담당자별</button>
   </nav>
 
   <section class="fj-tab" id="tab-year" hidden>
@@ -343,27 +344,6 @@ fetch('data/meta.json', { cache: 'no-store' }).then((r) => r.ok ? r.json() : nul
           <th class="n" data-field="yoy">전년 대비</th>
         </tr></thead>
         <tbody data-draw="annual-store-rows"></tbody>
-      </table>
-    </div>
-  </section>
-
-  <section class="fj-section" id="annual-managers">
-    <div class="fj-sec-title">
-      <h2>담당자별 연간 누계</h2>
-      <span class="fj-label">담당 매장의 1월 1일~마지막 판매일 합계를 작년 같은 기간과 비교합니다. 담당자는 지금 담당 기준입니다.</span>
-    </div>
-    <div class="fj-tablewrap">
-      <table class="fj-table" id="mgr-year-table" data-source="mgr_year" data-row-key="manager">
-        <thead><tr>
-          <th data-field="manager">담당자</th>
-          <th class="n" data-field="stores">매장 수</th>
-          <th class="n" data-field="net">올해 누계</th>
-          <th class="n" data-field="share">비중</th>
-          <th class="n" data-field="ly_net">작년 같은 기간</th>
-          <th class="n" data-field="yoy">전년 대비</th>
-          <th class="n" data-field="per_store">매장당</th>
-        </tr></thead>
-        <tbody data-draw="mgr-year-rows"></tbody>
       </table>
     </div>
   </section>
@@ -487,8 +467,6 @@ fetch('data/meta.json', { cache: 'no-store' }).then((r) => r.ok ? r.json() : nul
     <div class="fj-sec-title"><h2>월별 상세표</h2></div>
     <div class="fj-sec-title"><span class="fj-label">유통사별 월 순매출 · 칸이 진할수록 그 줄에서 큰 달입니다. 전년 누계 대비는 1월 1일부터 작년 같은 날짜까지와 비교합니다.</span></div>
     <div class="fj-tablewrap" id="retailer-month" data-draw="retailer-month" data-source="retailer_month"></div>
-    <div class="fj-sec-title"><span class="fj-label">담당자별 월 순매출 · 담당자는 지금 담당 기준입니다.</span></div>
-    <div class="fj-tablewrap" id="mgr-month" data-draw="mgr-month" data-source="mgr_month"></div>
     <div class="fj-sec-title"><span class="fj-label">아이템별 월 순매출</span></div>
     <div class="fj-controls">
       <label class="fj-ctl"><span class="fj-label">성별</span>
@@ -815,50 +793,6 @@ fetch('data/meta.json', { cache: 'no-store' }).then((r) => r.ok ? r.json() : nul
     </div>
   </section>
 
-  <section class="fj-section" id="managers">
-    <div class="fj-sec-title">
-      <h2>담당자별 실적</h2>
-      <span class="fj-label">이번 달 담당 매장 합계입니다. 전년 대비는 작년 같은 날짜, 최근 주 전주 대비는 전주의 같은 요일들과 비교합니다. 마감 예상 = 담당 매장 실적 × (전체 마감 예상 ÷ 전체 실적).</span>
-    </div>
-    <p class="fj-empty" data-draw="mgr-empty" hidden>담당자 자료가 없습니다. 담당자 파일(매장코드·매장명·유통사·담당자)을 자료 올리기에서 올려 주세요.</p>
-    <div class="fj-tablewrap">
-      <table class="fj-table" id="mgr-table" data-source="mgr_now" data-row-key="manager">
-        <thead><tr>
-          <th data-field="manager">담당자</th>
-          <th class="n" data-field="stores">매장 수</th>
-          <th class="n" data-field="net">순매출</th>
-          <th class="n" data-field="share">비중</th>
-          <th class="n" data-field="yoy">전년 대비</th>
-          <th class="n" data-field="wow">최근 주 전주 대비</th>
-          <th class="n" data-field="projected">마감 예상</th>
-          <th class="n" data-field="aov">객단가</th>
-          <th class="n" data-field="return_rate">반품률</th>
-        </tr></thead>
-        <tbody data-draw="mgr-rows"></tbody>
-      </table>
-    </div>
-    <div class="fj-controls">
-      <label class="fj-ctl"><span class="fj-label">담당자</span>
-        <select class="dash-select" id="mgr-select" data-draw="mgr-select" data-source="mgr_now" aria-label="담당자"></select>
-      </label>
-    </div>
-    <div class="fj-tablewrap tall">
-      <table class="fj-table" id="mgr-store-table" data-source="mgr_stores" data-row-key="store_code">
-        <thead><tr>
-          <th class="n" data-field="rank">순위</th>
-          <th data-field="store">매장</th>
-          <th class="n" data-field="net">순매출</th>
-          <th class="n" data-field="share_in_mgr">담당 내 비중</th>
-          <th class="n" data-field="yoy">전년 대비</th>
-          <th class="n" data-field="wow">최근 주 전주 대비</th>
-          <th class="n" data-field="projected">마감 예상</th>
-          <th class="n" data-field="aov">객단가</th>
-        </tr></thead>
-        <tbody data-draw="mgr-store-rows"></tbody>
-      </table>
-    </div>
-  </section>
-
   <section class="fj-section" id="retailer-mix">
     <div class="fj-sec-title">
       <h2>유통사별 매출 현황</h2>
@@ -981,6 +915,81 @@ fetch('data/meta.json', { cache: 'no-store' }).then((r) => r.ok ? r.json() : nul
     <div class="fj-chart" id="hour-chart" data-draw="hours" data-source="hours"></div>
   </section>
 
+  </section>
+
+  <section class="fj-tab" id="tab-mgr" hidden>
+  <section class="fj-section" id="managers">
+    <div class="fj-sec-title">
+      <h2>이번 달 담당자별 실적</h2>
+      <span class="fj-label">이번 달 담당 매장 합계입니다. 전년 대비는 작년 같은 날짜, 최근 주 전주 대비는 전주의 같은 요일들과 비교합니다. 마감 예상 = 담당 매장 실적 × (전체 마감 예상 ÷ 전체 실적).</span>
+    </div>
+    <p class="fj-empty" data-draw="mgr-empty" hidden>담당자 자료가 없습니다. 담당자 파일(매장코드·매장명·유통사·담당자)을 자료 올리기에서 올려 주세요.</p>
+    <div class="fj-tablewrap">
+      <table class="fj-table" id="mgr-table" data-source="mgr_now" data-row-key="manager">
+        <thead><tr>
+          <th data-field="manager">담당자</th>
+          <th class="n" data-field="stores">매장 수</th>
+          <th class="n" data-field="net">순매출</th>
+          <th class="n" data-field="share">비중</th>
+          <th class="n" data-field="yoy">전년 대비</th>
+          <th class="n" data-field="wow">최근 주 전주 대비</th>
+          <th class="n" data-field="projected">마감 예상</th>
+          <th class="n" data-field="aov">객단가</th>
+          <th class="n" data-field="return_rate">반품률</th>
+        </tr></thead>
+        <tbody data-draw="mgr-rows"></tbody>
+      </table>
+    </div>
+    <div class="fj-controls">
+      <label class="fj-ctl"><span class="fj-label">담당자</span>
+        <select class="dash-select" id="mgr-select" data-draw="mgr-select" data-source="mgr_now" aria-label="담당자"></select>
+      </label>
+    </div>
+    <div class="fj-tablewrap tall">
+      <table class="fj-table" id="mgr-store-table" data-source="mgr_stores" data-row-key="store_code">
+        <thead><tr>
+          <th class="n" data-field="rank">순위</th>
+          <th data-field="store">매장</th>
+          <th class="n" data-field="net">순매출</th>
+          <th class="n" data-field="share_in_mgr">담당 내 비중</th>
+          <th class="n" data-field="yoy">전년 대비</th>
+          <th class="n" data-field="wow">최근 주 전주 대비</th>
+          <th class="n" data-field="projected">마감 예상</th>
+          <th class="n" data-field="aov">객단가</th>
+        </tr></thead>
+        <tbody data-draw="mgr-store-rows"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="fj-section" id="mgr-monthly">
+    <div class="fj-sec-title">
+      <h2>담당자별 월 순매출</h2>
+      <span class="fj-label">담당 매장의 월 순매출입니다. 칸이 진할수록 그 줄에서 큰 달입니다. 담당자는 지금 담당 기준입니다.</span>
+    </div>
+    <div class="fj-tablewrap" id="mgr-month" data-draw="mgr-month" data-source="mgr_month"></div>
+  </section>
+
+  <section class="fj-section" id="annual-managers">
+    <div class="fj-sec-title">
+      <h2>담당자별 연간 누계</h2>
+      <span class="fj-label">담당 매장의 1월 1일~마지막 판매일 합계를 작년 같은 기간과 비교합니다. 담당자는 지금 담당 기준입니다.</span>
+    </div>
+    <div class="fj-tablewrap">
+      <table class="fj-table" id="mgr-year-table" data-source="mgr_year" data-row-key="manager">
+        <thead><tr>
+          <th data-field="manager">담당자</th>
+          <th class="n" data-field="stores">매장 수</th>
+          <th class="n" data-field="net">올해 누계</th>
+          <th class="n" data-field="share">비중</th>
+          <th class="n" data-field="ly_net">작년 같은 기간</th>
+          <th class="n" data-field="yoy">전년 대비</th>
+          <th class="n" data-field="per_store">매장당</th>
+        </tr></thead>
+        <tbody data-draw="mgr-year-rows"></tbody>
+      </table>
+    </div>
+  </section>
   </section>
 
   <details class="fj-foot" id="about">
@@ -2567,7 +2576,7 @@ function fjShowTab(id) {
   dash.setLink(id);
 }
 document.querySelectorAll('[data-tab]').forEach((b) => b.addEventListener('click', () => fjShowTab(b.dataset.tab)));
-fjShowTab(['tab-year', 'tab-month', 'tab-now'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'tab-now');
+fjShowTab(['tab-year', 'tab-month', 'tab-now', 'tab-mgr'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'tab-now');
 
 // ── 필터 ──
 document.querySelectorAll('#type-select').forEach((s) => s.addEventListener('change', () => dash.setParams({ type: s.value, store: '' })));
