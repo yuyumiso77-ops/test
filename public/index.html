@@ -52,7 +52,7 @@ body { background: var(--color-bg); color: var(--color-fg); font-family: var(--f
     month_saletype: 'month_saletype', ly_month_saletype: 'ly_month_saletype', month_product: 'month_product', month_product_store: 'month_product_store', targets: 'targets', managers: 'managers',
   };
   const raw = {}, pending = {}, failed = {}, calcs = {}, draws = {}, onDatas = [];
-  const defaults = { type: '', store: '', pyear: '2026', pseason: '', gsel: '전체', mgsel: '전체' };
+  const defaults = { type: '', store: '', mgr: '', pyear: '2026', pseason: '', gsel: '전체', mgsel: '전체' };
   let params = { ...defaults }, memo = {}, scheduled = false;
   function load(id) {
     if (pending[id]) return;
@@ -240,6 +240,9 @@ fetch('data/meta.json', { cache: 'no-store' }).then((r) => r.ok ? r.json() : nul
         <option value="가두점">가두점</option>
         <option value="기타">기타</option>
       </select>
+    </label>
+    <label class="fj-ctl" id="mgr-filter-wrap" style="display:none"><span class="fj-label">담당자</span>
+      <select class="dash-select" id="mgr-filter" data-draw="mgr-filter" aria-label="담당자"></select>
     </label>
     <label class="fj-ctl"><span class="fj-label">매장</span>
       <select class="dash-select" id="store-select" data-draw="store-select" data-source="stores" aria-label="매장"></select>
@@ -940,11 +943,7 @@ fetch('data/meta.json', { cache: 'no-store' }).then((r) => r.ok ? r.json() : nul
         <tbody data-draw="mgr-rows"></tbody>
       </table>
     </div>
-    <div class="fj-controls">
-      <label class="fj-ctl"><span class="fj-label">담당자</span>
-        <select class="dash-select" id="mgr-select" data-draw="mgr-select" data-source="mgr_now" aria-label="담당자"></select>
-      </label>
-    </div>
+    <p class="fj-label" data-draw="mgr-store-note"></p>
     <div class="fj-tablewrap tall">
       <table class="fj-table" id="mgr-store-table" data-source="mgr_stores" data-row-key="store_code">
         <thead><tr>
@@ -1210,6 +1209,24 @@ window.FJ = (() => {
 </script>
 
 <script>
+// ── 담당자 필터: 담당자를 고르면 모든 계산이 그 담당자 매장(store_code) 자료만 씁니다 ──
+{
+  const C = dash.calc.bind(dash);
+  const W = (id, s) => {
+    const add = !s.inputs.includes('managers'), ins = add ? [...s.inputs, 'managers'] : s.inputs, mi = ins.indexOf('managers');
+    C(id, { ...s, inputs: ins, fn: (...a) => {
+      const g = dash.params().mgr, M = a[mi];
+      if (add) a.pop();
+      if (g && M && M.length) {
+        const k = new Set(M.filter((r) => r.manager === g).map((r) => r.store_code));
+        a = a.map((x) => Array.isArray(x) && x.length && 'store_code' in x[0] ? x.filter((r) => k.has(r.store_code)) : x);
+      }
+      return s.fn(...a);
+    } });
+  };
+  try { dash.calc = W; } catch (e) {}
+  window.FJ.mgrOk = dash.calc === W;
+}
 // ── 계산: 모두 업로드된 엑셀 합산 파일에서 나옵니다 ──
 // 선택한 유통 형태·매장에 해당하는 매장코드 집합
 window.FJ.pick = (storeDaily, { type = '', store = '' }) =>
@@ -2196,15 +2213,18 @@ dash.calc('mdet_stores', {
 });
 
 dash.calc('mdet_products', {
-  inputs: ['month_product', 'product_store', 'hist_store_daily', 'store_daily'],
+  inputs: ['month_product', 'product_store', 'hist_store_daily', 'store_daily', 'month_product_store'],
   title: '월 상세 상품 베스트 20',
-  description: '고른 달의 상품코드별 순매출 상위 20개 (지난 달들은 유통 형태별 상위 60개 기록에서 고르므로 매장 필터는 쓰지 않음)',
-  fn: (mp, ps, hist, cur) => {
+  description: '고른 달의 상품코드별 순매출 상위 20개 (지난 달들은 유통 형태별 상위 60개 기록에서 고르므로 매장 필터는 쓰지 않음. 담당자를 고르면 상품별 상위 10개 매장 기록 중 담당 매장 합계로 고름)',
+  fn: (mp, ps, hist, cur, mps) => {
     const p = dash.params(), m = window.FJ.selMonth(cur, hist);
     let rows;
     if (m === window.FJ.curMonthOf(cur)) {
       const codes = window.FJ.pick(cur, p);
       rows = Array.from(d3.group(ps.filter((r) => codes.has(r.store_code)), (r) => r.product_code), ([code, v]) => ({ product_code: code, product_name: v[0].product_name, item: v[0].item, qty: d3.sum(v, (r) => +r.qty), net: d3.sum(v, (r) => +r.net) }));
+    } else if (p.mgr) {
+      const nm = new Map(mp.map((r) => [r.product_code, r]));
+      rows = Array.from(d3.group(mps.filter((r) => r.month === m), (r) => r.product_code), ([code, v]) => ({ product_code: code, product_name: (nm.get(code) || {}).product_name || code, item: (nm.get(code) || {}).item || '', qty: d3.sum(v, (r) => +r.qty), net: d3.sum(v, (r) => +r.net) }));
     } else {
       rows = Array.from(d3.group(mp.filter((r) => r.month === m && (!p.type || r.type === p.type)), (r) => r.product_code), ([code, v]) => ({ product_code: code, product_name: v[0].product_name, item: v[0].item, qty: d3.sum(v, (r) => +r.qty), net: d3.sum(v, (r) => +r.net) }));
     }
@@ -2636,14 +2656,14 @@ fjShowTab(['tab-year', 'tab-month', 'tab-now', 'tab-mgr'].includes(location.hash
 
 // ── 필터 ──
 document.querySelectorAll('#type-select').forEach((s) => s.addEventListener('change', () => dash.setParams({ type: s.value, store: '' })));
-document.querySelectorAll('#clear-filters').forEach((b) => b.addEventListener('click', () => dash.setParams({ type: '', store: '' })));
+document.querySelectorAll('#clear-filters').forEach((b) => b.addEventListener('click', () => dash.setParams({ type: '', store: '', mgr: '' })));
 document.querySelectorAll('#pseason-select').forEach((s) => s.addEventListener('change', () => dash.setParams({ pseason: s.value })));
 document.querySelectorAll('#gsel-select').forEach((s) => s.addEventListener('change', () => dash.setParams({ gsel: s.value })));
 document.querySelectorAll('#mgsel-select').forEach((s) => s.addEventListener('change', () => dash.setParams({ mgsel: s.value })));
 dash.onData(() => {
   const p = dash.params();
   document.querySelectorAll('#type-select').forEach((s) => { if (document.activeElement !== s) s.value = p.type || ''; });
-  document.querySelectorAll('#clear-filters').forEach((b) => { b.hidden = !p.type && !p.store; });
+  document.querySelectorAll('#clear-filters').forEach((b) => { b.hidden = !p.type && !p.store && !p.mgr; });
   document.querySelectorAll('#pseason-select').forEach((s) => { if (document.activeElement !== s) s.value = p.pseason || ''; });
   document.querySelectorAll('#gsel-select').forEach((s) => { if (document.activeElement !== s) s.value = p.gsel || '전체'; });
   document.querySelectorAll('#mgsel-select').forEach((s) => { if (document.activeElement !== s) s.value = p.mgsel || '전체'; });
@@ -2661,7 +2681,7 @@ dash.draw('scope', (el) => {
   const p = dash.params();
   const d = dash.data('stores');
   const name = p.store && d.status === 'ok' ? (d.data.find((r) => r.store_code === p.store) || {}).store : '';
-  el.textContent = name || (p.type ? `${p.type} 전체` : '전체 매장');
+  el.textContent = name || (p.mgr ? `${p.mgr} 담당 ` : '') + (p.type ? `${p.type} 전체` : p.mgr ? '매장' : '전체 매장');
 });
 
 // ── 숫자 ──
@@ -3374,10 +3394,10 @@ dash.draw('mgr-rows', (tb) => {
   if (d.status !== 'ok') return FJ.rowsMsg(tb, 9, d.status === 'error' ? '담당자 자료를 불러오지 못했습니다.' : '—');
   if (!d.data.length) return FJ.rowsMsg(tb, 9, '담당자 자료가 없습니다.');
   const wk = new Map(w.status === 'ok' ? w.data.map((r) => [r.manager, r]) : []);
-  const picked = dash.params().mgr || d.data[0].manager;
+  const picked = dash.params().mgr || '';
   tb.replaceChildren(...d.data.map((r) => {
     const tr = document.createElement('tr'); tr.dataset.key = r.manager; tr.className = 'pick' + (r.manager === picked ? ' is-picked' : ''); tr.tabIndex = 0;
-    const go = () => dash.setParams({ mgr: r.manager });
+    const go = () => dash.setParams({ mgr: r.manager === picked ? '' : r.manager, store: '' });
     tr.addEventListener('click', go); tr.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
     const wo = (wk.get(r.manager) || {}).wow;
     tr.append(FJ.td(r.manager), FJ.td(FJ.int(r.stores), 'n'), FJ.td(FJ.won(r.net), 'n'), FJ.td(FJ.pct(r.share), 'n'),
@@ -3405,19 +3425,24 @@ dash.draw('weak-rows', (tb) => {
     return tr;
   }));
 });
-dash.draw('mgr-select', (sel) => {
-  const d = dash.data('mgr_now');
-  const list = d.status === 'ok' ? d.data.map((r) => r.manager) : [];
-  sel.replaceChildren(...list.map((m) => new Option(m, m)));
-  sel.value = dash.params().mgr && list.includes(dash.params().mgr) ? dash.params().mgr : (list[0] || '');
-  sel.onchange = () => dash.setParams({ mgr: sel.value });
+dash.draw('mgr-filter', (sel) => {
+  const d = dash.data('managers');
+  const list = d.status === 'ok' ? Array.from(new Set(d.data.map((r) => r.manager).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'ko')) : [];
+  document.getElementById('mgr-filter-wrap').style.display = list.length && FJ.mgrOk ? '' : 'none';
+  sel.replaceChildren(new Option('전체', ''), ...list.map((m) => new Option(m, m)));
+  sel.value = dash.params().mgr || '';
+  sel.onchange = () => dash.setParams({ mgr: sel.value, store: '' });
+});
+dash.draw('mgr-store-note', (el) => {
+  const m = dash.params().mgr;
+  el.textContent = m ? `${m} 담당 매장별 실적 · 위 표의 담당자를 다시 누르면 전체로 돌아갑니다.` : '위 표에서 담당자를 누르거나 맨 위 담당자 필터에서 고르면, 대시보드 전체가 그 담당자의 매장 기준으로 바뀌고 아래에 매장별 실적이 나옵니다.';
 });
 dash.draw('mgr-store-rows', (tb) => {
   const d = dash.data('mgr_stores'), n = dash.data('mgr_now');
   if (d.status !== 'ok') return FJ.rowsMsg(tb, 8, d.status === 'error' ? '담당자 자료를 불러오지 못했습니다.' : '—');
   if (!d.data.length) return FJ.rowsMsg(tb, 8, '담당자 자료가 없습니다.');
-  const first = n.status === 'ok' && n.data.length ? n.data[0].manager : '';
-  const mgr = dash.params().mgr || first;
+  const mgr = dash.params().mgr;
+  if (!mgr) return FJ.rowsMsg(tb, 8, '담당자를 고르면 매장별 실적이 나옵니다.');
   const rows = d.data.filter((r) => r.manager === mgr).sort((a, b) => b.net - a.net);
   const picked = dash.params().store || '';
   tb.replaceChildren(...rows.map((r, i) => {
