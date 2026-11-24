@@ -144,6 +144,7 @@
     <button type="button" role="tab" data-tab="tab-mgr" aria-selected="false">당월 담당자별 매출 실적</button>
     <button type="button" role="tab" data-tab="tab-weak" aria-selected="false">부진 매장 개선 방안</button>
     <button type="button" role="tab" data-tab="tab-comp" aria-selected="false">경쟁 브랜드 동향</button>
+    <button type="button" role="tab" data-tab="tab-visit" aria-selected="false">오늘 현장 점검</button>
   </nav>
 
   <section class="fj-tab" id="tab-year" hidden>
@@ -977,6 +978,30 @@
         <tbody data-draw="comp-store-rows"></tbody>
       </table>
     </div>
+  </section>
+  </section>
+
+  <section class="fj-tab" id="tab-visit" hidden>
+  <section class="fj-section">
+    <div class="fj-sec-title"><h2>오늘 현장 점검 매장</h2><span class="fj-label">자료를 올릴 때마다 다시 고릅니다. 담당자마다 최근 7일 하락(비율과 금액)이 크거나, 매출 0원인 날·반품·베스트 상품 미판매·경쟁사 상승이 겹친 매장이 1순위이고, 2순위는 같은 지역(매장코드 둘째 글자)에서 고릅니다. 이번 달이 작년보다 10% 넘게 높은 매장은 뺍니다. 경쟁사는 마지막 달 백화점 동업계 자료입니다.</span></div>
+    <p class="fj-lede" data-draw="visit-sum">—</p>
+    <div class="fj-tablewrap"><table class="fj-table" id="visit-table" data-source="visit" data-row-key="store_code">
+      <thead><tr><th>담당자</th><th>순서</th><th>매장</th><th>고른 이유</th><th>매장에서 확인할 것</th></tr></thead>
+      <tbody data-draw="visit-rows"></tbody></table></div>
+  </section>
+  <section class="fj-section">
+    <div class="fj-sec-title"><h2>공통 체크포인트</h2><span class="fj-label">어느 매장에서든 30분 안에 보는 순서입니다.</span></div>
+    <ol class="fj-ul">
+      <li><b>운영:</b> 인력·근무표, 영업 시간, 최근 휴무 — 매출 0원인 날과 맞춰 보기</li>
+      <li><b>위치·동선:</b> 층 공사, 매장 이동, 행사장 위치 — 매장 앞 10분 지나가는 고객 수 세기</li>
+      <li><b>재고:</b> 베스트 상품과 시즌 다운·아우터 사이즈 — 진열대와 창고 모두, 빠진 사이즈 적기</li>
+      <li><b>진열:</b> 입구·정면 시즌 대표 상품, 골프화 시착 공간 — 사진 3장</li>
+      <li><b>반품:</b> 최근 10건 사유 — 사이즈·하자·단순 변심으로 나눠 세기</li>
+      <li><b>회원:</b> 구매 고객 가입 권유, 최근 회원 문자 발송 여부</li>
+      <li><b>경쟁사:</b> 옆 매장 행사·할인율·사은품, 새로 들어온 브랜드 — 사진과 한 줄 메모</li>
+      <li><b>현장 목소리:</b> 매니저에게 "지난주에 뭐가 달랐나요?"</li>
+    </ol>
+    <p class="fj-label">점검 뒤: 매장별 원인 한 줄·조치 한 줄·사진을 남기고, 재고가 없는 베스트 상품은 추가 입고를 요청합니다. 다음 날 자료를 올리면 이 탭과 부진 매장 개선 방안 탭에서 같은 매장을 다시 봅니다.</p>
   </section>
   </section>
 
@@ -2512,6 +2537,61 @@ dash.calc('comp_trend', {
   },
 });
 
+dash.calc('visit', {
+  inputs: ['managers', 'store_daily', 'ly_store_daily', 'product_store', 'competitors'],
+  title: '오늘 현장 점검 매장',
+  description: '담당자별 점검 1·2순위 매장(이번 달·최근 7일 전년 대비, 직전 7일 대비, 매출 0원인 날, 반품률, 객수·객단가, 베스트 상품 미판매, 경쟁사 점유율 변화로 점수)과 고른 이유, 확인할 것',
+  fn: (managers, cur, ly, ps, comp) => {
+    const F = window.FJ, mm = F.mgrMap(managers);
+    if (!mm.size || !cur.length) return [];
+    const first = d3.min(cur, (r) => r.date), last = d3.max(cur, (r) => r.date), a7 = F.shiftDays(last, -6), b7 = F.shiftDays(last, -13);
+    const days = d3.range(7).map((i) => F.shiftDays(a7, i));
+    const by = (rs) => d3.rollup(rs, (v) => d3.sum(v, (r) => +r.net), (r) => r.store_code);
+    const lyM = by(ly.filter((r) => r.date >= F.sameDateLY(first) && r.date <= F.sameDateLY(last))), lyW = by(ly.filter((r) => r.date >= F.sameDayLY(a7) && r.date <= F.sameDayLY(last)));
+    const lyR = d3.rollup(ly.filter((r) => r.date >= F.sameDateLY(first) && r.date <= F.sameDateLY(last)), (v) => d3.sum(v, (r) => +r.receipts), (r) => r.store_code);
+    const typ = new Map(cur.map((r) => [r.store_code, r.type])), top = new Map();
+    for (const [t, v] of d3.group(ps, (r) => typ.get(r.store_code))) top.set(t, Array.from(d3.rollup(v, (g) => ({ n: d3.sum(g, (r) => +r.net), name: g[0].product_name }), (r) => r.product_code)).sort((x, y) => y[1].n - x[1].n).slice(0, 15));
+    const sold = d3.rollup(ps.filter((r) => +r.qty > 0), (v) => new Set(v.map((r) => r.product_code)), (r) => r.store_code);
+    const cm = d3.max(comp, (r) => r.month), cs = new Map();
+    for (const [code, v] of d3.group(comp.filter((r) => r.month === cm && r.store_code), (r) => r.store_code)) {
+      const b = d3.rollup(v, (g) => ({ n: d3.sum(g, (r) => +r.net), l: d3.sum(g, (r) => +r.ly_net) }), (r) => r.brand), T = d3.sum(b.values(), (x) => x.n), L = d3.sum(b.values(), (x) => x.l);
+      const gain = Array.from(b).filter(([k]) => k !== F.OURS && L).map(([k, x]) => [k, x.n / T - x.l / L]).sort((x, y) => y[1] - x[1])[0];
+      if (gain && T) cs.set(code, gain);
+    }
+    const out = [];
+    for (const [code, v] of d3.group(cur.filter((r) => mm.has(r.store_code) && !/사용중지|폐점/.test(r.store)), (r) => r.store_code)) {
+      const s = (k, f) => d3.sum(f ? v.filter(f) : v, (r) => +r[k]), net = s('net'), l = lyM.get(code) || 0; if (l < 1e7) continue;
+      const w1 = s('net', (r) => r.date >= a7), w0 = s('net', (r) => r.date >= b7 && r.date < a7), lw = lyW.get(code) || 0;
+      const yoy = net / l - 1, wy = lw > 0 ? w1 / lw - 1 : null, wow = w0 > 0 ? w1 / w0 - 1 : null;
+      const zero = days.filter((d) => s('net', (r) => r.date === d) <= 0), rr = s('sales') ? s('returns') / s('sales') : 0, lr = lyR.get(code), rcy = lr ? s('receipts') / lr - 1 : null;
+      const miss = (top.get(v[0].type) || []).filter(([pc]) => !(sold.get(code) || new Set()).has(pc)).map(([, o]) => o.name.replace(/^KR\s*/, ''));
+      const g = cs.get(code);
+      if (yoy >= 0.1 || !(yoy <= -0.05 || (wy != null && wy <= -0.2))) continue;
+      const score = Math.max(0, -(wy ?? 0)) * 2 + Math.max(0, -yoy) + (zero.length ? 0.2 : 0) + (rr >= 0.25 ? 0.2 : 0) + miss.length * 0.02 + Math.min(0.6, Math.max(0, lw - w1) / 25e6) + (g && g[1] >= 0.03 ? 0.1 : 0);
+      const why = [`최근 7일 전년 대비 ${F.signed(wy)}`, `이번 달 ${F.signed(yoy)}`];
+      if (zero.length) why.push(`매출 0원인 날 ${zero.map((d) => +d.slice(8)).join('·')}일(휴점일 수 있음)`);
+      if (rr >= 0.25) why.push(`반품률 ${F.pct(rr)}`);
+      if (miss.length >= 3) why.push(`베스트 미판매 ${miss.length}개`);
+      if (g && g[1] >= 0.02) why.push(`${F.monthName(cm)} ${g[0]} 점유율 ${F.pp(g[1])}`);
+      const chk = [];
+      if (zero.length) chk.push('매출 0원인 날의 이유(휴무·인력·POS)');
+      if (wy != null && wy <= -0.3) chk.push('최근 주 인력·행사·매장 위치 변화');
+      if (miss.length) chk.push(`베스트 미판매 재고·진열: ${miss.slice(0, 3).join(', ')}${miss.length > 3 ? ' 등' : ''}`);
+      if (rr >= 0.25) chk.push('반품 사유 최근 10건');
+      if (rcy != null && rcy <= -0.15) chk.push('매장 앞 지나가는 고객 수, 회원 문자 대상');
+      if (g && g[1] >= 0.02) chk.push(`${g[0]} 행사·신상품`);
+      out.push({ store_code: code, store: v[0].store, manager: mm.get(code), region: code[1], score, yoy, w_yoy: wy, wow, why: why.join(', '), check: chk.slice(0, 4).join(' / ') || '공통 체크포인트', last });
+    }
+    const res = [];
+    for (const [m, v] of d3.group(out, (r) => r.manager)) {
+      v.sort((x, y) => y.score - x.score);
+      const a = v[0], b = v.find((r) => r !== a && r.region === a.region);
+      res.push({ ...a, order: 1 }); if (b) res.push({ ...b, order: 2 });
+    }
+    return res.sort((x, y) => d3.ascending(x.manager, y.manager) || x.order - y.order);
+  },
+});
+
 dash.calc('mgr_now', {
   inputs: ['mgr_stores'],
   title: '담당자별 실적',
@@ -2727,7 +2807,7 @@ function fjShowTab(id) {
   dash.setLink(id);
 }
 document.querySelectorAll('[data-tab]').forEach((b) => b.addEventListener('click', () => fjShowTab(b.dataset.tab)));
-fjShowTab(['tab-year', 'tab-month', 'tab-now', 'tab-mgr', 'tab-weak', 'tab-comp'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'tab-now');
+fjShowTab(['tab-year', 'tab-month', 'tab-now', 'tab-mgr', 'tab-weak', 'tab-comp', 'tab-visit'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'tab-now');
 
 // ── 필터 ──
 document.querySelectorAll('#type-select').forEach((s) => s.addEventListener('change', () => dash.setParams({ type: s.value, store: '' })));
@@ -3552,6 +3632,23 @@ dash.draw('weak-actions', (el) => {
   FJ.li(el, it);
 });
 FJ.cbrand = (list) => { const b = dash.params().cbrand; return list.includes(b) ? b : list.includes(FJ.OURS) ? FJ.OURS : list[0]; };
+dash.draw('visit-sum', (el) => {
+  const d = dash.data('visit');
+  if (d.status !== 'ok') { el.textContent = '—'; return; }
+  if (!d.data.length) { el.textContent = '담당자 자료가 없거나 점검할 만큼 떨어진 매장이 없습니다.'; return; }
+  const l = d.data[0].last, n = FJ.shiftDays(l, 1);
+  el.textContent = `${FJ.md(n)}(${FJ.dow(n)}) 점검 추천 · ${FJ.md(l)}까지 자료 기준 · ` + Array.from(d3.group(d.data, (r) => r.manager), ([m, v]) => `${m} ${v.map((r) => FJ.short(r.store)).join(' → ')}`).join(' · ');
+});
+dash.draw('visit-rows', (tb) => {
+  const d = dash.data('visit');
+  if (d.status !== 'ok') return FJ.rowsMsg(tb, 5, d.status === 'error' ? '자료를 불러오지 못했습니다.' : '—');
+  if (!d.data.length) return FJ.rowsMsg(tb, 5, '점검할 매장이 없습니다.');
+  tb.replaceChildren(...d.data.map((r) => {
+    const tr = document.createElement('tr'); tr.dataset.key = r.store_code;
+    tr.append(FJ.td(r.order === 1 ? r.manager : ''), FJ.td(r.order === 1 ? '1순위' : '2순위 (같은 지역)', r.order === 1 ? 'fj-down' : ''), FJ.td(r.store), FJ.td(r.why), FJ.td(r.check));
+    return tr;
+  }));
+});
 dash.draw('cbrand-select', (sel) => {
   const d = dash.data('comp_monthly');
   if (d.status !== 'ok') return;
