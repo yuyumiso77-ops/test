@@ -98,7 +98,49 @@ function report(load, code, meta) {
   const co = new Map(); for (const r of ps) if (typeOf.get(r.store_code) === s.type) { const o = co.get(r.product_code) || { name: r.product_name, net: 0 }; o.net += +r.net || 0; co.set(r.product_code, o); }
   const soldHere = new Set(mineP.filter((r) => +r.qty > 0).map((r) => r.product_code));
   const missing = [...co].sort((a, b) => b[1].net - a[1].net).slice(0, 15).filter(([pc]) => !soldHere.has(pc)).map(([, o]) => o.name.replace(/^KR\s*/, ''));
-  return { code, ...s, first, last, dim, ym, net, sales, returns, receipts, lyNet, lyMonth, projected, s7, p7, l7, rank, peers: peers.length, grp,
+  // ── 더 많은 정보 ──
+  const by = (rows, kf, vf = (r) => +r.net || 0) => { const m = new Map(); for (const r of rows) { const k = kf(r); m.set(k, (m.get(k) || 0) + vf(r)); } return m; };
+  const tag = sum(mine, 'tag'), confirmed = sum(mine, 'confirmed'), qty = sum(mine, 'qty');
+  // 주별 (일~토)
+  const wk = (d) => shift(d, -new Date(d + 'T00:00:00Z').getUTCDay());
+  const weeks = [...by(allDays.map((d) => ({ d })), (x) => wk(x.d), (x) => daily.get(x.d) || 0)].map(([w, v]) => {
+    const ds = allDays.filter((d) => wk(d) === w), l = ds.reduce((a, d) => a + (lyDaily.get(shift(d, -364)) || 0), 0);
+    return { from: ds[0], to: ds[ds.length - 1], net: v, ly: l };
+  });
+  // 월별 (올해 1월~이번 달, 작년 같은 달)
+  const hist = table(load, 'hist_store_daily.csv').filter((r) => r.store_code === code && r.date.slice(0, 4) === ym.slice(0, 4) && r.date.slice(0, 7) !== ym);
+  const mon = by(hist.concat(mine), (r) => r.date.slice(0, 7)), lyMon = by(ly, (r) => r.date.slice(0, 7));
+  const months = [...mon.keys()].sort().map((k) => ({ m: k, net: mon.get(k), ly: k === ym ? lyNet : lyMon.get(lyDate(k + '-01').slice(0, 7)) || 0 }));
+  const lyYtd = ly.filter((r) => r.date <= lyDate(last)).reduce((a, r) => a + (+r.net || 0), 0), ytd = months.reduce((a, x) => a + x.net, 0);
+  // 요일별 평균, 시간대
+  const dowAvg = DOW.split('').map((k) => ({ k, v: avg(k), n: (byDow.get(k) || []).length }));
+  const hours = [...by(table(load, 'hour_store.csv').filter((r) => r.store_code === code), (r) => +r.hour)].filter(([, v]) => v > 0).sort((a, b) => a[0] - b[0]);
+  // 판매 형태
+  const st = table(load, 'saletype_store.csv').filter((r) => r.store_code === code);
+  const stypes = [...by(st, (r) => r.sale_type)].filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
+  // 성별·아이템 (작년 같은 날짜와)
+  const inLy = (r) => r.date >= lyDate(first) && r.date <= lyDate(last);
+  const gi = table(load, 'gender_item_daily.csv').filter((r) => r.store_code === code), lgi = table(load, 'ly_gender_item_daily.csv').filter((r) => r.store_code === code && inLy(r));
+  const gen = by(table(load, 'gender_daily.csv').filter((r) => r.store_code === code), (r) => r.gender), lgen = by(lgi, (r) => r.gender);
+  const ik = (r) => `${cat(r.line)}·${r.item}`, items = by(gi, ik), litems = by(lgi, ik);
+  const itemRows = [...items].filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([k, v]) => ({ k, v, ly: litems.get(k) || 0 }));
+  // 시즌
+  const season = [...by(mineP, (r) => r.season || '--')].filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  // 회원·비회원
+  const mr = sum(mem, 'member_receipts'), nr = sum(mem, 'nonmember_receipts');
+  const memb = { maov: mr ? ms / mr : null, naov: nr ? ns / nr : null, newNet: sum(mem, 'new_member_net') };
+  // 경쟁 브랜드 (백화점 동업계 자료의 이 점포)
+  const comp = table(load, 'competitors.csv').filter((r) => r.store_code === code);
+  let compInfo = null;
+  if (comp.length) {
+    const cm = comp.map((r) => r.month).sort().pop(), v = comp.filter((r) => r.month === cm);
+    const b = [...by(v, (r) => r.brand)].map(([k, n]) => ({ k, n, l: v.filter((r) => r.brand === k).reduce((a, r) => a + (+r.ly_net || 0), 0) })).filter((x) => x.n > 0).sort((a, c) => c.n - a.n);
+    const T = b.reduce((a, x) => a + x.n, 0), L = b.reduce((a, x) => a + x.l, 0);
+    const tm = by(comp, (r) => r.month), om = by(comp.filter((r) => r.brand === '풋조이'), (r) => r.month);
+    compInfo = { month: cm, zone: v[0].zone_store, group: v[0].group, T, L, brands: b, rank: b.findIndex((x) => x.k === '풋조이') + 1,
+      trend: [...tm.keys()].sort().map((k) => ({ m: k, sh: tm.get(k) ? (om.get(k) || 0) / tm.get(k) : null })) };
+  }
+  return { code, ...s, first, last, dim, ym, net, tag, confirmed, qty, weeks, months, ytd, lyYtd, dowAvg, hours, stypes, gen, lgen, itemRows, season, memb, compInfo, sales, returns, receipts, lyNet, lyMonth, projected, s7, p7, l7, rank, peers: peers.length, grp,
     aov: receipts ? sales / receipts : null, rr: sales ? returns / sales : null, memberShare: ms + ns ? ms / (ms + ns) : null, newMembers,
     days: allDays.map((d) => ({ d, net: daily.get(d) || 0, ly: lyDaily.get(shift(d, -364)) })), best, cats: [...catMap].filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]), missing, updated: meta && meta.uploaded_at };
 }
@@ -120,7 +162,41 @@ section{background:var(--panel);border:1px solid var(--line);border-radius:12px;
 .axis{display:flex;gap:3px;font-size:10px;color:var(--muted)}.axis span{flex:1;text-align:center}
 .legend{display:flex;gap:14px;font-size:12px;color:var(--muted);margin-top:6px}.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
 table{width:100%;border-collapse:collapse;font-size:14px}th,td{padding:7px 6px;border-bottom:1px solid var(--line);text-align:left}th{font-size:12px;color:var(--muted);font-weight:600}td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
-.wrap{overflow-x:auto}ul{margin:0;padding-left:1.2em}`;
+.wrap{overflow-x:auto}ul{margin:0;padding-left:1.2em}li{margin:2px 0}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:22px}.two section{min-width:0}
+.hb{display:flex;flex-direction:column;gap:6px}.hr{display:grid;grid-template-columns:44px 1fr auto;gap:8px;align-items:center;font-size:13px}.ht{height:10px;background:var(--line);border-radius:3px;overflow:hidden}.ht i{display:block;height:100%;background:var(--accent)}.hv{color:var(--muted);font-variant-numeric:tabular-nums;font-size:12px;white-space:nowrap}
+tr.me td{font-weight:700}`;
+
+const vbars = (rows) => { const mx = Math.max(1, ...rows.map((x) => Math.max(x.v, x.ly || 0)));
+  return `<div class="bars">${rows.map((x) => `<div class="bar${x.we ? ' we' : ''}" title="${esc(x.t)}"><i style="height:${Math.max(0, x.v / mx * 100).toFixed(1)}%"></i>${x.ly ? `<b style="bottom:${(x.ly / mx * 100).toFixed(1)}%"></b>` : ''}</div>`).join('')}</div><div class="axis">${rows.map((x) => `<span>${esc(x.a)}</span>`).join('')}</div>`; };
+const hbars = (rows) => { const mx = Math.max(1, ...rows.map((x) => x.v));
+  return `<div class="hb">${rows.map((x) => `<div class="hr"><span class="hn">${esc(x.k)}</span><span class="ht"><i style="width:${Math.max(0, x.v / mx * 100).toFixed(1)}%"></i></span><span class="hv">${esc(x.t)}</span></div>`).join('')}</div>`; };
+const LEG = '<div class="legend"><span><i style="background:var(--accent)"></i>올해</span><span><i style="background:var(--ly)"></i>작년</span></div>';
+function more(r) {
+  const g = (a, b) => (b > 0 ? a / b - 1 : null), out = [];
+  const ytdY = g(r.ytd, r.lyYtd);
+  out.push(`<section><h2>월별 추이 (올해 vs 작년)</h2><p class="muted" style="margin:0 0 8px">올해 누계 ${esc(won(r.ytd))} · 작년 같은 기간 ${esc(won(r.lyYtd))} · <b class="${tone(ytdY)}">${signed(ytdY)}</b>. 이번 달 막대는 ${esc(md(r.last))}까지, 회색 선은 작년 같은 기간입니다.</p>
+${vbars(r.months.map((x) => ({ v: x.net, ly: x.ly, a: `${+x.m.slice(5)}월`, t: `${+x.m.slice(5)}월 ${won(x.net)} · 작년 ${won(x.ly)} · ${signed(g(x.net, x.ly))}` })))}${LEG}</section>`);
+  out.push(`<section><h2>주별 매출</h2><div class="wrap"><table><thead><tr><th>주</th><th class="n">순매출</th><th class="n">작년 같은 요일</th><th class="n">전년 대비</th></tr></thead><tbody>${r.weeks.map((w) => { const y = g(w.net, w.ly); return `<tr><td>${esc(md(w.from))} ~ ${esc(md(w.to))}</td><td class="n">${esc(won(w.net))}</td><td class="n">${esc(won(w.ly))}</td><td class="n ${tone(y)}">${signed(y)}</td></tr>`; }).join('')}</tbody></table></div></section>`);
+  const bestH = r.hours.slice().sort((a, b) => b[1] - a[1]).slice(0, 3).map(([h]) => `${h}시`).join(', ');
+  out.push(`<div class="two"><section><h2>요일별 하루 평균</h2>${hbars(r.dowAvg.map((x) => ({ k: x.k, v: x.v, t: `${won(x.v)} (${x.n}일)` })))}</section>
+<section><h2>시간대별 매출</h2><p class="muted" style="margin:0 0 8px">많이 파는 시간: ${esc(bestH || '—')}</p>${hbars(r.hours.map(([h, v]) => ({ k: `${h}시`, v, t: `${won(v)} · ${pct(r.net ? v / r.net : null)}` })))}</section></div>`);
+  out.push(`<section><h2>아이템별 매출 상위 10</h2><div class="wrap"><table><thead><tr><th>카테고리·아이템</th><th class="n">순매출</th><th class="n">비중</th><th class="n">작년 같은 기간</th><th class="n">전년 대비</th></tr></thead><tbody>${r.itemRows.map((x) => { const y = g(x.v, x.ly); return `<tr><td>${esc(x.k)}</td><td class="n">${esc(won(x.v))}</td><td class="n">${pct(r.net ? x.v / r.net : null)}</td><td class="n">${x.ly ? esc(won(x.ly)) : '—'}</td><td class="n ${tone(y)}">${x.ly ? signed(y) : '신규'}</td></tr>`; }).join('')}</tbody></table></div></section>`);
+  const gT = [...r.gen.values()].reduce((a, b) => a + Math.max(0, b), 0), lT = [...r.lgen.values()].reduce((a, b) => a + Math.max(0, b), 0);
+  const genL = ['남성', '여성'].map((k) => { const sh = gT ? (r.gen.get(k) || 0) / gT : null, lsh = lT ? (r.lgen.get(k) || 0) / lT : null; return `<li><b>${k}</b> ${esc(won(r.gen.get(k) || 0))} · ${pct(sh)}${lsh != null ? ` (작년 ${pct(lsh)})` : ''}</li>`; }).join('');
+  const disc = r.tag ? 1 - r.net / r.tag : null;
+  out.push(`<div class="two"><section><h2>성별 · 시즌</h2><ul>${genL}</ul><p class="muted" style="margin:10px 0 4px">시즌(상품 년도) 비중</p><ul>${r.season.map(([k, v]) => `<li>${esc(k)} ${pct(r.net ? v / r.net : null)} · ${esc(won(v))}</li>`).join('')}</ul></section>
+<section><h2>판매 형태 · 할인</h2><p class="muted" style="margin:0 0 8px">평균 할인율 ${pct(disc)} (TAG가 대비) · 확정금액 ${esc(won(r.confirmed))} · 판매 수량 ${r.qty.toLocaleString('ko-KR')}개</p><ul>${r.stypes.map(([k, v]) => `<li>${esc(k)} ${pct(r.net ? v / r.net : null)} · ${esc(won(v))}</li>`).join('')}</ul></section></div>`);
+  out.push(`<section><h2>회원 · 비회원</h2><ul><li>회원 매출 비중 ${pct(r.memberShare)} · 회원 객단가 ${esc(won(r.memb.maov))} · 비회원 객단가 ${esc(won(r.memb.naov))}</li><li>신규 가입 ${r.newMembers.toLocaleString('ko-KR')}명 · 신규 가입 고객 매출 ${esc(won(r.memb.newNet))}</li></ul></section>`);
+  const c = r.compInfo;
+  if (c) {
+    const o = c.brands.find((x) => x.k === '풋조이'), sh = o && c.T ? o.n / c.T : null, lsh = o && c.L ? o.l / c.L : null;
+    out.push(`<section><h2>경쟁 브랜드 (${esc(c.group)} ${esc(c.zone)} · ${+c.month.slice(5)}월)</h2><p class="muted" style="margin:0 0 8px">백화점 동업계 매출 자료 기준입니다. 풋조이 <b>${c.rank ? `${c.brands.length}개 브랜드 중 ${c.rank}위` : '자료 없음'}</b> · 점유율 ${pct(sh)}${lsh != null ? ` (작년 ${pct(lsh)})` : ''}</p>
+<div class="wrap"><table><thead><tr><th class="n">순위</th><th>브랜드</th><th class="n">매출</th><th class="n">점유율</th><th class="n">전년 대비</th></tr></thead><tbody>${c.brands.slice(0, 10).concat(c.rank > 10 ? [o] : []).map((x) => { const y = g(x.n, x.l); return `<tr${x.k === '풋조이' ? ' class="me"' : ''}><td class="n">${c.brands.indexOf(x) + 1}</td><td>${esc(x.k)}</td><td class="n">${esc(won(x.n))}</td><td class="n">${pct(c.T ? x.n / c.T : null)}</td><td class="n ${tone(y)}">${x.l ? signed(y) : '—'}</td></tr>`; }).join('')}</tbody></table></div>
+<p class="muted" style="margin:10px 0 4px">풋조이 점유율 월별: ${c.trend.map((x) => `${+x.m.slice(5)}월 ${pct(x.sh)}`).join(' · ')}</p></section>`);
+  }
+  return out.join('\n');
+}
 
 function page(r) {
   const yoy = r.lyNet > 0 ? r.net / r.lyNet - 1 : null, w7 = r.p7 > 0 ? r.s7 / r.p7 - 1 : null, l7 = r.l7 > 0 ? r.s7 / r.l7 - 1 : null;
@@ -144,6 +220,7 @@ function page(r) {
 </div>
 <section><h2>일별 매출</h2><div class="bars">${bars}</div><div class="axis">${axis}</div>
 <div class="legend"><span><i style="background:var(--accent)"></i>올해</span><span><i style="background:var(--ly)"></i>작년 같은 요일</span><span>옅은 막대 = 주말</span></div></section>
+${more(r)}
 <section><h2>상품 베스트 10</h2>${catT ? `<p class="muted" style="margin:0 0 8px">카테고리 비중: ${catT}</p>` : ''}<div class="wrap"><table><thead><tr><th class="n">순위</th><th>상품</th><th>카테고리</th><th class="n">수량</th><th class="n">순매출</th></tr></thead><tbody>${bt || '<tr><td colspan="5">판매 상품이 없습니다.</td></tr>'}</tbody></table></div></section>
 ${r.missing.length ? `<section><h2>확인해 볼 상품</h2><p class="muted" style="margin:0 0 8px">같은 유통 형태 매장들의 이번 달 베스트 15 중 우리 매장에서 아직 안 팔린 상품입니다. 재고와 진열을 확인해 주세요.</p><ul>${r.missing.map((n) => `<li>${esc(n)}</li>`).join('')}</ul></section>` : ''}
 <section><h2>일별 실적표</h2><div class="wrap"><table><thead><tr><th>날짜</th><th class="n">순매출</th><th class="n">작년 같은 요일</th><th class="n">전년 대비</th></tr></thead><tbody>${dtab}</tbody></table></div></section>
