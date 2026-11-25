@@ -41,6 +41,8 @@
 .fj-hbar-val { grid-column: 2; font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); font-variant-numeric: tabular-nums; }
 .fj-hbar-val b { color: var(--color-fg); font-weight: var(--cds-font-weight-medium); }
 .fj-hbar.is-dim { opacity: 0.45; }
+#retailer-mix-chart { display: flex; flex-direction: column; gap: var(--cds-gap-lg); }
+.fj-hgroup-h { font-weight: var(--cds-font-weight-medium); margin-bottom: var(--cds-gap-sm); padding-bottom: 4px; border-bottom: 1px solid var(--color-border-line); }
 .fj-tip { position: absolute; pointer-events: none; background: var(--cds-surface-popover); border: 1px solid var(--cds-border); box-shadow: var(--cds-shadow-popover); border-radius: var(--cds-radius); padding: 8px 10px; font-size: var(--cds-font-size-caption); white-space: nowrap; z-index: 2; display: flex; flex-direction: column; gap: 2px; font-variant-numeric: tabular-nums; }
 .fj-tip[hidden] { display: none; }
 .fj-tip span { color: var(--cds-text-secondary); }
@@ -419,6 +421,31 @@
     </div>
   </div>
 
+  <section class="fj-section" id="retailer-mix">
+    <div class="fj-sec-title">
+      <h2>유통사별 매출 현황</h2>
+      <span class="fj-label">백화점 → 아울렛 → 대리점(가두점) → 기타 순으로 묶고, 백화점·아울렛은 유통사별로 나눴습니다. 막대 길이는 모든 줄이 같은 기준입니다. 비중은 전체 순매출 대비, 전년 대비는 작년 같은 날짜와, 최근 7일 전주 대비는 그 앞 7일과 비교합니다.</span>
+    </div>
+    <div class="fj-chart short" id="retailer-mix-chart" data-draw="retailer-mix-chart" data-source="retailer_mix"></div>
+    <div class="fj-tablewrap">
+      <table class="fj-table" id="retailer-mix-table" data-source="retailer_mix" data-row-key="key">
+        <thead><tr>
+          <th data-field="group">형태</th>
+          <th data-field="retailer">유통사</th>
+          <th class="n" data-field="stores">매장 수</th>
+          <th class="n" data-field="net">순매출</th>
+          <th class="n" data-field="share">비중</th>
+          <th class="n" data-field="per_store">매장당 평균</th>
+          <th class="n" data-field="per_day">하루 평균</th>
+          <th class="n" data-field="ly_net">전년 동기</th>
+          <th class="n" data-field="yoy">전년 대비</th>
+          <th class="n" data-field="wow">최근 7일 전주 대비</th>
+        </tr></thead>
+        <tbody data-draw="retailer-mix-rows"></tbody>
+      </table>
+    </div>
+  </section>
+
   <section class="fj-section" id="daily">
     <div class="fj-sec-title">
       <h2>일별 매출</h2>
@@ -682,31 +709,6 @@
           <th class="n" data-field="share">비중</th>
         </tr></thead>
         <tbody data-draw="store-rows"></tbody>
-      </table>
-    </div>
-  </section>
-
-  <section class="fj-section" id="retailer-mix">
-    <div class="fj-sec-title">
-      <h2>유통사별 매출 현황</h2>
-      <span class="fj-label">백화점·아울렛을 유통사별로 나눴습니다. 비중은 전체 순매출 대비, 전년 대비는 작년 같은 날짜와, 최근 7일 전주 대비는 그 앞 7일과 비교합니다.</span>
-    </div>
-    <div class="fj-chart short" id="retailer-mix-chart" data-draw="retailer-mix-chart" data-source="retailer_mix"></div>
-    <div class="fj-tablewrap">
-      <table class="fj-table" id="retailer-mix-table" data-source="retailer_mix" data-row-key="key">
-        <thead><tr>
-          <th data-field="group">형태</th>
-          <th data-field="retailer">유통사</th>
-          <th class="n" data-field="stores">매장 수</th>
-          <th class="n" data-field="net">순매출</th>
-          <th class="n" data-field="share">비중</th>
-          <th class="n" data-field="per_store">매장당 평균</th>
-          <th class="n" data-field="per_day">하루 평균</th>
-          <th class="n" data-field="ly_net">전년 동기</th>
-          <th class="n" data-field="yoy">전년 대비</th>
-          <th class="n" data-field="wow">최근 7일 전주 대비</th>
-        </tr></thead>
-        <tbody data-draw="retailer-mix-rows"></tbody>
       </table>
     </div>
   </section>
@@ -1123,9 +1125,9 @@ window.FJ = (() => {
       .on('pointerleave', () => { t.hidden = true; b.style('opacity', 1); });
   }
   // 가로 막대 목록: rows [{name, value, text, dim?}]
-  function hbars(el, rows) {
+  function hbars(el, rows, mx) {
     if (!rows.length) return empty(el, '이 조건에 맞는 매출이 없습니다.');
-    const max = d3.max(rows, (r) => r.value) || 1;
+    const max = mx || d3.max(rows, (r) => r.value) || 1;
     const wrap = document.createElement('div');
     wrap.className = 'fj-hbars';
     wrap.setAttribute('role', 'list');
@@ -1765,6 +1767,7 @@ dash.calc('retailer_mix', {
         out.push(make(g, g, gv, glv, gi * 10 + 9));
       }
     });
+    if (out.length) out.push(make('합계', '합계', rows, lyRows, 99));
     return out;
   },
 });
@@ -4006,8 +4009,8 @@ dash.draw('retailer-mix-rows', (tb) => {
     tr.dataset.key = r.key;
     const sub = r.retailer === '소계' || r.retailer === r.group;
     if (sub) tr.className = 'fj-total';
-    const g = r.group === lastGroup ? '' : r.group; lastGroup = r.group;
-    tr.append(FJ.td(g, 'm'), FJ.td(r.retailer === '소계' ? `${r.group} 소계` : r.retailer), FJ.td(FJ.int(r.stores), 'n'), FJ.td(FJ.won(r.net), 'n'),
+    const gl = r.group === '가두점' ? '대리점' : r.group, g = r.group === lastGroup ? '' : gl; lastGroup = r.group;
+    tr.append(FJ.td(g, 'm'), FJ.td(r.retailer === '소계' ? `${gl} 소계` : r.group === '합계' ? '' : r.retailer === r.group ? '전체' : r.retailer), FJ.td(FJ.int(r.stores), 'n'), FJ.td(FJ.won(r.net), 'n'),
       FJ.td(FJ.pct(r.share), 'n'), FJ.td(FJ.won(r.per_store), 'n'), FJ.td(FJ.won(r.per_day), 'n'), FJ.td(r.ly_net ? FJ.won(r.ly_net) : '—', 'n'),
       FJ.td(FJ.signed(r.yoy), 'n ' + FJ.tone(r.yoy)), FJ.td(FJ.signed(r.wow), 'n ' + FJ.tone(r.wow)));
     return tr;
@@ -4017,10 +4020,16 @@ dash.draw('retailer-mix-rows', (tb) => {
 dash.draw('retailer-mix-chart', (el) => {
   const d = dash.data('retailer_mix');
   if (FJ.notOk(el, d)) return;
-  const rows = d.data.filter((r) => r.retailer !== '소계' && r.net > 0 && (r.group === '백화점' || r.group === '아울렛'));
-  if (!rows.length) return FJ.empty(el, '백화점·아울렛 매출이 없습니다.');
-  FJ.hbars(el, rows.sort((a, b) => b.net - a.net).map((r) => ({ name: `${r.retailer} ${r.group}`, value: r.net,
-    text: `비중 ${FJ.pct(r.share)} · 전년 대비 ${FJ.signed(r.yoy)} · 최근 7일 ${FJ.signed(r.wow)} · ${r.stores}개 매장` })));
+  const rows = d.data.filter((r) => r.retailer !== '소계' && r.group !== '합계' && r.net > 0);
+  if (!rows.length) return FJ.empty(el, '이 조건에 맞는 매출이 없습니다.');
+  const mx = d3.max(rows, (r) => r.net), G = { 가두점: '대리점' };
+  el.replaceChildren(...Array.from(d3.group(rows, (r) => r.group), ([g, v]) => {
+    const t = d.data.find((r) => r.group === g && (r.retailer === '소계' || r.retailer === g)), box = document.createElement('div'), h = document.createElement('div'), body = document.createElement('div');
+    box.className = 'fj-hgroup'; h.className = 'fj-hgroup-h'; h.textContent = `${G[g] || g} · ${FJ.won(t.net)} · 비중 ${FJ.pct(t.share)} · 전년 대비 ${FJ.signed(t.yoy)}`;
+    FJ.hbars(body, v.map((r) => ({ name: r.retailer === g ? G[g] || g : r.retailer, value: r.net,
+      text: `비중 ${FJ.pct(r.share)} · 전년 대비 ${FJ.signed(r.yoy)} · 최근 7일 ${FJ.signed(r.wow)} · ${r.stores}개 매장` })), mx);
+    box.append(h, body); return box;
+  }));
 });
 
 // ── 유통사별 베스트·워스트 ──
