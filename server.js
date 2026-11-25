@@ -12,6 +12,7 @@ const crypto = require('crypto');
 const { aggregate } = require('./aggregate');
 const ExcelJS = require('exceljs');
 const { parseCompetitors, HEAD: COMP_HEAD } = require('./competitors');
+const SR = require('./storeReport');
 
 const root = path.join(__dirname, 'public');
 const port = Number(process.env.PORT) || 3000;
@@ -159,6 +160,11 @@ function parseCsv(text) {
 function toCsv(head, rows) {
   const esc = (v) => (/[",\n]/.test(v) ? `"${String(v).replace(/"/g, '""')}"` : v);
   return [head.join(','), ...rows.map((r) => r.map(esc).join(','))].join('\n') + '\n';
+}
+// 매장 리포트용: 자료 파일을 읽어 {head, rows}로 (managers.csv는 저장 공간에만 있음)
+function loadCsv(name) {
+  const p = name === 'managers.csv' ? path.join(dataDir, name) : currentFile(name);
+  return p && fs.existsSync(p) ? parseCsv(fs.readFileSync(p, 'utf8')) : null;
 }
 // 지금 쓰는 자료 파일 (올린 것이 있으면 그것, 없으면 저장소 기본 자료)
 function currentFile(name) {
@@ -409,7 +415,7 @@ ol { margin: 0; padding-left: 1.3em; }
   <label class="drop" for="cfile"><b id="cdrop-title">동업계 매출 엑셀 고르기</b><span class="muted" id="cdrop-sub">.xlsx 파일 하나 (롯데·현대 따로면 하나씩 올리세요)</span><input id="cfile" type="file" accept=".xlsx" hidden></label>
   <button id="csend" type="button" disabled>경쟁 브랜드 자료 올리기</button>
   <div class="box" id="cresult" hidden></div>
-  <p class="muted"><a href="/">대시보드로 돌아가기</a> · <a href="/logout">로그아웃</a></p>
+  <p class="muted"><a href="/">대시보드로 돌아가기</a> · <a href="/links">매장 공유 링크</a> · <a href="/logout">로그아웃</a></p>
 </main>
 <script>
 const $ = (id) => document.getElementById(id);
@@ -540,13 +546,35 @@ http.createServer((req, res) => {
     if (!same(req.headers['x-upload-key'], uploadKey)) return json(res, 401, { ok: false, message: '업로드 키가 맞지 않습니다.' });
     return handleUpload(req, res, 'api', (['managers', 'competitors'].includes(req.headers['x-kind']) ? req.headers['x-kind'] : 'sales'));
   }
+  // 매장 공유 링크: /s/<매장코드>/<서명> — 비밀번호 없이 그 매장 자료만
+  const sm = pathname.match(/^\/s\/([A-Za-z0-9]{3,20})\/([A-Za-z0-9_-]{10,40})$/);
+  if (sm) {
+    const h = { 'X-Robots-Tag': 'noindex, nofollow', 'Referrer-Policy': 'no-referrer' };
+    if (!SR.verify(SR.getSecret(dataDir), sm[1], sm[2])) return send(res, 404, '<!doctype html><meta charset="utf-8"><p style="font-family:sans-serif;padding:24px">링크가 맞지 않거나 만료되었습니다. 담당자에게 새 링크를 받아 주세요.</p>', h);
+    try {
+      const r = SR.report(loadCsv, sm[1], readMeta());
+      if (!r) return send(res, 200, '<!doctype html><meta charset="utf-8"><p style="font-family:sans-serif;padding:24px">이번 달 이 매장의 판매 자료가 아직 없습니다.</p>', h);
+      return send(res, 200, SR.page(r), h);
+    } catch (e) { console.error('매장 리포트 실패:', e.message); return send(res, 500, '<!doctype html><meta charset="utf-8"><p>잠시 뒤 다시 열어 주세요.</p>', h); }
+  }
   if (!loggedIn(req)) {
-    if (pathname === '/' || pathname === '/upload' || pathname.endsWith('.html')) { res.writeHead(303, { Location: '/login' }); return res.end(); }
+    if (pathname === '/' || pathname === '/upload' || pathname === '/links' || pathname.endsWith('.html')) { res.writeHead(303, { Location: '/login' }); return res.end(); }
     res.writeHead(401, { 'Content-Type': 'text/plain; charset=utf-8' });
     return res.end('비밀번호가 필요합니다.');
   }
 
   if (pathname === '/upload') return send(res, 200, uploadPage());
+  if (pathname === '/links/rotate' && req.method === 'POST') {
+    SR.rotateSecret(dataDir); console.log('매장 공유 링크를 모두 새로 만듦');
+    res.writeHead(303, { Location: '/links' }); return res.end();
+  }
+  if (pathname === '/links') {
+    const secret = SR.getSecret(dataDir), proto = String(req.headers['x-forwarded-proto'] || (isHttps(req) ? 'https' : 'http')).split(',')[0];
+    const base = `${proto}://${req.headers['x-forwarded-host'] || req.headers.host}`;
+    const managers = new Map(SR.table(loadCsv, 'managers.csv').map((r) => [r.store_code, r.manager]));
+    const rows = SR.storeList(loadCsv).map((s) => ({ ...s, url: `${base}/s/${s.store_code}/${SR.sign(secret, s.store_code)}` }));
+    return send(res, 200, SR.linksPage(rows, base, managers), { 'X-Robots-Tag': 'noindex, nofollow' });
+  }
   if (pathname === '/api/upload') {
     if (req.method !== 'POST') { res.writeHead(405); return res.end(); }
     return handleUpload(req, res, 'web', (['managers', 'competitors'].includes(req.headers['x-kind']) ? req.headers['x-kind'] : 'sales'));

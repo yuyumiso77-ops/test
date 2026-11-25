@@ -103,7 +103,7 @@ body { background: var(--color-bg); color: var(--color-fg); font-family: var(--f
 </script>
 </head>
 <body>
-<div class="site-bar"><span id="site-updated">자료 확인 중…</span><a href="/upload">자료 올리기</a><a href="/logout">로그아웃</a></div>
+<div class="site-bar"><span id="site-updated">자료 확인 중…</span><a href="/upload">자료 올리기</a><a href="/links">매장 링크</a><a href="/logout">로그아웃</a></div>
 <script>
 fetch('data/meta.json', { cache: 'no-store' }).then((r) => r.ok ? r.json() : null).then((m) => {
   const el = document.getElementById('site-updated');
