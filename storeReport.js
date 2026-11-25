@@ -49,6 +49,11 @@ function table(load, name) {
   return t.rows.map((r) => Object.fromEntries(t.head.map((h, i) => [h, r[i]])));
 }
 
+function ly0(load, first, last) {
+  const a = lyDate(first), b = lyDate(last);
+  return table(load, 'ly_store_daily.csv').filter((r) => r.date >= a && r.date <= b);
+}
+
 function storeList(load) {
   const cur = table(load, 'store_daily.csv'), by = new Map();
   for (const r of cur) {
@@ -140,7 +145,31 @@ function report(load, code, meta) {
     compInfo = { month: cm, zone: v[0].zone_store, group: v[0].group, T, L, brands: b, rank: b.findIndex((x) => x.k === '풋조이') + 1,
       trend: [...tm.keys()].sort().map((k) => ({ m: k, sh: tm.get(k) ? (om.get(k) || 0) / tm.get(k) : null })) };
   }
-  return { code, ...s, first, last, dim, ym, net, tag, confirmed, qty, weeks, months, ytd, lyYtd, dowAvg, hours, stypes, gen, lgen, itemRows, season, memb, compInfo, sales, returns, receipts, lyNet, lyMonth, projected, s7, p7, l7, rank, peers: peers.length, grp,
+  // ── 순위 (같은 유통사 / 같은 유통 형태 / 전체) ──
+  const lyBy = by(ly0(load, first, last), (r) => r.store_code), w7s = new Set(w1);
+  const recBy = by(cur, (r) => r.store_code, (r) => +r.receipts || 0), salesBy = by(cur, (r) => r.store_code, (r) => +r.sales || 0);
+  const memAll = table(load, 'member_daily.csv'), msBy = by(memAll, (r) => r.store_code, (r) => +r.member_sales || 0), nsBy = by(memAll, (r) => r.store_code, (r) => +r.nonmember_sales || 0);
+  const w7By = by(cur.filter((r) => w7s.has(r.date)), (r) => r.store_code);
+  const metric = (x) => { const c = x.store_code, l = lyBy.get(c) || 0, rc = recBy.get(c) || 0, t = (msBy.get(c) || 0) + (nsBy.get(c) || 0);
+    return { net: x.net, yoy: l >= 1e6 ? x.net / l - 1 : null, w7: w7By.get(c) || 0, aov: rc ? (salesBy.get(c) || 0) / rc : null, mem: t ? (msBy.get(c) || 0) / t : null }; };
+  const act = list.filter((x) => x.net > 0).map((x) => ({ ...x, mt: metric(x) })), me = act.find((x) => x.store_code === code);
+  const tg = (x) => (x.type === '가두점' ? '대리점' : x.type);
+  const scopes = (grp === tg(s) || grp === '기타' ? [] : [[grp, act.filter((x) => retailer(x) === grp)]]).concat([[`${tg(s)} 전체`, act.filter((x) => tg(x) === tg(s))], ['전체', act]]);
+  const KEYS = [['net', '이번 달 순매출'], ['yoy', '전년 대비 신장률'], ['w7', '최근 7일 매출'], ['aov', '객단가'], ['mem', '회원 매출 비중']];
+  const ranks = me ? KEYS.map(([k, label]) => ({ label, v: me.mt[k], k, by: scopes.map(([sn, pool]) => {
+    const v = pool.filter((x) => x.mt[k] != null).sort((a, b) => b.mt[k] - a.mt[k]); const i = v.findIndex((x) => x.store_code === code);
+    return { sn, rank: i >= 0 ? i + 1 : null, n: v.length }; }) })) : [];
+  // 월별 유통사 내 순위
+  const histAll = table(load, 'hist_store_daily.csv').filter((r) => r.date.slice(0, 4) === ym.slice(0, 4) && r.date.slice(0, 7) !== ym);
+  const rankTrend = [];
+  for (const mm of [...new Set(histAll.map((r) => r.date.slice(0, 7)))].sort().concat([ym])) {
+    const rows = mm === ym ? cur : histAll.filter((r) => r.date.startsWith(mm)), tot = new Map(), info = new Map();
+    for (const r of rows) { tot.set(r.store_code, (tot.get(r.store_code) || 0) + (+r.net || 0)); info.set(r.store_code, r); }
+    if (!tot.get(code)) continue;
+    const pool = [...tot].filter(([c, v]) => v > 0 && retailer(info.get(c)) === grp).sort((a, b) => b[1] - a[1]);
+    rankTrend.push({ m: mm, rank: pool.findIndex(([c]) => c === code) + 1, n: pool.length });
+  }
+  return { code, ...s, first, last, dim, ym, net, tag, ranks, rankTrend, confirmed, qty, weeks, months, ytd, lyYtd, dowAvg, hours, stypes, gen, lgen, itemRows, season, memb, compInfo, sales, returns, receipts, lyNet, lyMonth, projected, s7, p7, l7, rank, peers: peers.length, grp,
     aov: receipts ? sales / receipts : null, rr: sales ? returns / sales : null, memberShare: ms + ns ? ms / (ms + ns) : null, newMembers,
     days: allDays.map((d) => ({ d, net: daily.get(d) || 0, ly: lyDaily.get(shift(d, -364)) })), best, cats: [...catMap].filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]), missing, updated: meta && meta.uploaded_at };
 }
@@ -165,7 +194,8 @@ table{width:100%;border-collapse:collapse;font-size:14px}th,td{padding:7px 6px;b
 .wrap{overflow-x:auto}ul{margin:0;padding-left:1.2em}li{margin:2px 0}
 .two{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:22px}.two section{min-width:0}
 .hb{display:flex;flex-direction:column;gap:6px}.hr{display:grid;grid-template-columns:44px 1fr auto;gap:8px;align-items:center;font-size:13px}.ht{height:10px;background:var(--line);border-radius:3px;overflow:hidden}.ht i{display:block;height:100%;background:var(--accent)}.hv{color:var(--muted);font-variant-numeric:tabular-nums;font-size:12px;white-space:nowrap}
-tr.me td{font-weight:700}`;
+tr.me td{font-weight:700}
+.rks{display:flex;flex-wrap:wrap;gap:6px}.rk{display:flex;flex-direction:column;align-items:center;min-width:54px;padding:6px 4px;border:1px solid var(--line);border-radius:8px;font-variant-numeric:tabular-nums}.rk small{font-size:11px;color:var(--muted)}`;
 
 const vbars = (rows) => { const mx = Math.max(1, ...rows.map((x) => Math.max(x.v, x.ly || 0)));
   return `<div class="bars">${rows.map((x) => `<div class="bar${x.we ? ' we' : ''}" title="${esc(x.t)}"><i style="height:${Math.max(0, x.v / mx * 100).toFixed(1)}%"></i>${x.ly ? `<b style="bottom:${(x.ly / mx * 100).toFixed(1)}%"></b>` : ''}</div>`).join('')}</div><div class="axis">${rows.map((x) => `<span>${esc(x.a)}</span>`).join('')}</div>`; };
@@ -198,6 +228,18 @@ ${vbars(r.months.map((x) => ({ v: x.net, ly: x.ly, a: `${+x.m.slice(5)}월`, t: 
   return out.join('\n');
 }
 
+function rankSec(r) {
+  if (!r.ranks.length) return '';
+  const fmt = (k, v) => (k === 'yoy' ? signed(v) : k === 'mem' ? pct(v) : won(v));
+  const head = r.ranks[0].by.map((b) => `<th class="n">${esc(b.sn)} (${b.n}개)</th>`).join('');
+  const rows = r.ranks.map((x) => `<tr><td>${esc(x.label)}</td><td class="n">${esc(fmt(x.k, x.v))}</td>${x.by.map((b) => `<td class="n">${b.rank ? `<b class="${b.rank <= Math.ceil(b.n / 4) ? 'up' : b.rank > b.n - Math.ceil(b.n / 4) ? 'down' : ''}">${b.rank}위</b> / ${b.n}` : '—'}</td>`).join('')}</tr>`).join('');
+  const tr = r.rankTrend.map((t) => `<span class="rk"><small>${+t.m.slice(5)}월</small><b>${t.rank}위</b><small>/ ${t.n}</small></span>`).join('');
+  const n = r.ranks[0].by[0];
+  return `<section><h2>순위 · ${r.ranks[0].by.slice(0, 2).map((b) => `${esc(b.sn)} ${b.n}개 중 ${b.rank}위`).join(' · ')}</h2><p class="muted" style="margin:0 0 8px">이번 달 매출이 있는 FJ 매장끼리 비교합니다. 높을수록 1위이고, 상위 1/4은 초록, 하위 1/4은 빨강입니다. 전년 대비는 작년 같은 기간 매출이 100만원 이상인 매장만 셉니다.</p>
+<div class="wrap"><table><thead><tr><th>기준</th><th class="n">우리 매장</th>${head}</tr></thead><tbody>${rows}</tbody></table></div>
+${tr ? `<p class="muted" style="margin:12px 0 6px">월별 ${esc(n.sn)} 안 순위 (순매출)</p><div class="rks">${tr}</div>` : ''}</section>`;
+}
+
 function page(r) {
   const yoy = r.lyNet > 0 ? r.net / r.lyNet - 1 : null, w7 = r.p7 > 0 ? r.s7 / r.p7 - 1 : null, l7 = r.l7 > 0 ? r.s7 / r.l7 - 1 : null;
   const mx = Math.max(1, ...r.days.map((x) => Math.max(x.net, x.ly || 0)));
@@ -209,8 +251,9 @@ function page(r) {
   return `<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="robots" content="noindex,nofollow">
 <title>${esc(r.store)} ${+r.ym.slice(5)}월 실적</title><link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css"><style>${CSS}</style></head><body><main>
 <div><h1>${esc(r.store)}</h1><div class="muted">${esc(r.ym.slice(0, 4))}년 ${+r.ym.slice(5)}월 1일 ~ ${esc(md(r.last))}(${dow(r.last)}) 실적${r.updated ? ' · 자료 갱신 ' + esc(new Date(r.updated).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })) : ''}</div></div>
-<p class="lede">이번 달 순매출은 <b>${esc(won(r.net))}</b>이고, 작년 같은 기간 대비 <b class="${tone(yoy)}">${signed(yoy)}</b>입니다. 지금 추세라면 ${+r.ym.slice(5)}월 마감은 약 <b>${esc(won(r.projected))}</b>${r.lyMonth > 0 ? ` (작년 ${+r.ym.slice(5)}월 전체 ${esc(won(r.lyMonth))})` : ''}입니다.${r.rank ? ` ${esc(r.grp)} ${r.peers}개 매장 중 <b>${r.rank}위</b>입니다.` : ''}</p>
+<p class="lede">이번 달 순매출은 <b>${esc(won(r.net))}</b>이고, 작년 같은 기간 대비 <b class="${tone(yoy)}">${signed(yoy)}</b>입니다. 지금 추세라면 ${+r.ym.slice(5)}월 마감은 약 <b>${esc(won(r.projected))}</b>${r.lyMonth > 0 ? ` (작년 ${+r.ym.slice(5)}월 전체 ${esc(won(r.lyMonth))})` : ''}입니다.${r.ranks.length ? ' 순매출 순위는 ' + r.ranks[0].by.map((b) => `${esc(b.sn)} ${b.n}개 매장 중 <b>${b.rank}위</b>`).join(', ') + '입니다.' : ''}</p>
 <div class="kpis">
+${r.ranks.length ? r.ranks[0].by.slice(0, 2).map((b) => `<div class="card"><span class="muted">${esc(b.sn)} 순위</span><span class="v">${b.rank}위 <small style="font-size:14px;font-weight:500">/ ${b.n}개</small></span><span class="s">이번 달 순매출 기준</span></div>`).join('') : ''}
 <div class="card"><span class="muted">순매출</span><span class="v">${esc(won(r.net))}</span><span class="s">작년 같은 기간 ${esc(won(r.lyNet))}</span></div>
 <div class="card"><span class="muted">최근 7일</span><span class="v">${esc(won(r.s7))}</span><span class="s">전주 대비 <b class="${tone(w7)}">${signed(w7)}</b> · 작년 같은 요일 <b class="${tone(l7)}">${signed(l7)}</b></span></div>
 <div class="card"><span class="muted">마감 예상</span><span class="v">${esc(won(r.projected))}</span><span class="s">남은 날은 이번 달 같은 요일 평균</span></div>
@@ -218,6 +261,7 @@ function page(r) {
 <div class="card"><span class="muted">반품률</span><span class="v">${pct(r.rr)}</span><span class="s">반품 ${esc(won(r.returns))}</span></div>
 <div class="card"><span class="muted">회원 매출 비중</span><span class="v">${pct(r.memberShare)}</span><span class="s">신규 가입 ${r.newMembers.toLocaleString('ko-KR')}명</span></div>
 </div>
+${rankSec(r)}
 <section><h2>일별 매출</h2><div class="bars">${bars}</div><div class="axis">${axis}</div>
 <div class="legend"><span><i style="background:var(--accent)"></i>올해</span><span><i style="background:var(--ly)"></i>작년 같은 요일</span><span>옅은 막대 = 주말</span></div></section>
 ${more(r)}
