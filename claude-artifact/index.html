@@ -104,6 +104,7 @@
 .fj-target-bar { position: relative; height: 14px; border-radius: 7px; background: var(--cds-chart-grid); overflow: hidden; }
 .fj-target-bar i { position: absolute; top: 0; bottom: 0; left: 0; }
 .fj-table tr.fj-group td { background: var(--color-panel); font-size: var(--cds-font-size-caption); font-weight: var(--cds-font-weight-medium); color: var(--color-fg-muted); padding-top: 10px; }
+.fj-table tr.fj-type td { color: var(--color-fg); font-size: var(--cds-font-size-body); border-top: 2px solid var(--color-border-line); }
 .fj-cat-head { grid-column: 1 / -1; margin: 8px 0 0; font-size: var(--cds-font-size-heading); font-weight: var(--cds-font-weight-medium); }
 .fj-stack { display: flex; flex-direction: column; gap: var(--cds-gap-xl); }
 .fj-topstores ol { margin: 0; padding-left: 1.3em; display: flex; flex-direction: column; gap: 1px; font-size: var(--cds-font-size-caption); white-space: nowrap; }
@@ -689,7 +690,7 @@
   <section class="fj-section" id="stores-section">
     <div class="fj-sec-title">
       <h2>매장별 매출</h2>
-      <span class="fj-label">유통사별로 묶고(백화점 롯데·현대·신세계·갤러리아·AK → 아울렛 롯데·현대·신세계 → 가두점), 유통사 안에서는 순매출 순입니다. 순위는 유통사 안 순위입니다. 전년 대비는 작년 같은 날짜와 비교하고, 전년 매출이 없는 매장은 "신규"로 표시합니다. 최근 주 전주 대비는 <span data-draw="recent-week" data-source="weekly">—</span> 기준입니다. 줄을 누르면 그 매장만 봅니다.</span>
+      <span class="fj-label">백화점 → 아울렛 → 대리점(가두점) → 기타 순으로 묶고, 백화점·아울렛은 다시 유통사(롯데·현대·신세계·갤러리아·AK)별로 묶었습니다, 유통사 안에서는 순매출 순입니다. 순위는 유통사 안 순위입니다. 전년 대비는 작년 같은 날짜와 비교하고, 전년 매출이 없는 매장은 "신규"로 표시합니다. 최근 주 전주 대비는 <span data-draw="recent-week" data-source="weekly">—</span> 기준입니다. 줄을 누르면 그 매장만 봅니다.</span>
     </div>
     <div class="fj-tablewrap tall">
       <table class="fj-table" id="store-table" data-source="stores" data-row-key="store_code">
@@ -1173,15 +1174,19 @@ window.FJ = (() => {
       label, list: list.sort((a, b) => (+byCode.get(b.dataset.key)[valKey] || 0) - (+byCode.get(a.dataset.key)[valKey] || 0)),
       rank: retailerRank(byCode.get(list[0].dataset.key)), sum: d3.sum(list, (tr) => +byCode.get(tr.dataset.key)[valKey] || 0) }))
       .sort((a, b) => a.rank - b.rank || b.sum - a.sum);
-    const out = [];
+    // 유통 형태(백화점 → 아울렛 → 대리점 → 기타) 머리줄 아래에 유통사별 묶음
+    const TN = { 가두점: '대리점' }, tk = (g) => { const t = byCode.get(g.list[0].dataset.key).type; return TYPE_ORDER.includes(t) ? t : '기타'; };
+    const tsum = d3.rollup(groups, (v) => ({ n: d3.sum(v, (g) => g.list.length), s: d3.sum(v, (g) => g.sum) }), tk);
+    const row = (cls, text) => { const h = document.createElement('tr'); h.className = cls; const td = document.createElement('td'); td.colSpan = cols; td.textContent = text; h.appendChild(td); return h; };
+    const out = []; let lastT = '';
     groups.forEach((g) => {
-      const h = document.createElement('tr'); h.className = 'fj-group';
-      const td = document.createElement('td'); td.colSpan = cols;
-      td.textContent = `${g.label} · ${g.list.length}개 매장 · ${won(g.sum)}` + (total ? ` (${pct(g.sum / total)})` : '');
-      h.appendChild(td);
+      const t = tk(g), tl = TN[t] || t, x = tsum.get(t);
+      if (t !== lastT) { out.push(row('fj-group fj-type', `${tl} · ${x.n}개 매장 · ${won(x.s)}` + (total ? ` (${pct(x.s / total)})` : ''))); lastT = t; }
+      const lab = g.label === t || g.label === '기타' && t === '기타' ? '' : g.label === '기타' ? `기타 ${tl}` : g.label;
+      const h = lab ? row('fj-group', `${lab} · ${g.list.length}개 매장 · ${won(g.sum)}` + (total ? ` (${pct(g.sum / total)})` : '')) : null;
       // 순위는 유통사 안 순위로 다시 매김
       if (rankCol >= 0) g.list.forEach((tr, i) => { if (tr.children[rankCol]) tr.children[rankCol].textContent = String(i + 1); });
-      out.push(h, ...g.list);
+      if (h) out.push(h); out.push(...g.list);
     });
     tb.replaceChildren(...out);
   }
@@ -3283,7 +3288,7 @@ dash.draw('annual-store-rows', (tb) => {
     const tr = document.createElement('tr'); tr.dataset.key = r.store_code; tr.className = 'pick' + (r.store_code === picked ? ' is-picked' : ''); tr.tabIndex = 0;
     const go = () => dash.setParams({ store: r.store_code === picked ? '' : r.store_code });
     tr.addEventListener('click', go); tr.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
-    tr.append(FJ.td(String(r.rank), 'n m'), FJ.td(r.store), FJ.td(r.type, 'm'), FJ.td(FJ.won(r.net), 'n'), FJ.td(FJ.pct(r.share), 'n'),
+    tr.append(FJ.td(String(r.rank), 'n m'), FJ.td(r.store), FJ.td(r.type === '가두점' ? '대리점' : r.type, 'm'), FJ.td(FJ.won(r.net), 'n'), FJ.td(FJ.pct(r.share), 'n'),
       FJ.td(r.ly_net ? FJ.won(r.ly_net) : '—', 'n'), FJ.td(r.ly_net > 0 ? FJ.signed(r.yoy) : '신규', 'n ' + (r.ly_net > 0 ? FJ.tone(r.yoy) : 'm')));
     return tr;
   }));
@@ -4295,7 +4300,7 @@ dash.draw('gender-store-rows', (tb) => {
     const a = document.createElement('i'); a.style.width = ((r.man_share || 0) * 100).toFixed(1) + '%'; a.style.background = dash.colors[0];
     const b = document.createElement('i'); b.style.width = ((r.woman_share || 0) * 100).toFixed(1) + '%'; b.style.background = dash.colors[1];
     mix.append(a, b); mixTd.appendChild(mix);
-    tr.append(FJ.td(r.store), FJ.td(r.type, 'm'), FJ.td(FJ.won(r.net), 'n'), FJ.td(FJ.pct(r.man_share), 'n'), FJ.td(FJ.pct(r.woman_share), 'n'), mixTd,
+    tr.append(FJ.td(r.store), FJ.td(r.type === '가두점' ? '대리점' : r.type, 'm'), FJ.td(FJ.won(r.net), 'n'), FJ.td(FJ.pct(r.man_share), 'n'), FJ.td(FJ.pct(r.woman_share), 'n'), mixTd,
       FJ.td(FJ.pct(r.woman_share_week), 'n'), FJ.td(FJ.pp(r.woman_share_change), 'n m'),
       FJ.td(FJ.signed(r.man_wow), 'n ' + FJ.tone(r.man_wow)), FJ.td(FJ.signed(r.woman_wow), 'n ' + FJ.tone(r.woman_wow)));
     return tr;
@@ -4320,7 +4325,7 @@ dash.draw('store-rows', (tb) => {
     tr.addEventListener('click', go);
     tr.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
     const ly = lyStores.get(r.store_code) || {};
-    tr.append(FJ.td(String(r.rank), 'n m'), FJ.td(r.store), FJ.td(r.type, 'm'), FJ.td(FJ.won(r.net), 'n'), FJ.td(FJ.signed(r.wow), 'n ' + FJ.tone(r.wow)),
+    tr.append(FJ.td(String(r.rank), 'n m'), FJ.td(r.store), FJ.td(r.type === '가두점' ? '대리점' : r.type, 'm'), FJ.td(FJ.won(r.net), 'n'), FJ.td(FJ.signed(r.wow), 'n ' + FJ.tone(r.wow)),
       FJ.td(ly.ly_net > 0 ? FJ.signed(ly.yoy) : '신규', 'n ' + (ly.ly_net > 0 ? FJ.tone(ly.yoy) : 'm')), FJ.td(FJ.won(r.confirmed), 'n'),
       FJ.td(FJ.int(r.qty), 'n'), FJ.td(FJ.won(r.aov), 'n'), FJ.td(FJ.pct(r.return_rate), 'n'), FJ.td(FJ.pct(r.member_share), 'n'), FJ.td(FJ.int(r.new_members), 'n'), FJ.td(FJ.pct(r.share), 'n'));
     return tr;
