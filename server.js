@@ -74,7 +74,7 @@ function loginPage(message) {
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><link rel="icon" href="/favicon.ico" sizes="any"><link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png"><link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <title>FJ 매출 현황</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
 <style>
@@ -365,7 +365,7 @@ function uploadPage() {
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><link rel="icon" href="/favicon.ico" sizes="any"><link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png"><link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <title>자료 올리기 · FJ 매출 현황</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
 <style>
@@ -545,6 +545,13 @@ http.createServer((req, res) => {
   if (pathname === '/api/upload' && req.method === 'POST' && uploadKey && req.headers['x-upload-key']) {
     if (!same(req.headers['x-upload-key'], uploadKey)) return json(res, 401, { ok: false, message: '업로드 키가 맞지 않습니다.' });
     return handleUpload(req, res, 'api', (['managers', 'competitors'].includes(req.headers['x-kind']) ? req.headers['x-kind'] : 'sales'));
+  }
+  // 탭 아이콘은 로그인 전에도 보이게
+  if (/^\/(favicon\.ico|favicon-32\.png|apple-touch-icon\.png|icon-192\.png)$/.test(pathname)) {
+    return fs.readFile(path.join(root, pathname), (err, body) => {
+      if (err) { res.writeHead(404); return res.end(); }
+      res.writeHead(200, { 'Content-Type': types[path.extname(pathname)] || 'image/png', 'Cache-Control': 'public, max-age=86400' }); res.end(body);
+    });
   }
   // 매장 공유 링크: /s/<매장코드>/<서명> — 비밀번호 없이 그 매장 자료만
   const sm = pathname.match(/^\/s\/([A-Za-z0-9]{3,20})\/([A-Za-z0-9_-]{10,40})$/);
