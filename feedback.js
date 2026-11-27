@@ -61,4 +61,10 @@ function allowed(ip) {
   v.push(now); hits.set(ip, v); return true;
 }
 
-module.exports = { CATS, STATUS, readAll, add, update, readBody, allowed };
+function remove(dir, id) {
+  const list = readAll(dir), n = list.length, left = list.filter((x) => x.id !== id);
+  if (left.length === n) return false;
+  writeAll(dir, left); return true;
+}
+
+module.exports = { CATS, STATUS, readAll, add, update, remove, readBody, allowed };

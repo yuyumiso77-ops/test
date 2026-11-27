@@ -19,7 +19,7 @@
   function save(id, body, btn) {
     btn.disabled = true;
     fetch('/api/feedback/' + id, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
-      .then((r) => r.json()).then((d) => { if (d.ok) { const i = items.findIndex((x) => x.id === id); items[i] = d.item; render(); } else btn.disabled = false; })
+      .then((r) => r.json()).then((d) => { if (d.ok) { const i = items.findIndex((x) => x.id === id); if (d.deleted) items.splice(i, 1); else items[i] = d.item; render(); } else btn.disabled = false; })
       .catch(() => { btn.disabled = false; alert('저장하지 못했습니다. 다시 시도해 주세요.'); });
   }
 
@@ -49,7 +49,8 @@
       const b1 = $('button', '', '답변 저장'); b1.type = 'button'; b1.onclick = () => save(x.id, { reply: ta.value }, b1);
       const b2 = $('button', '', x.status === 'new' ? '확인' : '확인으로'); b2.type = 'button'; b2.onclick = () => save(x.id, { status: 'seen' }, b2);
       const b3 = $('button', '', '조치 완료'); b3.type = 'button'; b3.onclick = () => save(x.id, { status: 'done' }, b3);
-      bar.append(b1, ...(x.status !== 'seen' ? [b2] : []), ...(x.status !== 'done' ? [b3] : []));
+      const b4 = $('button', 'fv-del', '삭제'); b4.type = 'button'; b4.onclick = () => { if (confirm(`${x.store}의 이 답변을 지울까요? 되돌릴 수 없습니다.`)) save(x.id, { delete: true }, b4); };
+      bar.append(b1, ...(x.status !== 'seen' ? [b2] : []), ...(x.status !== 'done' ? [b3] : []), b4);
       if (x.reply_at) bar.append($('span', 'fv-note', '답변 ' + when(x.reply_at)));
       li.insertBefore(h, li.firstChild); li.append(msg, ta, bar);
       return li;
@@ -100,7 +101,7 @@
 .fv-st{display:inline-block;padding:0 8px;border:1px solid var(--color-border-line);border-radius:999px;font-size:11px}
 .fv-ta{font:inherit;font-size:14px;width:100%;box-sizing:border-box;padding:6px 8px;border:1px solid var(--color-border-line);border-radius:8px;background:transparent;color:inherit;resize:vertical}
 .fv-bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.fv-bar button{font:inherit;font-size:13px;padding:5px 12px;border-radius:8px;border:1px solid var(--color-border-line);background:transparent;color:inherit;cursor:pointer}
-.fv-note{font-size:12px;color:var(--color-fg-muted)}.fv-empty{color:var(--color-fg-muted);font-size:14px}
+.fv-bar button.fv-del{margin-left:auto;color:var(--color-bad,#c8372d)}.fv-note{font-size:12px;color:var(--color-fg-muted)}.fv-empty{color:var(--color-fg-muted);font-size:14px}
 .fv-q{font-size:13px;font-weight:600}.fv-part{margin:0;font-size:13px;color:var(--color-fg-muted)}
 .fv-tag{margin-top:4px;font-size:12px;color:var(--c1,#2f5fd0)}
 .fv-badge{display:inline-block;min-width:18px;margin-left:6px;padding:0 6px;border-radius:999px;background:var(--color-bad,#c8372d);color:#fff;font-size:11px;line-height:18px;text-align:center}`;

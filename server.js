@@ -593,6 +593,7 @@ http.createServer((req, res) => {
   if (fu && req.method === 'POST') {
     return FB.readBody(req).then((b) => {
       let d = {}; try { d = JSON.parse(b); } catch {}
+      if (d.delete === true) { const ok = FB.remove(dataDir, fu[1]); if (ok) console.log('매장 답변 삭제:', fu[1]); return json(res, ok ? 200 : 404, { ok, deleted: ok }); }
       const it = FB.update(dataDir, fu[1], { status: d.status, reply: d.reply });
       return it ? json(res, 200, { ok: true, item: it }) : json(res, 404, { ok: false });
     }).catch(() => json(res, 400, { ok: false }));
