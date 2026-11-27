@@ -183,7 +183,10 @@ function report(load, code, meta) {
   const lyd = shift(last, -364), gq = new Map(), gm = new Map();
   for (const x of gi) { if (x.date === last) gq.set(ik(x), (gq.get(ik(x)) || 0) + (+x.qty || 0)); else gm.set(ik(x), (gm.get(ik(x)) || 0) + (+x.qty || 0)); }
   const nd = Math.max(1, allDays.length - 1), top = [...gq].filter(([k]) => !/기타·|ETC/.test(k)).map(([k, n]) => ({ k, n, avg: (gm.get(k) || 0) / nd })).sort((a, b) => b.n - a.n)[0];
-  const yday = { d: last, net: daily.get(last) || 0, rc: dsum(mine, 'receipts', last), sales: dsum(mine, 'sales', last), ret: dsum(mine, 'returns', last), retQ: dsum(mine, 'return_qty', last),
+  const catDay = (dt, c, k) => gi.filter((x) => x.date === dt && cat(x.line) === c).reduce((a, x) => a + (+x[k] || 0), 0);
+  const shoeMonthQty = gi.filter((x) => x.date !== last && cat(x.line) === '골프화').reduce((a, x) => a + (+x.qty || 0), 0);
+  const yday = { d: last, app: catDay(last, '어패럴', 'net'), appQ: catDay(last, '어패럴', 'qty'), shoe: catDay(last, '골프화', 'net'), shoeQ: catDay(last, '골프화', 'qty'), shoeAvg: shoeMonthQty / Math.max(1, allDays.length - 1),
+    net: daily.get(last) || 0, rc: dsum(mine, 'receipts', last), sales: dsum(mine, 'sales', last), ret: dsum(mine, 'returns', last), retQ: dsum(mine, 'return_qty', last),
     lyRc: dsum(ly, 'receipts', lyd), lySales: dsum(ly, 'sales', lyd), lyNet: lyDaily.get(lyd) || 0, top: top && top.n >= 3 && top.n >= 2 * top.avg ? top : null };
   return { code, ...s, first, last, dim, ym, net, tag, ranks, rankTrend, itemUp, itemDown, pwd, sumDays, sumLy, yday, pwNet: pwHas ? pwNet : null, confirmed, qty, weeks, months, ytd, lyYtd, dowAvg, hours, stypes, gen, lgen, itemRows, season, memb, compInfo, sales, returns, receipts, lyNet, lyMonth, projected, s7, p7, l7, rank, peers: peers.length, grp,
     aov: receipts ? sales / receipts : null, rr: sales ? returns / sales : null, memberShare: ms + ns ? ms / (ms + ns) : null, newMembers,
@@ -263,7 +266,7 @@ const A = {
   itemUp: ['신상품 디자인', '가격·행사', '진열 위치', '날씨', '직원 추천', '기타'],
   itemDown: ['재고 부족', '시즌 영향', '가격', '진열 위치', '경쟁사', '기타'],
   miss: ['재고 없음', '사이즈 없음', '진열 안 됨', '고객 반응 없음', '이미 팔렸음(자료 늦음)', '기타'],
-  ret: ['사이즈', '하자·품질', '단순 변심', '교환 대기', '기타'],
+  ret: ['의류 사이즈', '골프화 사이즈·발볼', '하자·품질', '단순 변심', '교환 대기', '기타'],
   comp: ['할인 행사', '사은품', '신상품', '매장 확장·이동', '잘 모름'],
   any: ['다운·아우터', '니트·스웨터', '팬츠', '골프화', '장갑·용품', '기타'],
   plan: ['진열·VMD 바꾸기', '회원 연락·문자', '재고 요청', '행사 준비', '직원 교육', '기타'],
@@ -281,11 +284,20 @@ const A = {
 };
 // ── 오늘의 질문: 전일 마감 매출로 현황 파악 (모두 어제에 대한 질문, 버튼 하나로 답) ──
 A.traffic = ['훨씬 많았음', '조금 많았음', '평소와 비슷', '조금 적었음', '훨씬 적었음'];
-A.lost = ['사이즈·컬러 없음', '가격 부담', '둘러보기만 함', '경쟁사로 감', '놓친 판매 없음', '기타'];
+A.lost = ['의류 사이즈·컬러 없음', '골프화 사이즈·발볼 없음', '가격 부담', '둘러보기만 함', '경쟁사로 감', '놓친 판매 없음'];
+A.shoeZero = ['사이즈·발볼 결품', '시착 권유 못함', '고객이 안 찾음', '가격 부담', '경쟁사 골프화로 감', '기타'];
+A.shoeUp = ['신모델 반응', '스파이크리스 인기', '시착·피팅 권유', '행사·사은품', '의류 구매 고객 추가 구매', '기타'];
 A.plan = ['행사·사은품', '회원 문자·연락', '진열 변경', '인력 보강', '재고 보충', '특별히 없음'];
 A.risk = ['인력 부족', '재고·사이즈 부족', '날씨', '경쟁사 행사', '백화점 행사 없음', '없음'];
-A.hope = ['다운·아우터', '니트·스웨터', '팬츠', '골프화', '장갑·용품', '기타'];
-A.focus = ['진열·VMD 바꾸기', '회원 연락·문자', '재고 요청·정리', '직원 판매 교육', '행사 준비', '기타'];
+A.hope = ['다운·아우터', '니트·스웨터', '팬츠', '골프화 스파이크리스', '골프화 스파이크', '장갑·용품'];
+A.focus = ['골프화 시착·피팅 권유', '상·하의 코디 제안', '회원 연락·문자', '진열·VMD 바꾸기', '재고 요청·정리', '기타'];
+// 채널별 어제 상황 답 (오른 날 / 내린 날)
+const CH = {
+  백화점: { up: ['백화점 사은행사·이벤트', 'VIP·단골 방문', '26FW 신상품 반응', '골프화 동반 구매', '큰 구매 고객', '기타'], down: ['방문객이 적었음', '사이즈·컬러 결품', '백화점 행사 없음', '경쟁사 행사', '인력 부족', '기타'] },
+  아울렛: { up: ['이월상품 가격 반응', '주말·나들이 고객', '행사 매대 효과', '골프화 동반 구매', '큰 구매 고객', '기타'], down: ['방문객이 적었음', '인기 사이즈 결품', '이월 물량 부족', '경쟁사 행사', '인력 부족', '기타'] },
+  가두점: { up: ['단골·지인 방문', '연습장·골프장 고객', '라운드 앞둔 구매', '골프화 동반 구매', '행사 효과', '기타'], down: ['방문객이 적었음', '날씨·비시즌', '사이즈·컬러 결품', '경쟁사 행사', '인력 부족', '기타'] },
+};
+const chOf = (t) => CH[t] || CH['가두점'];
 A.done = ['다 했음', '절반쯤 했음', '시작 못 함'];
 // 객수(구매 고객)·객단가 4가지 경우별 답
 const QUAD = {
@@ -320,17 +332,22 @@ function dailyQ(r) {
   if (y.lyRc > 0 && aov && lyAov) {
     const k = (y.rc >= y.lyRc ? 'u' : 'd') + (aov >= lyAov ? 'u' : 'd');
     const txt = y.rc === y.lyRc ? `구매 고객 수는 작년과 같고, 1인당 구매는 ${aov >= lyAov ? '늘었어요' : '줄었어요'}.` : QTXT[k];
-    q.push({ key: 'day', tag: `어제 상황 · ${md2}`, cat: '고객 반응', q: `${md2} 매출 ${won(y.net)}${y.lyNet > 0 ? `(작년 같은 요일 대비 ${signed(y.net / y.lyNet - 1)})` : ''} · 구매 고객 ${y.rc}명(작년 ${y.lyRc}명) · 객단가 ${won(aov)}(작년 ${won(lyAov)}). ${txt} 어떤 상황이었나요?`, a: QUAD[k],
-      short: `${txt} 어떤 상황이었나요?`, stats: [['매출', won(y.net), y.lyNet > 0 ? signed(y.net / y.lyNet - 1) : ''], ['구매 고객', `${y.rc}명`, `작년 ${y.lyRc}명`], ['객단가', won(aov), signed(aov / lyAov - 1)]] });
+    const upish = y.lyNet > 0 ? y.net >= y.lyNet : k === 'uu';
+    q.push({ key: 'day', tag: `어제 상황 · ${md2}`, cat: '고객 반응', q: `${md2} 매출 ${won(y.net)}${y.lyNet > 0 ? `(작년 같은 요일 대비 ${signed(y.net / y.lyNet - 1)})` : ''} · 구매 고객 ${y.rc}명(작년 ${y.lyRc}명) · 객단가 ${won(aov)}(작년 ${won(lyAov)}). ${txt} 어떤 상황이었나요?`, a: upish ? chOf(r.type).up : chOf(r.type).down,
+      short: `${txt} 어떤 상황이었나요?`, stats: [['매출', won(y.net), y.lyNet > 0 ? signed(y.net / y.lyNet - 1) : ''], ['구매 고객', `${y.rc}명`, `작년 ${y.lyRc}명`], ['객단가', won(aov), signed(aov / lyAov - 1)], ['어패럴', won(y.app), `${y.appQ}개`], ['골프화', won(y.shoe), `${y.shoeQ}족`]] });
   } else {
     const pw = r.pwNet, up = upOf(y.net, y.lyNet, pw);
-    q.push({ key: 'day', tag: `어제 상황 · ${md2}`, cat: '고객 반응', q: `${md2} 매출 ${won(y.net)} · 구매 고객 ${y.rc}명${vs(y.net, y.lyNet, pw) ? ` (${vs(y.net, y.lyNet, pw)})` : ''}. ${up === false ? '이유가 무엇인가요?' : '무엇이 잘됐나요?'}`, a: up === false ? A.down : A.up,
-      short: up === false ? '매출이 줄어든 이유가 무엇인가요?' : '무엇이 잘됐나요?', stats: [['매출', won(y.net), y.lyNet > 0 ? signed(y.net / y.lyNet - 1) : ''], ['전주 같은 요일', pw > 0 ? won(pw) : '—', pw > 0 ? signed(y.net / pw - 1) : ''], ['구매 고객', `${y.rc}명`, '']] });
+    q.push({ key: 'day', tag: `어제 상황 · ${md2}`, cat: '고객 반응', q: `${md2} 매출 ${won(y.net)} · 구매 고객 ${y.rc}명${vs(y.net, y.lyNet, pw) ? ` (${vs(y.net, y.lyNet, pw)})` : ''}. ${up === false ? '이유가 무엇인가요?' : '무엇이 잘됐나요?'}`, a: up === false ? chOf(r.type).down : chOf(r.type).up,
+      short: up === false ? '매출이 줄어든 이유가 무엇인가요?' : '무엇이 잘됐나요?', stats: [['매출', won(y.net), y.lyNet > 0 ? signed(y.net / y.lyNet - 1) : ''], ['전주 같은 요일', pw > 0 ? won(pw) : '—', pw > 0 ? signed(y.net / pw - 1) : ''], ['구매 고객', `${y.rc}명`, ''], ['어패럴', won(y.app), `${y.appQ}개`], ['골프화', won(y.shoe), `${y.shoeQ}족`]] });
   }
   if (y.rc > 0) q.push({ key: 'conv', tag: '방문 대비 구매', cat: '고객 반응', q: `어제 구매 고객은 ${y.rc}명이었어요. 매장에 들어온 고객은 대략 몇 명이었나요?`, short: `어제 구매 고객은 ${y.rc}명이었어요. 매장에 들어온 고객은 대략 몇 명이었나요?`,
     a: CONV.map(([v, m], i) => ({ v, l: i === 0 ? `${y.rc}~${Math.ceil(y.rc * m)}명 (거의 다 구매)` : i === 3 ? `${y.rc * m}명 이상` : `약 ${Math.round(y.rc * m)}명` })) });
   if (y.retQ >= 2 || y.ret >= 3e5) q.push({ key: 'ret1', tag: '어제 반품', cat: '상품·재고', q: `어제 반품이 ${y.retQ}건(${won(y.ret)}) 있었어요. 주된 사유는 무엇인가요?`, a: A.ret, short: '주된 반품 사유는 무엇인가요?', stats: [['어제 반품', `${y.retQ}건`, won(y.ret)]] });
-  else if (y.top) q.push({ key: 'item', tag: '어제 잘 팔린 상품', cat: '상품·재고', q: `어제 ${itemName(y.top.k)} 판매 수량은 ${y.top.n}개예요 (이번 달 하루 평균 ${y.top.avg.toFixed(1)}개). 많이 팔린 이유는?`, a: A.itemUp, short: '평소보다 많이 팔린 이유는?', stats: [[itemName(y.top.k), `${y.top.n}개`, `하루 평균 ${y.top.avg.toFixed(1)}개`]] });
+  else if (y.shoeQ === 0 && y.shoeAvg >= 0.5) q.push({ key: 'shoe', tag: '어제 골프화', cat: '상품·재고', q: `어제 골프화 판매가 없었어요 (이번 달 하루 평균 ${y.shoeAvg.toFixed(1)}족). 이유는 무엇인가요?`, a: A.shoeZero,
+    short: '어제 골프화가 안 팔린 이유는?', stats: [['골프화', '0족', `하루 평균 ${y.shoeAvg.toFixed(1)}족`]] });
+  else if (y.shoeQ >= Math.max(3, 2 * y.shoeAvg)) q.push({ key: 'shoe', tag: '어제 골프화', cat: '상품·재고', q: `어제 골프화가 ${y.shoeQ}족 팔렸어요 (이번 달 하루 평균 ${y.shoeAvg.toFixed(1)}족). 잘 팔린 이유는?`, a: A.shoeUp,
+    short: '골프화가 평소보다 잘 팔린 이유는?', stats: [['골프화', `${y.shoeQ}족`, `하루 평균 ${y.shoeAvg.toFixed(1)}족`]] });
+  else if (y.top) q.push({ key: 'item', tag: '어제 잘 팔린 상품', cat: '상품·재고', q: `어제 ${itemName(y.top.k)} 판매 수량은 ${y.top.n}개예요 (이번 달 하루 평균 ${y.top.avg.toFixed(1)}개). 많이 팔린 이유는?`, a: /^골프화/.test(y.top.k) ? A.shoeUp : A.itemUp, short: '평소보다 많이 팔린 이유는?', stats: [[itemName(y.top.k), `${y.top.n}개`, `하루 평균 ${y.top.avg.toFixed(1)}개`]] });
   else q.push({ key: 'lost', tag: '어제 놓친 판매', cat: '상품·재고', q: '어제 구매로 이어지지 않은 가장 큰 이유는 무엇이었나요?', a: A.lost });
   return q.map((x) => ({ ...x, qdate: y.d }));
 }

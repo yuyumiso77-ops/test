@@ -11,7 +11,7 @@
   // 열마다 [질문 키들, 카드 제목, 표 열 이름]
   const SETS = { 1: { t: '주간·주말 동향', q: [[['wkend'], '주말 동향', '주말'], [['week'], '주간 동향', '주간'], [['focus'], '이번 주 집중할 일', '이번 주 집중']] },
     5: { t: '주말 매출 방안', q: [[['focusChk'], '이번 주 집중 실천', '집중 실천'], [['plan'], '주말 준비', '주말 준비'], [['risk', 'hope'], '주말 걸림돌·기대 상품', '걸림돌·기대']] },
-    d: { t: '전일 매출 추이', q: [[['day'], '어제 상황', '어제 상황'], [['conv'], '방문 대비 구매', '구매율'], [['ret1', 'item', 'lost'], '반품·잘 팔린 상품·놓친 판매', '상품·반품']] } };
+    d: { t: '전일 매출 추이', q: [[['day'], '어제 상황', '어제 상황'], [['conv'], '방문 대비 구매', '구매율'], [['ret1', 'shoe', 'item', 'lost'], '반품·골프화·상품·놓친 판매', '상품·골프화·반품']] } };
   const CONV = { '구매율 80% 이상': 0.85, '구매율 약 50%': 0.5, '구매율 약 33%': 0.33, '구매율 25% 이하': 0.2 };
   const setOf = (last) => SETS[new Date(Date.parse(shift(last, 1) + 'T00:00:00Z')).getUTCDay()] || SETS.d;
 
@@ -33,7 +33,8 @@
     const m = dd.params().mgr || '', last = sd.data.reduce((a, r) => (r.date > a ? r.date : a), '');
     const net = new Map(), ly = new Map(), names = new Map();
     sd.data.forEach((r) => {
-      if (/사용중지|폐점/.test(r.store) || !mgr.has(r.store_code) || (m && mgr.get(r.store_code) !== m)) return;
+      const ty = dd.params().type || '';
+      if (/사용중지|폐점/.test(r.store) || !mgr.has(r.store_code) || (m && mgr.get(r.store_code) !== m) || (ty && r.type !== ty)) return;
       names.set(r.store_code, r.store);
       if (r.date === last) net.set(r.store_code, (net.get(r.store_code) || 0) + (+r.net || 0));
     });
@@ -55,7 +56,7 @@
     if (!m && mg.size > 1) ins.push(['담당자별 답변', [...mg].map(([k, [a, n]]) => `${k} ${a}/${n}`).join(' · ')]);
     const low = uniq(ans.filter((x) => x.qkey === 'conv' && CONV[x.choice] != null && CONV[x.choice] <= 0.33).map((x) => x.store_code));
     if (low.length) ins.push(['구매율 낮음 (33% 이하)', `${low.length}곳 · ${low.slice(0, 10).map(nm).join(', ')}${low.length > 10 ? ' 등' : ''} — 들어온 고객을 놓치는 매장: 응대·사이즈 구성 점검`]);
-    const STOCK = ['재고·사이즈 부족', '사이즈·컬러 없음', '재고 부족', '재고 없음', '사이즈 없음', '재고·사이즈'];
+    const STOCK = ['재고·사이즈 부족', '사이즈·컬러 없음', '재고 부족', '재고 없음', '사이즈 없음', '재고·사이즈', '의류 사이즈·컬러 없음', '골프화 사이즈·발볼 없음', '사이즈·발볼 결품', '사이즈·컬러 결품', '인기 사이즈 결품', '이월 물량 부족'];
     const stock = uniq(ans.filter((x) => STOCK.includes(x.choice)).map((x) => x.store_code));
     if (stock.length) {
       const ps = dd.data('product_store'), typ = new Map(sd.data.map((r) => [r.store_code, r.type])), miss = new Map();
