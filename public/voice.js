@@ -9,11 +9,11 @@
   const shift = (d, n) => new Date(Date.parse(d + 'T00:00:00Z') + n * 864e5).toISOString().slice(0, 10);
   // 답하는 날(마감 다음 날) 요일별 질문 묶음: 월 = 주간·주말 동향, 금 = 주말 매출 방안, 그 밖 = 전일 매출 추이
   // 열마다 [질문 키들, 카드 제목, 표 열 이름]
-  const SETS = { 1: { t: '주간·주말 동향', q: [[['wkend'], '주말 동향', '주말'], [['week'], '주간 동향', '주간'], [['focus'], '이번 주 집중할 일', '이번 주 집중']] },
-    5: { t: '주말 매출 방안', q: [[['focusChk'], '이번 주 집중 실천', '집중 실천'], [['plan'], '주말 준비', '주말 준비'], [['risk', 'hope'], '주말 걸림돌·기대 상품', '걸림돌·기대']] },
-    d: { t: '전일 매출 추이', q: [[['day'], '어제 상황', '어제 상황'], [['conv'], '방문 대비 구매', '구매율'], [['ret1', 'shoe', 'item', 'lost'], '반품·골프화·상품·놓친 판매', '상품·골프화·반품']] } };
+  // 열마다 [질문 키들, 카드 제목, 표 열 이름]: 어제 매출 의견 + 판매 정보에 따른 추가 질문
+  const ONE = { t: '어제 매출 의견', q: [[['day'], '어제 매출 의견', '매장 의견'], [['ret1', 'shoe', 'item'], '추가 질문 (반품·골프화·아이템)', '추가 질문']] };
+  const SETS = { d: ONE };
   const CONV = { '구매율 80% 이상': 0.85, '구매율 약 50%': 0.5, '구매율 약 33%': 0.33, '구매율 25% 이하': 0.2 };
-  const setOf = (last) => SETS[new Date(Date.parse(shift(last, 1) + 'T00:00:00Z')).getUTCDay()] || SETS.d;
+  const setOf = () => ONE;
 
   function load() {
     return Promise.all([
@@ -38,7 +38,7 @@
       names.set(r.store_code, r.store);
       if (r.date === last) net.set(r.store_code, (net.get(r.store_code) || 0) + (+r.net || 0));
     });
-    const S = setOf(last), Q = S.q, wkend = S === SETS[1], from = wkend ? shift(last, -1) : last;
+    const S = setOf(last), Q = S.q, wkend = false, from = last;
     // 월요일은 주말(토·일) 매출, 그 밖은 전일 매출
     if (wkend) { net.clear(); sd.data.forEach((r) => { if (names.has(r.store_code) && r.date >= from && r.date <= last) net.set(r.store_code, (net.get(r.store_code) || 0) + (+r.net || 0)); }); }
     const lyFrom = shift(from, -364), lyTo = shift(last, -364);
@@ -141,7 +141,7 @@
     if (!tab || box) return;
     const sec = $('section', 'fj-section'); sec.id = 'voice-section';
     const title = $('div', 'fj-sec-title');
-    title.append($('h2', '', '매장 현황 (오늘의 질문)'), $('span', 'fj-label', '매장 링크의 오늘의 질문에 매장이 답한 내용을 모았습니다. 월요일은 주말·주간 동향과 이번 주 집중할 일, 화~목은 어제를 구매 고객 수·객단가로 나눈 상황과 방문 대비 구매(추정 구매율), 금요일은 월요일에 고른 일의 실천과 주말 준비를 묻습니다. 하나하나 처리하지 않아도 되고, 맨 위 담당자 필터가 적용됩니다.'));
+    title.append($('h2', '', '매장 현황 (오늘의 질문)'), $('span', 'fj-label', '매장 링크의 오늘의 질문에 매장이 답한 내용을 모았습니다. 매장은 어제 판매 정보(매출·구매 고객·객단가·어패럴/골프화·많이 팔린 아이템)를 보고 어제 매출에 대한 의견 하나를 고르고, 반품·골프화·아이템에 눈에 띄는 일이 있을 때만 추가 질문 하나에 답합니다. 하나하나 처리하지 않아도 되고, 맨 위 담당자 필터가 적용됩니다.'));
     const sum = $('p', 'fd-sum'), insl = $('ul', 'fd-ins'), dist = $('div', 'fd-grid');
     const wrap = $('div', 'fj-tablewrap tall'), table = $('table', 'fj-table'), th = $('thead'), hr = $('tr');
     th.append(hr); const tb = $('tbody'); table.append(th, tb); wrap.append(table);

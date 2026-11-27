@@ -185,7 +185,9 @@ function report(load, code, meta) {
   const nd = Math.max(1, allDays.length - 1), top = [...gq].filter(([k]) => !/기타·|ETC/.test(k)).map(([k, n]) => ({ k, n, avg: (gm.get(k) || 0) / nd })).sort((a, b) => b.n - a.n)[0];
   const catDay = (dt, c, k) => gi.filter((x) => x.date === dt && cat(x.line) === c).reduce((a, x) => a + (+x[k] || 0), 0);
   const shoeMonthQty = gi.filter((x) => x.date !== last && cat(x.line) === '골프화').reduce((a, x) => a + (+x.qty || 0), 0);
-  const yday = { d: last, app: catDay(last, '어패럴', 'net'), appQ: catDay(last, '어패럴', 'qty'), shoe: catDay(last, '골프화', 'net'), shoeQ: catDay(last, '골프화', 'qty'), shoeAvg: shoeMonthQty / Math.max(1, allDays.length - 1),
+  const itY = new Map(); for (const x of gi) if (x.date === last) { const o = itY.get(ik(x)) || { k: ik(x), n: 0, net: 0 }; o.n += +x.qty || 0; o.net += +x.net || 0; itY.set(ik(x), o); }
+  const topItems = [...itY.values()].filter((o) => o.net > 0 && !/기타·|ETC/.test(o.k)).sort((a, b) => b.net - a.net).slice(0, 3);
+  const yday = { d: last, topItems, app: catDay(last, '어패럴', 'net'), appQ: catDay(last, '어패럴', 'qty'), shoe: catDay(last, '골프화', 'net'), shoeQ: catDay(last, '골프화', 'qty'), shoeAvg: shoeMonthQty / Math.max(1, allDays.length - 1),
     net: daily.get(last) || 0, rc: dsum(mine, 'receipts', last), sales: dsum(mine, 'sales', last), ret: dsum(mine, 'returns', last), retQ: dsum(mine, 'return_qty', last),
     lyRc: dsum(ly, 'receipts', lyd), lySales: dsum(ly, 'sales', lyd), lyNet: lyDaily.get(lyd) || 0, top: top && top.n >= 3 && top.n >= 2 * top.avg ? top : null };
   return { code, ...s, first, last, dim, ym, net, tag, ranks, rankTrend, itemUp, itemDown, pwd, sumDays, sumLy, yday, pwNet: pwHas ? pwNet : null, confirmed, qty, weeks, months, ytd, lyYtd, dowAvg, hours, stypes, gen, lgen, itemRows, season, memb, compInfo, sales, returns, receipts, lyNet, lyMonth, projected, s7, p7, l7, rank, peers: peers.length, grp,
@@ -216,7 +218,7 @@ table{width:100%;border-collapse:collapse;font-size:14px}th,td{padding:7px 6px;b
 tr.me td{font-weight:700}
 .qt{font-size:12px;color:var(--accent);font-weight:600}
 .qs{display:flex;flex-wrap:wrap;gap:6px}.qs span{display:flex;flex-direction:column;min-width:88px;padding:6px 10px;border-radius:8px;background:var(--bg);border:1px solid var(--line)}.qs small{font-size:11px;color:var(--muted)}.qs b{font-size:16px;font-variant-numeric:tabular-nums}.qs em{font-style:normal;font-size:12px;color:var(--muted)}.qs em.up{color:var(--up)}.qs em.down{color:var(--down)}
-.qp{font-size:13px;color:var(--muted);padding:6px 10px;background:var(--bg);border-radius:8px}.qc{border:1px solid var(--line);border-radius:10px;padding:12px;margin-top:10px;display:flex;flex-direction:column;gap:8px}.qc.done{opacity:.75}.qq{font-weight:600}.qa{color:var(--up);font-size:14px}
+.qi{font-size:13px;color:var(--muted)}.qp{font-size:13px;color:var(--muted);padding:6px 10px;background:var(--bg);border-radius:8px}.qc{border:1px solid var(--line);border-radius:10px;padding:12px;margin-top:10px;display:flex;flex-direction:column;gap:8px}.qc.done .qq{opacity:.75}.qq{font-weight:600}.qa{color:var(--up);font-size:14px}
 .chips{display:flex;flex-wrap:wrap;gap:6px}.chips input{position:absolute;opacity:0;pointer-events:none}.chips span{display:inline-block;padding:6px 12px;border:1px solid var(--line);border-radius:999px;font-size:14px;cursor:pointer;background:var(--bg)}.chips input:checked+span{background:var(--accent);border-color:var(--accent);color:#fff}.chips input:focus-visible+span{outline:2px solid var(--accent)}
 .qc input[name=message]{font:inherit;font-size:15px;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px}.qc button{align-self:flex-start;font:inherit;font-weight:600;color:#fff;background:var(--accent);border:0;border-radius:8px;padding:8px 16px;cursor:pointer}
 .vbtn{display:inline-block;font-size:13px;font-weight:600;color:var(--accent);text-decoration:none;border:1px solid var(--accent);border-radius:999px;padding:5px 12px}
@@ -313,42 +315,38 @@ const CONV = [['구매율 80% 이상', 1.2], ['구매율 약 50%', 2], ['구매�
 
 function questions(r, past = []) {
   const d0 = r.days[r.days.length - 1], wd = new Date(shift(d0.d, 1) + 'T00:00:00Z').getUTCDay(); // 답하는 날 요일
-  if (wd === 1) return weekQ(r);
-  if (wd === 5) return friQ(r, past);
-  return dailyQ(r);
+  return dailyQ(r, wd === 1);
 }
 const rng = (a, b) => `${md(a)}(${dow(a)})~${md(b)}(${dow(b)})`;
 const vs = (cur, ly, pw) => [ly > 0 ? `작년 같은 요일 대비 ${signed(cur / ly - 1)}` : '', pw > 0 ? `전주 대비 ${signed(cur / pw - 1)}` : ''].filter(Boolean).join(', ');
 const upOf = (cur, ly, pw) => { const v = [ly > 0 ? cur / ly - 1 : null, pw > 0 ? cur / pw - 1 : null].filter((x) => x != null); return v.length ? v.reduce((a, b) => a + b, 0) / v.length >= 0 : null; };
 
 // 화~목(·주말): 어제를 객수·객단가로 나눠 묻고, 방문 대비 구매, 상품·반품
-function dailyQ(r) {
-  const y = r.yday, md2 = `${md(y.d)}(${dow(y.d)})`, q = [];
+function dailyQ(r, monday) {
+  const y = r.yday, md2 = `${md(y.d)}(${dow(y.d)})`, q = [], ch = chOf(r.type);
   if (y.net <= 0) {
-    q.push({ key: 'day', tag: '어제 상황', cat: '인력·운영', q: `${md2} 매출이 없었어요${y.lyNet > 0 ? ` (작년 같은 요일 ${won(y.lyNet)})` : ''}. 어떤 사정이 있었나요?`, a: A.down });
+    q.push({ key: 'day', tag: `어제 매출 · ${md2}`, cat: '인력·운영', q: `${md2} 매출이 없었어요${y.lyNet > 0 ? ` (작년 같은 요일 ${won(y.lyNet)})` : ''}. 어떤 사정이 있었나요?`, short: '어제 매출이 없었어요. 어떤 사정이 있었나요?', a: A.down,
+      stats: [['매출', '0원', y.lyNet > 0 ? `작년 ${won(y.lyNet)}` : '']] });
     return q.map((x) => ({ ...x, qdate: y.d }));
   }
-  const aov = y.rc ? y.sales / y.rc : null, lyAov = y.lyRc ? y.lySales / y.lyRc : null;
-  if (y.lyRc > 0 && aov && lyAov) {
-    const k = (y.rc >= y.lyRc ? 'u' : 'd') + (aov >= lyAov ? 'u' : 'd');
-    const txt = y.rc === y.lyRc ? `구매 고객 수는 작년과 같고, 1인당 구매는 ${aov >= lyAov ? '늘었어요' : '줄었어요'}.` : QTXT[k];
-    const upish = y.lyNet > 0 ? y.net >= y.lyNet : k === 'uu';
-    q.push({ key: 'day', tag: `어제 상황 · ${md2}`, cat: '고객 반응', q: `${md2} 매출 ${won(y.net)}${y.lyNet > 0 ? `(작년 같은 요일 대비 ${signed(y.net / y.lyNet - 1)})` : ''} · 구매 고객 ${y.rc}명(작년 ${y.lyRc}명) · 객단가 ${won(aov)}(작년 ${won(lyAov)}). ${txt} 어떤 상황이었나요?`, a: upish ? chOf(r.type).up : chOf(r.type).down,
-      short: `${txt} 어떤 상황이었나요?`, stats: [['매출', won(y.net), y.lyNet > 0 ? signed(y.net / y.lyNet - 1) : ''], ['구매 고객', `${y.rc}명`, `작년 ${y.lyRc}명`], ['객단가', won(aov), signed(aov / lyAov - 1)], ['어패럴', won(y.app), `${y.appQ}개`], ['골프화', won(y.shoe), `${y.shoeQ}족`]] });
-  } else {
-    const pw = r.pwNet, up = upOf(y.net, y.lyNet, pw);
-    q.push({ key: 'day', tag: `어제 상황 · ${md2}`, cat: '고객 반응', q: `${md2} 매출 ${won(y.net)} · 구매 고객 ${y.rc}명${vs(y.net, y.lyNet, pw) ? ` (${vs(y.net, y.lyNet, pw)})` : ''}. ${up === false ? '이유가 무엇인가요?' : '무엇이 잘됐나요?'}`, a: up === false ? chOf(r.type).down : chOf(r.type).up,
-      short: up === false ? '매출이 줄어든 이유가 무엇인가요?' : '무엇이 잘됐나요?', stats: [['매출', won(y.net), y.lyNet > 0 ? signed(y.net / y.lyNet - 1) : ''], ['전주 같은 요일', pw > 0 ? won(pw) : '—', pw > 0 ? signed(y.net / pw - 1) : ''], ['구매 고객', `${y.rc}명`, ''], ['어패럴', won(y.app), `${y.appQ}개`], ['골프화', won(y.shoe), `${y.shoeQ}족`]] });
-  }
-  if (y.rc > 0) q.push({ key: 'conv', tag: '방문 대비 구매', cat: '고객 반응', q: `어제 구매 고객은 ${y.rc}명이었어요. 매장에 들어온 고객은 대략 몇 명이었나요?`, short: `어제 구매 고객은 ${y.rc}명이었어요. 매장에 들어온 고객은 대략 몇 명이었나요?`,
-    a: CONV.map(([v, m], i) => ({ v, l: i === 0 ? `${y.rc}~${Math.ceil(y.rc * m)}명 (거의 다 구매)` : i === 3 ? `${y.rc * m}명 이상` : `약 ${Math.round(y.rc * m)}명` })) });
-  if (y.retQ >= 2 || y.ret >= 3e5) q.push({ key: 'ret1', tag: '어제 반품', cat: '상품·재고', q: `어제 반품이 ${y.retQ}건(${won(y.ret)}) 있었어요. 주된 사유는 무엇인가요?`, a: A.ret, short: '주된 반품 사유는 무엇인가요?', stats: [['어제 반품', `${y.retQ}건`, won(y.ret)]] });
-  else if (y.shoeQ === 0 && y.shoeAvg >= 0.5) q.push({ key: 'shoe', tag: '어제 골프화', cat: '상품·재고', q: `어제 골프화 판매가 없었어요 (이번 달 하루 평균 ${y.shoeAvg.toFixed(1)}족). 이유는 무엇인가요?`, a: A.shoeZero,
-    short: '어제 골프화가 안 팔린 이유는?', stats: [['골프화', '0족', `하루 평균 ${y.shoeAvg.toFixed(1)}족`]] });
-  else if (y.shoeQ >= Math.max(3, 2 * y.shoeAvg)) q.push({ key: 'shoe', tag: '어제 골프화', cat: '상품·재고', q: `어제 골프화가 ${y.shoeQ}족 팔렸어요 (이번 달 하루 평균 ${y.shoeAvg.toFixed(1)}족). 잘 팔린 이유는?`, a: A.shoeUp,
-    short: '골프화가 평소보다 잘 팔린 이유는?', stats: [['골프화', `${y.shoeQ}족`, `하루 평균 ${y.shoeAvg.toFixed(1)}족`]] });
-  else if (y.top) q.push({ key: 'item', tag: '어제 잘 팔린 상품', cat: '상품·재고', q: `어제 ${itemName(y.top.k)} 판매 수량은 ${y.top.n}개예요 (이번 달 하루 평균 ${y.top.avg.toFixed(1)}개). 많이 팔린 이유는?`, a: /^골프화/.test(y.top.k) ? A.shoeUp : A.itemUp, short: '평소보다 많이 팔린 이유는?', stats: [[itemName(y.top.k), `${y.top.n}개`, `하루 평균 ${y.top.avg.toFixed(1)}개`]] });
-  else q.push({ key: 'lost', tag: '어제 놓친 판매', cat: '상품·재고', q: '어제 구매로 이어지지 않은 가장 큰 이유는 무엇이었나요?', a: A.lost });
+  // 판매 정보
+  const aov = y.rc ? y.sales / y.rc : null, lyAov = y.lyRc ? y.lySales / y.lyRc : null, pw = r.pwNet;
+  const stats = [['매출', won(y.net), y.lyNet > 0 ? `작년 ${signed(y.net / y.lyNet - 1)}` : ''], ['전주 같은 요일', pw > 0 ? won(pw) : '—', pw > 0 ? signed(y.net / pw - 1) : ''],
+    ['구매 고객', `${y.rc}명`, y.lyRc > 0 ? `작년 ${y.lyRc}명` : ''], ['객단가', won(aov), aov && lyAov ? `작년 ${signed(aov / lyAov - 1)}` : ''],
+    ['어패럴', won(y.app), `${y.appQ}개`], ['골프화', won(y.shoe), `${y.shoeQ}족`]];
+  if (monday) { const sat = shift(y.d, -1), we = r.sumDays(sat, y.d), weLy = r.sumLy(sat, y.d); stats.unshift(['주말(토·일)', won(we), weLy > 0 ? `작년 ${signed(we / weLy - 1)}` : '']); }
+  const info = y.topItems.length ? `어제 많이 팔린 아이템: ${y.topItems.map((o) => `${itemName(o.k)} ${o.n}개`).join(' · ')}` : '';
+  const up = upOf(y.net, y.lyNet, pw);
+  let txt = '';
+  if (y.lyRc > 0 && aov && lyAov) txt = y.rc === y.lyRc ? `구매 고객 수는 작년과 같고, 1인당 구매는 ${aov >= lyAov ? '늘었어요' : '줄었어요'}.` : QTXT[(y.rc >= y.lyRc ? 'u' : 'd') + (aov >= lyAov ? 'u' : 'd')];
+  q.push({ key: 'day', tag: `어제 매출 · ${md2}${monday ? ' · 주말 포함' : ''}`, cat: '고객 반응', stats, info,
+    q: `${md2} 매출 ${won(y.net)}${y.lyNet > 0 ? `(작년 같은 요일 대비 ${signed(y.net / y.lyNet - 1)})` : ''}. ${txt} 매장에서 본 가장 큰 이유는?`,
+    short: `${txt ? txt + ' ' : ''}어제 매출, 매장에서 본 가장 큰 이유는?`, a: up === false ? ch.down : ch.up });
+  // 판매 정보에 따른 추가 질문 (눈에 띄는 것이 있을 때만 1개)
+  if (y.retQ >= 2 || y.ret >= 3e5) q.push({ key: 'ret1', tag: '추가 질문 · 반품', cat: '상품·재고', q: `어제 반품이 ${y.retQ}건(${won(y.ret)}) 있었어요. 주된 사유는 무엇인가요?`, short: `어제 반품이 ${y.retQ}건(${won(y.ret)}) 있었어요. 주된 사유는?`, a: A.ret });
+  else if (y.shoeQ === 0 && y.shoeAvg >= 0.5) q.push({ key: 'shoe', tag: '추가 질문 · 골프화', cat: '상품·재고', q: `어제 골프화 판매가 없었어요 (이번 달 하루 평균 ${y.shoeAvg.toFixed(1)}족). 이유는 무엇인가요?`, short: `평소 하루 ${y.shoeAvg.toFixed(1)}족 팔리던 골프화가 어제 0족이었어요. 이유는?`, a: A.shoeZero });
+  else if (y.shoeQ >= Math.max(3, 2 * y.shoeAvg)) q.push({ key: 'shoe', tag: '추가 질문 · 골프화', cat: '상품·재고', q: `어제 골프화가 ${y.shoeQ}족 팔렸어요 (이번 달 하루 평균 ${y.shoeAvg.toFixed(1)}족). 잘 팔린 이유는?`, short: `골프화가 ${y.shoeQ}족 팔렸어요 (평소 하루 ${y.shoeAvg.toFixed(1)}족). 잘 팔린 이유는?`, a: A.shoeUp });
+  else if (y.top) q.push({ key: 'item', tag: '추가 질문 · 아이템', cat: '상품·재고', q: `어제 ${itemName(y.top.k)} 판매 수량은 ${y.top.n}개예요 (이번 달 하루 평균 ${y.top.avg.toFixed(1)}개). 많이 팔린 이유는?`, short: `어제 ${itemName(y.top.k)} ${y.top.n}개 판매 (평소 하루 ${y.top.avg.toFixed(1)}개). 많이 팔린 이유는?`, a: /^골프화/.test(y.top.k) ? A.shoeUp : A.itemUp });
   return q.map((x) => ({ ...x, qdate: y.d }));
 }
 // 월: 주말·주간 동향과 이번 주 집중할 일 (금요일에 스스로 점검)
@@ -398,12 +396,12 @@ function voice(fb) {
   const qcards = qs.map((x, i) => {
     const a = done.get(`${x.qdate}|${x.key}`);
     const st = x.stats ? `<div class="qs">${x.stats.map(([k, v, dd]) => `<span><small>${esc(k)}</small><b>${esc(v)}</b>${dd ? `<em class="${/\+\d/.test(dd) ? 'up' : /-\d/.test(dd) ? 'down' : ''}">${esc(dd)}</em>` : ''}</span>`).join('')}</div>` : '';
-    if (a) return `<div class="qc done"><div class="qt">${esc(x.tag || '')}</div><div class="qq">${esc(x.short || x.q)}</div><div class="qa">✓ 답변함: ${esc(a.choice || '')}${a.text ? ' · ' + esc(a.text) : ''}</div>${peerLine(fb, x)}</div>`;
+    if (a) return `<div class="qc done"><div class="qt">${esc(x.tag || '')}</div>${st}${x.info ? `<div class="qi">${esc(x.info)}</div>` : ''}<div class="qq">${esc(x.short || x.q)}</div><div class="qa">✓ 답변함: ${esc(a.choice || '')}${a.text ? ' · ' + esc(a.text) : ''}</div>${peerLine(fb, x)}</div>`;
     return `<form method="post" action="${esc(fb.action)}" class="qc"><input type="hidden" name="qkey" value="${esc(x.key)}"><input type="hidden" name="qdate" value="${esc(x.qdate)}"><input type="hidden" name="question" value="${esc(x.q)}"><input type="hidden" name="category" value="${esc(x.cat)}">${x.ref ? `<input type="hidden" name="ref" value="${esc(x.ref)}">` : ''}
-<div class="qt">${esc(x.tag || '')}</div>${st}<div class="qq"><b>Q${i + 1}.</b> ${esc(x.short || x.q)}</div><div class="chips">${x.a.map((c) => `<label><input type="radio" name="choice" value="${esc(c.v || c)}"><span>${esc(c.l || c)}</span></label>`).join('')}</div>
+<div class="qt">${esc(x.tag || '')}</div>${st}${x.info ? `<div class="qi">${esc(x.info)}</div>` : ''}<div class="qq"><b>Q${i + 1}.</b> ${esc(x.short || x.q)}</div><div class="chips">${x.a.map((c) => `<label><input type="radio" name="choice" value="${esc(c.v || c)}"><span>${esc(c.l || c)}</span></label>`).join('')}</div>
 <input name="message" maxlength="500" placeholder="한 줄 덧붙이기 (선택)"><button type="submit">답하기</button></form>`;
   }).join('');
-  const qsec = qs.length ? `<section id="today-q"><h2>오늘의 질문 <span class="muted" style="font-weight:400">· ${esc(md(qs[0].qdate))} 마감 기준</span></h2><p class="muted" style="margin:0 0 10px">${esc(md(qs[0].qdate))} 마감 매출을 보고 드리는 질문입니다. 맞는 답을 하나 골라 주세요.</p>${fb.sent === 'ok' ? '<p class="ok">답변이 등록되었습니다.</p>' : fb.sent === 'err' ? '<p class="bad">답을 하나 고른 뒤 다시 눌러 주세요.</p>' : ''}${qcards}${convTrend(fb)}</section>` : '';
+  const qsec = qs.length ? `<section id="today-q"><h2>오늘의 질문 <span class="muted" style="font-weight:400">· ${esc(md(qs[0].qdate))} 마감 기준</span></h2><p class="muted" style="margin:0 0 10px">${esc(md(qs[0].qdate))} 마감 판매 정보입니다. 어제 매출에 대한 매장 의견을 하나 골라 주세요.</p>${fb.sent === 'ok' ? '<p class="ok">답변이 등록되었습니다.</p>' : fb.sent === 'err' ? '<p class="bad">답을 하나 고른 뒤 다시 눌러 주세요.</p>' : ''}${qcards}${convTrend(fb)}</section>` : '';
   return `${qsec}${items ? `<section id="voice"><h2>지난 답변과 본사 답변</h2><ul class="vl">${items}</ul></section>` : ''}`;
 }
 
