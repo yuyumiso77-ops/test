@@ -285,7 +285,7 @@ function voice(fb) {
 <div class="qq"><b>Q${i + 1}.</b> ${esc(x.q)}</div><div class="chips">${x.a.map((c, j) => `<label><input type="radio" name="choice" value="${esc(c)}"${j === 0 ? '' : ''}><span>${esc(c)}</span></label>`).join('')}</div>
 <input name="message" maxlength="500" placeholder="한 줄 덧붙이기 (선택)"><button type="submit">답하기</button></form>`;
   }).join('');
-  const qsec = qs.length ? `<section id="today-q"><h2>오늘의 질문 <span class="muted" style="font-weight:400">· ${esc(md(qs[0].qdate))} 마감 기준</span></h2><p class="muted" style="margin:0 0 10px">우리 매장 숫자를 보고 자동으로 만든 질문입니다. 버튼 하나만 눌러도 됩니다. 매일 판매 자료가 올라오면 질문이 바뀌고, 답하면 담당자와 본사가 확인해 답변을 아래에 남깁니다.</p>${fb.sent === 'ok' ? '<p class="ok">답해 주셔서 감사합니다. 본사 대시보드에 바로 올라갔습니다.</p>' : fb.sent === 'err' ? '<p class="bad">보내지 못했습니다. 답 버튼을 하나 고르고 다시 보내 주세요.</p>' : ''}${qcards}</section>` : '';
+  const qsec = qs.length ? `<section id="today-q"><h2>오늘의 질문 <span class="muted" style="font-weight:400">· ${esc(md(qs[0].qdate))} 마감 기준</span></h2><p class="muted" style="margin:0 0 10px">${esc(md(qs[0].qdate))} 마감 매출을 보고 드리는 질문입니다. 맞는 답을 하나 골라 주세요.</p>${fb.sent === 'ok' ? '<p class="ok">답변이 등록되었습니다.</p>' : fb.sent === 'err' ? '<p class="bad">답을 하나 고른 뒤 다시 눌러 주세요.</p>' : ''}${qcards}</section>` : '';
   return `${qsec}${items ? `<section id="voice"><h2>지난 답변과 본사 답변</h2><ul class="vl">${items}</ul></section>` : ''}`;
 }
 
