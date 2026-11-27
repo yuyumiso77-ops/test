@@ -21,7 +21,7 @@ function writeAll(dir, list) {
 }
 const clean = (s, n) => String(s ?? '').replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, '').trim().slice(0, n);
 
-const QKEYS = ['day', 'visit', 'lost', 'wkend', 'wvisit', 'plan', 'hope', 'risk', 'week', 'itemDown', 'itemUp', 'miss', 'ret', 'comp', 'any', 'theme', 'fu'];
+const QKEYS = ['day', 'visit', 'lost', 'wkend', 'wvisit', 'plan', 'hope', 'risk', 'conv', 'ret1', 'item', 'focus', 'focusChk', 'week', 'itemDown', 'itemUp', 'miss', 'ret', 'comp', 'any', 'theme', 'fu'];
 function add(dir, { store_code, store, category, message, name, qkey, qdate, question, choice, ref }) {
   const text = clean(message, 1000), ch = clean(choice, 40);
   const isQ = QKEYS.includes(qkey) && /^\d{4}-\d{2}-\d{2}$/.test(qdate || '');
