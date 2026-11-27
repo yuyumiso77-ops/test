@@ -29,7 +29,7 @@
     const mine = items.filter((x) => !m || mgr.get(x.store_code) === m);
     const list = mine.filter((x) => (filter === 'open' ? x.status !== 'done' : filter === 'done' ? x.status === 'done' : true)).sort((a, b) => b.at.localeCompare(a.at));
     const nNew = mine.filter((x) => x.status === 'new').length;
-    box.sum.textContent = mine.length ? `${m ? m + ' 담당 · ' : ''}전체 ${mine.length}건 · 새 글 ${nNew}건 · 확인 ${mine.filter((x) => x.status === 'seen').length}건 · 조치 완료 ${mine.filter((x) => x.status === 'done').length}건` : '아직 매장에서 보낸 현장 목소리가 없습니다. 매장 공유 링크 맨 아래 "현장 목소리"에서 보낼 수 있습니다.';
+    box.sum.textContent = mine.length ? `${m ? m + ' 담당 · ' : ''}전체 ${mine.length}건 · 새 글 ${nNew}건 · 확인 ${mine.filter((x) => x.status === 'seen').length}건 · 조치 완료 ${mine.filter((x) => x.status === 'done').length}건` : '아직 매장에서 답한 오늘의 질문이 없습니다. 매장 공유 링크 맨 위 "오늘의 질문"에서 답할 수 있습니다.';
     // 오늘의 질문 참여 현황 (마지막 마감일 기준)
     const sd = window.dash && dash.data('store_daily');
     if (sd && sd.status === 'ok' && sd.data.length) {
@@ -70,7 +70,7 @@
       tr.querySelectorAll('.fv-tag').forEach((e) => e.remove());
       const v = items.filter((x) => x.store_code === tr.dataset.key && recent(x)).sort((a, b) => b.at.localeCompare(a.at));
       if (!v.length || !tr.children[2]) return;
-      const t = $('div', 'fv-tag', `현장 목소리 ${v.length}건 · ${v[0].category}: ${v[0].message.slice(0, 40)}${v[0].message.length > 40 ? '…' : ''}`);
+      const t = $('div', 'fv-tag', `매장 답변 ${v.length}건 · ${v[0].choice || v[0].category}: ${v[0].message.slice(0, 40)}${v[0].message.length > 40 ? '…' : ''}`);
       t.title = v.map((x) => `[${x.category}] ${x.message}`).join('\n');
       tr.children[2].appendChild(t);
     });
@@ -81,7 +81,7 @@
     if (!tab || box) return;
     const sec = $('section', 'fj-section'); sec.id = 'voice-section';
     const title = $('div', 'fj-sec-title');
-    title.append($('h2', '', '매장 현장 목소리'), $('span', 'fj-label', '매장 공유 링크에서 매장이 보낸 의견입니다. 답변을 저장하면 그 매장 링크에 보이고, 처리하면 "조치 완료"로 바꿔 주세요. 맨 위 담당자 필터가 적용됩니다.'));
+    title.append($('h2', '', '오늘의 질문 답변'), $('span', 'fj-label', '매장 공유 링크의 오늘의 질문에 매장이 답한 내용입니다. 답변을 저장하면 그 매장 링크에 보이고, 처리하면 "조치 완료"로 바꿔 주세요. 맨 위 담당자 필터가 적용됩니다.'));
     const ctl = $('div', 'fj-controls');
     const lab = $('label', 'fj-ctl'); lab.append($('span', 'fj-label', '보기'));
     const sel = $('select', 'dash-select');

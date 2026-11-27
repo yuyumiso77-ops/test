@@ -277,7 +277,6 @@ function questions(r) {
 function voice(fb) {
   const when = (t) => new Date(t).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
   const items = fb.list.slice().reverse().slice(0, 10).map((x) => `<li class="vi"><div class="vh"><b>${esc(x.category)}</b> · ${esc(when(x.at))}${x.name ? ' · ' + esc(x.name) : ''} <span class="vs ${esc(x.status)}">${esc(fb.status[x.status] || '')}</span></div>${x.question ? `<div class="vh">Q. ${esc(x.question)}</div>` : ''}<div class="vm">${esc(x.message)}</div>${x.reply ? `<div class="vr"><b>본사 답변</b> ${esc(x.reply)}</div>` : ''}</li>`).join('');
-  const msg = fb.sent === 'ok' ? '<p class="ok">보내 주셔서 감사합니다. 본사 대시보드에 바로 올라갔습니다.</p>' : fb.sent === 'err' ? '<p class="bad">보내지 못했습니다. 내용을 적었는지 확인하고 잠시 뒤 다시 보내 주세요.</p>' : '';
   const qs = fb.questions || [], done = new Map(fb.list.filter((x) => x.qkey).map((x) => [`${x.qdate}|${x.qkey}`, x]));
   const qcards = qs.map((x, i) => {
     const a = done.get(`${x.qdate}|${x.key}`);
@@ -286,12 +285,8 @@ function voice(fb) {
 <div class="qq"><b>Q${i + 1}.</b> ${esc(x.q)}</div><div class="chips">${x.a.map((c, j) => `<label><input type="radio" name="choice" value="${esc(c)}"${j === 0 ? '' : ''}><span>${esc(c)}</span></label>`).join('')}</div>
 <input name="message" maxlength="500" placeholder="한 줄 덧붙이기 (선택)"><button type="submit">답하기</button></form>`;
   }).join('');
-  const qsec = qs.length ? `<section id="today-q"><h2>오늘의 질문 <span class="muted" style="font-weight:400">· ${esc(md(qs[0].qdate))} 마감 기준</span></h2><p class="muted" style="margin:0 0 10px">우리 매장 숫자를 보고 자동으로 만든 질문입니다. 버튼 하나만 눌러도 됩니다. 매일 판매 자료가 올라오면 질문이 바뀝니다.</p>${qcards}</section>` : '';
-  return `${qsec}<section id="voice"><h2>현장 목소리</h2><p class="muted" style="margin:0 0 10px">매장에서 느낀 점을 본사에 알려 주세요. 고객 반응, 잘 팔리거나 안 팔리는 이유, 재고·사이즈, 경쟁 브랜드 행사, 인력·운영 등 무엇이든 좋습니다. 담당자와 본사가 확인하고 답변을 여기에 남깁니다.</p>${msg}
-<form method="post" action="${esc(fb.action)}" class="vf"><label>분류 <select name="category">${fb.cats.map((c) => `<option>${esc(c)}</option>`).join('')}</select></label>
-<label>내용<textarea name="message" rows="4" maxlength="1000" required placeholder="예: 26FW 다운 L 사이즈 문의가 많은데 재고가 없습니다. / 옆 매장 타이틀리스트가 이번 주 20% 행사 중입니다."></textarea></label>
-<label>이름·직책 (선택) <input name="name" maxlength="30" placeholder="예: 김OO 매니저"></label><button type="submit">본사에 보내기</button></form>
-${items ? `<h2 style="margin-top:16px">보낸 내용</h2><ul class="vl">${items}</ul>` : ''}</section>`;
+  const qsec = qs.length ? `<section id="today-q"><h2>오늘의 질문 <span class="muted" style="font-weight:400">· ${esc(md(qs[0].qdate))} 마감 기준</span></h2><p class="muted" style="margin:0 0 10px">우리 매장 숫자를 보고 자동으로 만든 질문입니다. 버튼 하나만 눌러도 됩니다. 매일 판매 자료가 올라오면 질문이 바뀌고, 답하면 담당자와 본사가 확인해 답변을 아래에 남깁니다.</p>${fb.sent === 'ok' ? '<p class="ok">답해 주셔서 감사합니다. 본사 대시보드에 바로 올라갔습니다.</p>' : fb.sent === 'err' ? '<p class="bad">보내지 못했습니다. 답 버튼을 하나 고르고 다시 보내 주세요.</p>' : ''}${qcards}</section>` : '';
+  return `${qsec}${items ? `<section id="voice"><h2>지난 답변과 본사 답변</h2><ul class="vl">${items}</ul></section>` : ''}`;
 }
 
 function rankSec(r) {
@@ -317,7 +312,7 @@ function page(r, fb = { list: [], cats: [], status: {}, sent: '', action: '' }) 
   return `<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="robots" content="noindex,nofollow"><link rel="icon" href="/favicon.ico" sizes="any"><link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png"><link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <title>${esc(r.store)} ${+r.ym.slice(5)}월 실적</title><link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css"><style>${CSS}</style></head><body><main>
 <div><h1>${esc(r.store)}</h1><div class="muted">${esc(r.ym.slice(0, 4))}년 ${+r.ym.slice(5)}월 1일 ~ ${esc(md(r.last))}(${dow(r.last)}) 실적${r.updated ? ' · 자료 갱신 ' + esc(new Date(r.updated).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })) : ''}</div></div>
-<p style="margin:0;display:flex;gap:8px;flex-wrap:wrap"><a class="vbtn" href="#today-q">오늘의 질문 답하기 ↓</a><a class="vbtn" href="#voice">현장 목소리 보내기 ↓</a></p>
+<p style="margin:0"><a class="vbtn" href="#today-q">오늘의 질문 답하기 ↓</a></p>
 <p class="lede">이번 달 순매출은 <b>${esc(won(r.net))}</b>이고, 작년 같은 기간 대비 <b class="${tone(yoy)}">${signed(yoy)}</b>입니다. 지금 추세라면 ${+r.ym.slice(5)}월 마감은 약 <b>${esc(won(r.projected))}</b>${r.lyMonth > 0 ? ` (작년 ${+r.ym.slice(5)}월 전체 ${esc(won(r.lyMonth))})` : ''}입니다.${r.ranks.length ? ' 순매출 순위는 ' + r.ranks[0].by.map((b) => `${esc(b.sn)} ${b.n}개 매장 중 <b>${b.rank}위</b>`).join(', ') + '입니다.' : ''}</p>
 <div class="kpis">
 ${r.ranks.length ? r.ranks[0].by.slice(0, 2).map((b) => `<div class="card"><span class="muted">${esc(b.sn)} 순위</span><span class="v">${b.rank}위 <small style="font-size:14px;font-weight:500">/ ${b.n}개</small></span><span class="s">이번 달 순매출 기준</span></div>`).join('') : ''}
@@ -328,6 +323,7 @@ ${r.ranks.length ? r.ranks[0].by.slice(0, 2).map((b) => `<div class="card"><span
 <div class="card"><span class="muted">반품률</span><span class="v">${pct(r.rr)}</span><span class="s">반품 ${esc(won(r.returns))}</span></div>
 <div class="card"><span class="muted">회원 매출 비중</span><span class="v">${pct(r.memberShare)}</span><span class="s">신규 가입 ${r.newMembers.toLocaleString('ko-KR')}명</span></div>
 </div>
+${voice(fb)}
 ${rankSec(r)}
 <section><h2>일별 매출</h2><div class="bars">${bars}</div><div class="axis">${axis}</div>
 <div class="legend"><span><i style="background:var(--accent)"></i>올해</span><span><i style="background:var(--ly)"></i>작년 같은 요일</span><span>옅은 막대 = 주말</span></div></section>
@@ -335,7 +331,6 @@ ${more(r)}
 <section><h2>상품 베스트 10</h2>${catT ? `<p class="muted" style="margin:0 0 8px">카테고리 비중: ${catT}</p>` : ''}<div class="wrap"><table><thead><tr><th class="n">순위</th><th>상품</th><th>카테고리</th><th class="n">수량</th><th class="n">순매출</th></tr></thead><tbody>${bt || '<tr><td colspan="5">판매 상품이 없습니다.</td></tr>'}</tbody></table></div></section>
 ${r.missing.length ? `<section><h2>확인해 볼 상품</h2><p class="muted" style="margin:0 0 8px">같은 유통 형태 매장들의 이번 달 베스트 15 중 우리 매장에서 아직 안 팔린 상품입니다. 재고와 진열을 확인해 주세요.</p><ul>${r.missing.map((n) => `<li>${esc(n)}</li>`).join('')}</ul></section>` : ''}
 <section><h2>일별 실적표</h2><div class="wrap"><table><thead><tr><th>날짜</th><th class="n">순매출</th><th class="n">작년 같은 요일</th><th class="n">전년 대비</th></tr></thead><tbody>${dtab}</tbody></table></div></section>
-${voice(fb)}
 <p class="muted">순매출 = 판매금액 − 반품금액 (ERP 판매정보현황 기준). 이 링크는 이 매장 전용입니다. 다른 사람에게 전달하지 마세요.</p>
 </main></body></html>`;
 }
