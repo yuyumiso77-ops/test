@@ -7,7 +7,11 @@
   const won = (v) => (v == null || !isFinite(v) ? '—' : Math.abs(v) >= 1e8 ? (v / 1e8).toFixed(2) + '억' : Math.round(v / 1e4).toLocaleString('ko-KR') + '만');
   const signed = (v) => (v == null || !isFinite(v) ? '—' : (v >= 0 ? '+' : '') + (v * 100).toFixed(0) + '%');
   const shift = (d, n) => new Date(Date.parse(d + 'T00:00:00Z') + n * 864e5).toISOString().slice(0, 10);
-  const Q = [['day', '매출이 오르내린 이유'], ['visit', '방문객 체감'], ['lost', '놓친 판매 이유']];
+  // 답하는 날(마감 다음 날) 요일별 질문 묶음: 월 = 주간·주말 동향, 금 = 주말 매출 방안, 그 밖 = 전일 매출 추이
+  const SETS = { 1: { t: '주간·주말 동향', q: [['wkend', '주말 매출 이유', '주말 이유'], ['week', '지난주 매출 요인', '주간 요인'], ['wvisit', '주말 방문객', '주말 방문객']] },
+    5: { t: '주말 매출 방안', q: [['plan', '주말 준비', '주말 준비'], ['hope', '주말 기대 상품', '기대 상품'], ['risk', '주말 걸림돌', '걸림돌']] },
+    d: { t: '전일 매출 추이', q: [['day', '매출이 오르내린 이유', '매출 이유'], ['visit', '방문객 체감', '방문객'], ['lost', '놓친 판매 이유', '놓친 판매']] } };
+  const setOf = (last) => SETS[new Date(Date.parse(shift(last, 1) + 'T00:00:00Z')).getUTCDay()] || SETS.d;
 
   function load() {
     return Promise.all([
@@ -31,12 +35,16 @@
       names.set(r.store_code, r.store);
       if (r.date === last) net.set(r.store_code, (net.get(r.store_code) || 0) + (+r.net || 0));
     });
-    const lyDate = shift(last, -364);
-    if (lyd && lyd.status === 'ok') lyd.data.forEach((r) => { if (r.date === lyDate) ly.set(r.store_code, (ly.get(r.store_code) || 0) + (+r.net || 0)); });
+    const S = setOf(last), Q = S.q, wkend = S === SETS[1], from = wkend ? shift(last, -1) : last;
+    // 월요일은 주말(토·일) 매출, 그 밖은 전일 매출
+    if (wkend) { net.clear(); sd.data.forEach((r) => { if (names.has(r.store_code) && r.date >= from && r.date <= last) net.set(r.store_code, (net.get(r.store_code) || 0) + (+r.net || 0)); }); }
+    const lyFrom = shift(from, -364), lyTo = shift(last, -364);
+    if (lyd && lyd.status === 'ok') lyd.data.forEach((r) => { if (r.date >= lyFrom && r.date <= lyTo) ly.set(r.store_code, (ly.get(r.store_code) || 0) + (+r.net || 0)); });
     const ans = items.filter((x) => x.qdate === last && names.has(x.store_code));
     const by = new Map(); ans.forEach((x) => { const o = by.get(x.store_code) || {}; o[x.qkey] = x; by.set(x.store_code, o); });
     const md = `${+last.slice(5, 7)}/${+last.slice(8)}`;
-    box.sum.textContent = `${md} 마감 기준 · ${m ? m + ' 담당 · ' : ''}${by.size} / ${names.size}개 매장 답변`;
+    box.sum.textContent = `${md} 마감 기준 · ${S.t} · ${m ? m + ' 담당 · ' : ''}${by.size} / ${names.size}개 매장 답변`;
+    box.hr.replaceChildren(...['담당자', '매장', wkend ? '주말 매출' : '어제 매출', '작년 같은 요일 대비', ...Q.map((x) => x[2]), '한 줄 메모'].map((t, i) => $('th', i === 2 || i === 3 ? 'n' : '', t)));
     // 질문별 답 분포
     box.dist.replaceChildren(...Q.map(([k, label]) => {
       const cnt = new Map(); ans.filter((x) => x.qkey === k).forEach((x) => cnt.set(x.choice || '기타', (cnt.get(x.choice || '기타') || 0) + 1));
@@ -57,9 +65,9 @@
     rows.forEach((r) => {
       const tr = $('tr'); const y = r.ly > 0 ? r.net / r.ly - 1 : null;
       const td = (t, c) => $('td', c || '', t);
-      const memo = ['day', 'visit', 'lost'].map((k) => r.a[k] && r.a[k].text).filter(Boolean).join(' / ');
+      const memo = Q.map(([k]) => r.a[k] && r.a[k].text).filter(Boolean).join(' / ');
       tr.append(td(r.m || ''), td(short(r.name)), td(won(r.net), 'n'), td(signed(y), 'n ' + (y == null ? '' : y >= 0 ? 'fj-up' : 'fj-down')),
-        td(r.a.day ? r.a.day.choice : '—'), td(r.a.visit ? r.a.visit.choice : '—'), td(r.a.lost ? r.a.lost.choice : '—'), td(memo, 'fd-memo'));
+        ...Q.map(([k]) => td(r.a[k] ? r.a[k].choice : '—')), td(memo, 'fd-memo'));
       if (!Object.keys(r.a).length) tr.className = 'fd-wait';
       tb.append(tr);
     });
@@ -104,16 +112,15 @@
     if (!tab || box) return;
     const sec = $('section', 'fj-section'); sec.id = 'voice-section';
     const title = $('div', 'fj-sec-title');
-    title.append($('h2', '', '전일 매장 현황 (오늘의 질문)'), $('span', 'fj-label', '매장 링크의 오늘의 질문에 매장이 답한 내용을 모았습니다. 하나하나 처리하지 않아도 되고, 많이 나온 답으로 어제 현장 분위기를 봅니다. 맨 위 담당자 필터가 적용됩니다.'));
+    title.append($('h2', '', '매장 현황 (오늘의 질문)'), $('span', 'fj-label', '매장 링크의 오늘의 질문에 매장이 답한 내용을 모았습니다. 월요일은 주간·주말 동향, 화~목은 전일 매출 추이, 금요일은 주말 매출 방안을 묻습니다. 하나하나 처리하지 않아도 되고, 맨 위 담당자 필터가 적용됩니다.'));
     const sum = $('p', 'fd-sum'), dist = $('div', 'fd-grid');
     const wrap = $('div', 'fj-tablewrap tall'), table = $('table', 'fj-table'), th = $('thead'), hr = $('tr');
-    ['담당자', '매장', '어제 매출', '작년 같은 요일 대비', '매출 이유', '방문객', '놓친 판매', '한 줄 메모'].forEach((t, i) => hr.append($('th', i === 2 || i === 3 ? 'n' : '', t)));
     th.append(hr); const tb = $('tbody'); table.append(th, tb); wrap.append(table);
     const more = $('details', 'fd-more'); more.append($('summary', '', '매장별 답변 보기 · 필요할 때만 답변 남기기'));
     const list = $('ul', 'fv-list'); more.append(list);
     sec.append(title, sum, dist, wrap, more);
     tab.insertBefore(sec, tab.firstElementChild);
-    box = { sum, dist, tb, list, more };
+    box = { sum, dist, tb, list, more, hr };
     const st = document.createElement('style');
     st.textContent = `.fd-sum{margin:0;font-weight:600}
 .fd-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}

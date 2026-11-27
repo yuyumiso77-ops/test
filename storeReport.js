@@ -172,9 +172,13 @@ function report(load, code, meta) {
     const pool = [...tot].filter(([c, v]) => v > 0 && retailer(info.get(c)) === grp).sort((a, b) => b[1] - a[1]);
     rankTrend.push({ m: mm, rank: pool.findIndex(([c]) => c === code) + 1, n: pool.length });
   }
+  const tyMap = new Map(daily); for (const x of hist) tyMap.set(x.date, (tyMap.get(x.date) || 0) + (+x.net || 0));
+  const hasHist = new Set(hist.map((x) => x.date.slice(0, 7)));
+  const sumDays = (a, b) => { let t = 0, ok = true; for (let x = a; x <= b; x = shift(x, 1)) { if (x.slice(0, 7) !== ym && !hasHist.has(x.slice(0, 7))) ok = false; t += tyMap.get(x) || 0; } return ok ? t : null; };
+  const sumLy = (a, b) => { let t = 0; for (let x = a; x <= b; x = shift(x, 1)) t += lyDaily.get(shift(x, -364)) || 0; return t; };
   const pwd = shift(last, -7), pwNet = pwd.slice(0, 7) === ym ? (daily.get(pwd) || 0) : hist.filter((x) => x.date === pwd).reduce((a, x) => a + (+x.net || 0), 0);
   const pwHas = pwd.slice(0, 7) === ym || hist.some((x) => x.date.slice(0, 7) === pwd.slice(0, 7));
-  return { code, ...s, first, last, dim, ym, net, tag, ranks, rankTrend, itemUp, itemDown, pwd, pwNet: pwHas ? pwNet : null, confirmed, qty, weeks, months, ytd, lyYtd, dowAvg, hours, stypes, gen, lgen, itemRows, season, memb, compInfo, sales, returns, receipts, lyNet, lyMonth, projected, s7, p7, l7, rank, peers: peers.length, grp,
+  return { code, ...s, first, last, dim, ym, net, tag, ranks, rankTrend, itemUp, itemDown, pwd, sumDays, sumLy, pwNet: pwHas ? pwNet : null, confirmed, qty, weeks, months, ytd, lyYtd, dowAvg, hours, stypes, gen, lgen, itemRows, season, memb, compInfo, sales, returns, receipts, lyNet, lyMonth, projected, s7, p7, l7, rank, peers: peers.length, grp,
     aov: receipts ? sales / receipts : null, rr: sales ? returns / sales : null, memberShare: ms + ns ? ms / (ms + ns) : null, newMembers,
     days: allDays.map((d) => ({ d, net: daily.get(d) || 0, ly: lyDaily.get(shift(d, -364)) })), best, cats: [...catMap].filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]), missing, updated: meta && meta.uploaded_at };
 }
@@ -269,7 +273,41 @@ const A = {
 // ── 오늘의 질문: 전일 마감 매출로 현황 파악 (모두 어제에 대한 질문, 버튼 하나로 답) ──
 A.traffic = ['훨씬 많았음', '조금 많았음', '평소와 비슷', '조금 적었음', '훨씬 적었음'];
 A.lost = ['사이즈·컬러 없음', '가격 부담', '둘러보기만 함', '경쟁사로 감', '놓친 판매 없음', '기타'];
+A.plan = ['행사·사은품', '회원 문자·연락', '진열 변경', '인력 보강', '재고 보충', '특별히 없음'];
+A.risk = ['인력 부족', '재고·사이즈 부족', '날씨', '경쟁사 행사', '백화점 행사 없음', '없음'];
+A.hope = ['다운·아우터', '니트·스웨터', '팬츠', '골프화', '장갑·용품', '기타'];
 function questions(r) {
+  const d0 = r.days[r.days.length - 1], wd = new Date(shift(d0.d, 1) + 'T00:00:00Z').getUTCDay(); // 답하는 날 요일
+  if (wd === 1) return weekQ(r);
+  if (wd === 5) return friQ(r);
+  return dailyQ(r);
+}
+const rng = (a, b) => `${md(a)}(${dow(a)})~${md(b)}(${dow(b)})`;
+const vs = (cur, ly, pw) => [ly > 0 ? `작년 같은 요일 대비 ${signed(cur / ly - 1)}` : '', pw > 0 ? `전주 대비 ${signed(cur / pw - 1)}` : ''].filter(Boolean).join(', ');
+const upOf = (cur, ly, pw) => { const v = [ly > 0 ? cur / ly - 1 : null, pw > 0 ? cur / pw - 1 : null].filter((x) => x != null); return v.length ? v.reduce((a, b) => a + b, 0) / v.length >= 0 : null; };
+// 월요일: 주말(토·일)과 지난주(월~일) 동향
+function weekQ(r) {
+  const e = r.days[r.days.length - 1].d, sat = shift(e, -1), mon = shift(e, -6);
+  const we = r.sumDays(sat, e), weLy = r.sumLy(sat, e), wePw = r.sumDays(shift(sat, -7), shift(e, -7));
+  const wk = r.sumDays(mon, e), wkLy = r.sumLy(mon, e), wkPw = r.sumDays(shift(mon, -7), shift(e, -7));
+  const q = [], u1 = upOf(we || 0, weLy, wePw), u2 = upOf(wk || 0, wkLy, wkPw);
+  q.push({ key: 'wkend', tag: '주말 매출', cat: '고객 반응', q: `지난 주말 ${rng(sat, e)} 매출은 ${won(we)}${vs(we, weLy, wePw) ? `으로 ${vs(we, weLy, wePw)}예요` : '이에요'}. ${u1 === false ? '이유가 무엇인가요?' : '무엇이 잘됐나요?'}`, a: u1 === false ? A.down : A.up });
+  q.push({ key: 'week', tag: '주간 매출', cat: '고객 반응', q: `지난주 ${rng(mon, e)} 매출은 ${won(wk)}${vs(wk, wkLy, wkPw) ? `으로 ${vs(wk, wkLy, wkPw)}예요` : '이에요'}. 한 주를 가장 크게 좌우한 것은?`, a: u2 === false ? A.down : A.up });
+  q.push({ key: 'wvisit', tag: '주말 방문객', cat: '고객 반응', q: '지난 주말 매장을 찾은 고객은 평소 주말과 비교해 어땠나요?', a: A.traffic });
+  return q.map((x) => ({ ...x, qdate: e }));
+}
+// 금요일: 이번 주말 매출 방안
+function friQ(r) {
+  const e = r.days[r.days.length - 1].d, sat = shift(e, -5), sun = shift(e, -4); // 지난 주말 (목요일 마감 기준)
+  const we = r.sumDays(sat, sun), weLy = r.sumLy(sat, sun);
+  const q = [];
+  q.push({ key: 'plan', tag: '주말 준비', cat: '행사·판촉', q: `지난 주말 ${rng(sat, sun)} 매출은 ${won(we)}${weLy > 0 ? `(작년 같은 요일 대비 ${signed(we / weLy - 1)})` : ''}이었어요. 이번 주말 매출을 올리려고 준비한 것은?`, a: A.plan });
+  q.push({ key: 'hope', tag: '주말 기대 상품', cat: '상품·재고', q: '이번 주말에 가장 많이 팔 것 같은 상품군은?', a: A.hope });
+  q.push({ key: 'risk', tag: '주말 걸림돌', cat: '인력·운영', q: '이번 주말 매출에 가장 걸림돌이 될 것 같은 것은?', a: A.risk });
+  return q.map((x) => ({ ...x, qdate: e }));
+}
+// 화·수·목(과 주말): 전일 매출 추이
+function dailyQ(r) {
   const q = [], d = r.days[r.days.length - 1], md2 = `${md(d.d)}(${dow(d.d)})`, g = (a, b) => (b > 0 ? a / b - 1 : null);
   const yd = g(d.net, d.ly), pd = r.pwNet == null ? null : g(d.net, r.pwNet);
   const cmp = [d.ly > 0 ? `작년 같은 요일 ${won(d.ly)} 대비 ${signed(yd)}` : '', r.pwNet > 0 ? `전주 같은 요일 ${won(r.pwNet)} 대비 ${signed(pd)}` : ''].filter(Boolean).join(', ');
