@@ -129,6 +129,9 @@ function report(load, code, meta) {
   const gen = by(table(load, 'gender_daily.csv').filter((r) => r.store_code === code), (r) => r.gender), lgen = by(lgi, (r) => r.gender);
   const ik = (r) => `${cat(r.line)}·${r.item}`, items = by(gi, ik), litems = by(lgi, ik);
   const itemRows = [...items].filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([k, v]) => ({ k, v, ly: litems.get(k) || 0 }));
+  const moves = [...new Set([...items.keys(), ...litems.keys()])].map((k) => ({ k, v: items.get(k) || 0, ly: litems.get(k) || 0 })).filter((x) => !/기타·|ETC|^·/.test(x.k));
+  const itemUp = moves.filter((x) => x.ly >= 2e6 && x.v - x.ly >= 2e6 && x.v / x.ly >= 1.5).sort((a, b) => (b.v - b.ly) - (a.v - a.ly))[0] || null;
+  const itemDown = moves.filter((x) => x.ly >= 3e6 && x.ly - x.v >= 2e6 && x.v / x.ly <= 0.6).sort((a, b) => (b.ly - b.v) - (a.ly - a.v))[0] || null;
   // 시즌
   const season = [...by(mineP, (r) => r.season || '--')].filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]).slice(0, 5);
   // 회원·비회원
@@ -169,7 +172,7 @@ function report(load, code, meta) {
     const pool = [...tot].filter(([c, v]) => v > 0 && retailer(info.get(c)) === grp).sort((a, b) => b[1] - a[1]);
     rankTrend.push({ m: mm, rank: pool.findIndex(([c]) => c === code) + 1, n: pool.length });
   }
-  return { code, ...s, first, last, dim, ym, net, tag, ranks, rankTrend, confirmed, qty, weeks, months, ytd, lyYtd, dowAvg, hours, stypes, gen, lgen, itemRows, season, memb, compInfo, sales, returns, receipts, lyNet, lyMonth, projected, s7, p7, l7, rank, peers: peers.length, grp,
+  return { code, ...s, first, last, dim, ym, net, tag, ranks, rankTrend, itemUp, itemDown, confirmed, qty, weeks, months, ytd, lyYtd, dowAvg, hours, stypes, gen, lgen, itemRows, season, memb, compInfo, sales, returns, receipts, lyNet, lyMonth, projected, s7, p7, l7, rank, peers: peers.length, grp,
     aov: receipts ? sales / receipts : null, rr: sales ? returns / sales : null, memberShare: ms + ns ? ms / (ms + ns) : null, newMembers,
     days: allDays.map((d) => ({ d, net: daily.get(d) || 0, ly: lyDaily.get(shift(d, -364)) })), best, cats: [...catMap].filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]), missing, updated: meta && meta.uploaded_at };
 }
@@ -195,6 +198,9 @@ table{width:100%;border-collapse:collapse;font-size:14px}th,td{padding:7px 6px;b
 .two{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:22px}.two section{min-width:0}
 .hb{display:flex;flex-direction:column;gap:6px}.hr{display:grid;grid-template-columns:44px 1fr auto;gap:8px;align-items:center;font-size:13px}.ht{height:10px;background:var(--line);border-radius:3px;overflow:hidden}.ht i{display:block;height:100%;background:var(--accent)}.hv{color:var(--muted);font-variant-numeric:tabular-nums;font-size:12px;white-space:nowrap}
 tr.me td{font-weight:700}
+.qc{border:1px solid var(--line);border-radius:10px;padding:12px;margin-top:10px;display:flex;flex-direction:column;gap:8px}.qc.done{opacity:.75}.qq{font-weight:600}.qa{color:var(--up);font-size:14px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}.chips input{position:absolute;opacity:0;pointer-events:none}.chips span{display:inline-block;padding:6px 12px;border:1px solid var(--line);border-radius:999px;font-size:14px;cursor:pointer;background:var(--bg)}.chips input:checked+span{background:var(--accent);border-color:var(--accent);color:#fff}.chips input:focus-visible+span{outline:2px solid var(--accent)}
+.qc input[name=message]{font:inherit;font-size:15px;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px}.qc button{align-self:flex-start;font:inherit;font-weight:600;color:#fff;background:var(--accent);border:0;border-radius:8px;padding:8px 16px;cursor:pointer}
 .vbtn{display:inline-block;font-size:13px;font-weight:600;color:var(--accent);text-decoration:none;border:1px solid var(--accent);border-radius:999px;padding:5px 12px}
 .vf{display:flex;flex-direction:column;gap:10px}.vf label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted)}
 .vf select,.vf textarea,.vf input{font:inherit;font-size:15px;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
@@ -235,11 +241,53 @@ ${vbars(r.months.map((x) => ({ v: x.net, ly: x.ly, a: `${+x.m.slice(5)}월`, t: 
   return out.join('\n');
 }
 
+// ── 오늘의 질문: 마지막 마감일 숫자에 맞춰 매장마다 자동으로 (최대 3개) ──
+const A = {
+  up: ['단체·큰 구매 고객', '행사 효과', '신상품 반응', '날씨·유동 인구', '직원 추천 판매', '기타'],
+  down: ['휴무·단축 영업', '방문객 감소', '재고·사이즈 부족', '경쟁사 행사', '인력 부족', '기타'],
+  itemUp: ['신상품 디자인', '가격·행사', '진열 위치', '날씨', '직원 추천', '기타'],
+  itemDown: ['재고 부족', '시즌 영향', '가격', '진열 위치', '경쟁사', '기타'],
+  miss: ['재고 없음', '사이즈 없음', '진열 안 됨', '고객 반응 없음', '이미 팔렸음(자료 늦음)', '기타'],
+  ret: ['사이즈', '하자·품질', '단순 변심', '교환 대기', '기타'],
+  comp: ['할인 행사', '사은품', '신상품', '매장 확장·이동', '잘 모름'],
+  any: ['다운·아우터', '니트·스웨터', '팬츠', '골프화', '장갑·용품', '기타'],
+};
+const itemName = (k) => k.replace('·', ' ');
+function questions(r) {
+  const q = [], d = r.days[r.days.length - 1], md2 = `${md(d.d)}(${dow(d.d)})`, g = (a, b) => (b > 0 ? a / b - 1 : null);
+  const yd = g(d.net, d.ly), w = g(r.s7, r.l7);
+  if (d.net <= 0 && (d.ly || 0) > 0) q.push({ key: 'day', cat: '인력·운영', q: `${md2} 매출이 없었어요 (작년 같은 요일 ${won(d.ly)}). 어떤 사정이 있었나요?`, a: A.down });
+  else if (yd != null && d.ly >= 5e5 && yd >= 0.5) q.push({ key: 'day', cat: '고객 반응', q: `${md2} 매출은 ${won(d.net)}, 작년 같은 요일 대비 ${signed(yd)}예요. 무엇이 잘됐나요?`, a: A.up });
+  else if (yd != null && d.ly >= 5e5 && yd <= -0.4) q.push({ key: 'day', cat: '고객 반응', q: `${md2} 매출은 ${won(d.net)}, 작년 같은 요일 대비 ${signed(yd)}예요. 이유가 있었나요?`, a: A.down });
+  if (w != null && r.l7 >= 2e6 && w <= -0.2) q.push({ key: 'week', cat: '고객 반응', q: `최근 7일 매출이 작년 같은 요일보다 ${signed(w)}예요. 가장 큰 이유는 무엇인가요?`, a: A.down });
+  else if (w != null && r.l7 >= 2e6 && w >= 0.25) q.push({ key: 'week', cat: '고객 반응', q: `최근 7일 매출이 작년 같은 요일보다 ${signed(w)}예요. 잘된 방법을 다른 매장과 나눠 주세요.`, a: A.up });
+  if (r.itemDown) q.push({ key: 'itemDown', cat: '상품·재고', q: `${itemName(r.itemDown.k)} 매출이 작년 같은 기간보다 ${signed(g(r.itemDown.v, r.itemDown.ly))}예요 (${won(r.itemDown.ly)} → ${won(r.itemDown.v)}). 이유는?`, a: A.itemDown });
+  if (r.itemUp) q.push({ key: 'itemUp', cat: '상품·재고', q: `${itemName(r.itemUp.k)} 매출이 작년 같은 기간보다 ${signed(g(r.itemUp.v, r.itemUp.ly))}예요 (${won(r.itemUp.ly)} → ${won(r.itemUp.v)}). 잘 팔리는 이유는?`, a: A.itemUp });
+  if (r.missing.length >= 3) q.push({ key: 'miss', cat: '상품·재고', q: `다른 매장 베스트인 ${r.missing.slice(0, 2).join(', ')} 등 ${r.missing.length}개가 이번 달 아직 안 팔렸어요. 매장에 있나요?`, a: A.miss });
+  if (r.rr >= 0.25 && r.returns >= 1e6) q.push({ key: 'ret', cat: '상품·재고', q: `이번 달 반품률이 ${pct(r.rr)}예요 (반품 ${won(r.returns)}). 주된 반품 사유는?`, a: A.ret });
+  const c = r.compInfo;
+  if (c && c.L) {
+    const gain = c.brands.filter((x) => x.k !== '풋조이').map((x) => ({ k: x.k, pp: x.n / c.T - x.l / c.L })).sort((a, b) => b.pp - a.pp)[0];
+    if (gain && gain.pp >= 0.03) q.push({ key: 'comp', cat: '경쟁 브랜드', q: `${+c.month.slice(5)}월 이 점포에서 ${gain.k} 점유율이 ${(gain.pp * 100).toFixed(1)}%p 올랐어요. 요즘 ${gain.k}는 어떤 행사를 하나요?`, a: A.comp });
+  }
+  q.push({ key: 'any', cat: '고객 반응', q: '이번 주 고객 반응이 가장 좋은 상품군은 무엇이고, 이유는 무엇인가요?', a: A.any });
+  return q.slice(0, 3).map((x) => ({ ...x, qdate: d.d }));
+}
+
 function voice(fb) {
   const when = (t) => new Date(t).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-  const items = fb.list.slice().reverse().slice(0, 10).map((x) => `<li class="vi"><div class="vh"><b>${esc(x.category)}</b> · ${esc(when(x.at))}${x.name ? ' · ' + esc(x.name) : ''} <span class="vs ${esc(x.status)}">${esc(fb.status[x.status] || '')}</span></div><div class="vm">${esc(x.message)}</div>${x.reply ? `<div class="vr"><b>본사 답변</b> ${esc(x.reply)}</div>` : ''}</li>`).join('');
+  const items = fb.list.slice().reverse().slice(0, 10).map((x) => `<li class="vi"><div class="vh"><b>${esc(x.category)}</b> · ${esc(when(x.at))}${x.name ? ' · ' + esc(x.name) : ''} <span class="vs ${esc(x.status)}">${esc(fb.status[x.status] || '')}</span></div>${x.question ? `<div class="vh">Q. ${esc(x.question)}</div>` : ''}<div class="vm">${esc(x.message)}</div>${x.reply ? `<div class="vr"><b>본사 답변</b> ${esc(x.reply)}</div>` : ''}</li>`).join('');
   const msg = fb.sent === 'ok' ? '<p class="ok">보내 주셔서 감사합니다. 본사 대시보드에 바로 올라갔습니다.</p>' : fb.sent === 'err' ? '<p class="bad">보내지 못했습니다. 내용을 적었는지 확인하고 잠시 뒤 다시 보내 주세요.</p>' : '';
-  return `<section id="voice"><h2>현장 목소리</h2><p class="muted" style="margin:0 0 10px">매장에서 느낀 점을 본사에 알려 주세요. 고객 반응, 잘 팔리거나 안 팔리는 이유, 재고·사이즈, 경쟁 브랜드 행사, 인력·운영 등 무엇이든 좋습니다. 담당자와 본사가 확인하고 답변을 여기에 남깁니다.</p>${msg}
+  const qs = fb.questions || [], done = new Map(fb.list.filter((x) => x.qkey).map((x) => [`${x.qdate}|${x.qkey}`, x]));
+  const qcards = qs.map((x, i) => {
+    const a = done.get(`${x.qdate}|${x.key}`);
+    if (a) return `<div class="qc done"><div class="qq">${esc(x.q)}</div><div class="qa">✓ 답변함: ${esc(a.choice || '')}${a.text ? ' · ' + esc(a.text) : ''}</div></div>`;
+    return `<form method="post" action="${esc(fb.action)}" class="qc"><input type="hidden" name="qkey" value="${esc(x.key)}"><input type="hidden" name="qdate" value="${esc(x.qdate)}"><input type="hidden" name="question" value="${esc(x.q)}"><input type="hidden" name="category" value="${esc(x.cat)}">
+<div class="qq"><b>Q${i + 1}.</b> ${esc(x.q)}</div><div class="chips">${x.a.map((c, j) => `<label><input type="radio" name="choice" value="${esc(c)}"${j === 0 ? '' : ''}><span>${esc(c)}</span></label>`).join('')}</div>
+<input name="message" maxlength="500" placeholder="한 줄 덧붙이기 (선택)"><button type="submit">답하기</button></form>`;
+  }).join('');
+  const qsec = qs.length ? `<section id="today-q"><h2>오늘의 질문 <span class="muted" style="font-weight:400">· ${esc(md(qs[0].qdate))} 마감 기준</span></h2><p class="muted" style="margin:0 0 10px">우리 매장 숫자를 보고 자동으로 만든 질문입니다. 버튼 하나만 눌러도 됩니다. 매일 판매 자료가 올라오면 질문이 바뀝니다.</p>${qcards}</section>` : '';
+  return `${qsec}<section id="voice"><h2>현장 목소리</h2><p class="muted" style="margin:0 0 10px">매장에서 느낀 점을 본사에 알려 주세요. 고객 반응, 잘 팔리거나 안 팔리는 이유, 재고·사이즈, 경쟁 브랜드 행사, 인력·운영 등 무엇이든 좋습니다. 담당자와 본사가 확인하고 답변을 여기에 남깁니다.</p>${msg}
 <form method="post" action="${esc(fb.action)}" class="vf"><label>분류 <select name="category">${fb.cats.map((c) => `<option>${esc(c)}</option>`).join('')}</select></label>
 <label>내용<textarea name="message" rows="4" maxlength="1000" required placeholder="예: 26FW 다운 L 사이즈 문의가 많은데 재고가 없습니다. / 옆 매장 타이틀리스트가 이번 주 20% 행사 중입니다."></textarea></label>
 <label>이름·직책 (선택) <input name="name" maxlength="30" placeholder="예: 김OO 매니저"></label><button type="submit">본사에 보내기</button></form>
@@ -269,7 +317,7 @@ function page(r, fb = { list: [], cats: [], status: {}, sent: '', action: '' }) 
   return `<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="robots" content="noindex,nofollow"><link rel="icon" href="/favicon.ico" sizes="any"><link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png"><link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <title>${esc(r.store)} ${+r.ym.slice(5)}월 실적</title><link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css"><style>${CSS}</style></head><body><main>
 <div><h1>${esc(r.store)}</h1><div class="muted">${esc(r.ym.slice(0, 4))}년 ${+r.ym.slice(5)}월 1일 ~ ${esc(md(r.last))}(${dow(r.last)}) 실적${r.updated ? ' · 자료 갱신 ' + esc(new Date(r.updated).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })) : ''}</div></div>
-<p style="margin:0"><a class="vbtn" href="#voice">현장 목소리 보내기 ↓</a></p>
+<p style="margin:0;display:flex;gap:8px;flex-wrap:wrap"><a class="vbtn" href="#today-q">오늘의 질문 답하기 ↓</a><a class="vbtn" href="#voice">현장 목소리 보내기 ↓</a></p>
 <p class="lede">이번 달 순매출은 <b>${esc(won(r.net))}</b>이고, 작년 같은 기간 대비 <b class="${tone(yoy)}">${signed(yoy)}</b>입니다. 지금 추세라면 ${+r.ym.slice(5)}월 마감은 약 <b>${esc(won(r.projected))}</b>${r.lyMonth > 0 ? ` (작년 ${+r.ym.slice(5)}월 전체 ${esc(won(r.lyMonth))})` : ''}입니다.${r.ranks.length ? ' 순매출 순위는 ' + r.ranks[0].by.map((b) => `${esc(b.sn)} ${b.n}개 매장 중 <b>${b.rank}위</b>`).join(', ') + '입니다.' : ''}</p>
 <div class="kpis">
 ${r.ranks.length ? r.ranks[0].by.slice(0, 2).map((b) => `<div class="card"><span class="muted">${esc(b.sn)} 순위</span><span class="v">${b.rank}위 <small style="font-size:14px;font-weight:500">/ ${b.n}개</small></span><span class="s">이번 달 순매출 기준</span></div>`).join('') : ''}
@@ -316,4 +364,4 @@ document.getElementById('all').onclick=(e)=>copy([...document.querySelectorAll('
 </script></main></body></html>`;
 }
 
-module.exports = { getSecret, rotateSecret, sign, verify, report, page, storeList, linksPage, table };
+module.exports = { questions, getSecret, rotateSecret, sign, verify, report, page, storeList, linksPage, table };

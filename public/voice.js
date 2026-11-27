@@ -30,11 +30,20 @@
     const list = mine.filter((x) => (filter === 'open' ? x.status !== 'done' : filter === 'done' ? x.status === 'done' : true)).sort((a, b) => b.at.localeCompare(a.at));
     const nNew = mine.filter((x) => x.status === 'new').length;
     box.sum.textContent = mine.length ? `${m ? m + ' 담당 · ' : ''}전체 ${mine.length}건 · 새 글 ${nNew}건 · 확인 ${mine.filter((x) => x.status === 'seen').length}건 · 조치 완료 ${mine.filter((x) => x.status === 'done').length}건` : '아직 매장에서 보낸 현장 목소리가 없습니다. 매장 공유 링크 맨 아래 "현장 목소리"에서 보낼 수 있습니다.';
+    // 오늘의 질문 참여 현황 (마지막 마감일 기준)
+    const sd = window.dash && dash.data('store_daily');
+    if (sd && sd.status === 'ok' && sd.data.length) {
+      const last = sd.data.reduce((a, r) => (r.date > a ? r.date : a), ''), names = new Map();
+      sd.data.forEach((r) => { if (!/사용중지|폐점/.test(r.store) && (!m || mgr.get(r.store_code) === m) && mgr.has(r.store_code)) names.set(r.store_code, r.store); });
+      const ans = new Set(items.filter((x) => x.qdate === last).map((x) => x.store_code)), miss = [...names].filter(([c]) => !ans.has(c));
+      box.part.textContent = `오늘의 질문 (${last.slice(5).replace('-', '/')} 마감): ${names.size - miss.length} / ${names.size}개 매장 답변` + (miss.length ? ` · 아직 안 한 매장: ${miss.slice(0, 15).map(([, n]) => n.replace(/백화점|프리미엄|아울렛|\(.*?\)/g, ' ').replace(/\s+/g, ' ').trim()).join(', ')}${miss.length > 15 ? ` 외 ${miss.length - 15}곳` : ''}` : '');
+    }
     box.list.replaceChildren(...list.slice(0, 60).map((x) => {
       const li = $('li', 'fv-item fv-' + x.status);
       const h = $('div', 'fv-h');
       h.append($('b', '', x.store), document.createTextNode(` · ${mgr.get(x.store_code) || '담당 없음'} · ${x.category} · ${when(x.at)}${x.name ? ' · ' + x.name : ''} `), $('span', 'fv-st', status[x.status] || x.status));
       const msg = $('div', 'fv-m', x.message);
+      if (x.question) li.append($('div', 'fv-q', `오늘의 질문 (${x.qdate.slice(5).replace('-', '/')} 마감): ${x.question}`));
       const ta = $('textarea', 'fv-ta'); ta.rows = 2; ta.maxLength = 1000; ta.placeholder = '매장에 남길 답변 (매장 링크에 보입니다)'; ta.value = x.reply || '';
       const bar = $('div', 'fv-bar');
       const b1 = $('button', '', '답변 저장'); b1.type = 'button'; b1.onclick = () => save(x.id, { reply: ta.value }, b1);
@@ -42,7 +51,7 @@
       const b3 = $('button', '', '조치 완료'); b3.type = 'button'; b3.onclick = () => save(x.id, { status: 'done' }, b3);
       bar.append(b1, ...(x.status !== 'seen' ? [b2] : []), ...(x.status !== 'done' ? [b3] : []));
       if (x.reply_at) bar.append($('span', 'fv-note', '답변 ' + when(x.reply_at)));
-      li.append(h, msg, ta, bar);
+      li.insertBefore(h, li.firstChild); li.append(msg, ta, bar);
       return li;
     }));
     if (!list.length && mine.length) box.list.replaceChildren($('li', 'fv-empty', '이 조건에 맞는 글이 없습니다.'));
@@ -79,10 +88,10 @@
     [['open', '처리 전 (새 글·확인)'], ['all', '전체'], ['done', '조치 완료']].forEach(([v, t]) => sel.append(new Option(t, v)));
     sel.onchange = () => { filter = sel.value; render(); };
     lab.append(sel); ctl.append(lab);
-    const sum = $('p', 'fj-label'), list = $('ul', 'fv-list');
-    sec.append(title, ctl, sum, list);
+    const sum = $('p', 'fj-label'), part = $('p', 'fv-part'), list = $('ul', 'fv-list');
+    sec.append(title, ctl, sum, part, list);
     tab.insertBefore(sec, tab.firstElementChild);
-    box = { sum, list };
+    box = { sum, part, list };
     const st = document.createElement('style');
     st.textContent = `.fv-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
 .fv-item{border:1px solid var(--color-border-line);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:6px;background:var(--color-panel,transparent)}
@@ -92,6 +101,7 @@
 .fv-ta{font:inherit;font-size:14px;width:100%;box-sizing:border-box;padding:6px 8px;border:1px solid var(--color-border-line);border-radius:8px;background:transparent;color:inherit;resize:vertical}
 .fv-bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.fv-bar button{font:inherit;font-size:13px;padding:5px 12px;border-radius:8px;border:1px solid var(--color-border-line);background:transparent;color:inherit;cursor:pointer}
 .fv-note{font-size:12px;color:var(--color-fg-muted)}.fv-empty{color:var(--color-fg-muted);font-size:14px}
+.fv-q{font-size:13px;font-weight:600}.fv-part{margin:0;font-size:13px;color:var(--color-fg-muted)}
 .fv-tag{margin-top:4px;font-size:12px;color:var(--c1,#2f5fd0)}
 .fv-badge{display:inline-block;min-width:18px;margin-left:6px;padding:0 6px;border-radius:999px;background:var(--color-bad,#c8372d);color:#fff;font-size:11px;line-height:18px;text-align:center}`;
     document.head.appendChild(st);
