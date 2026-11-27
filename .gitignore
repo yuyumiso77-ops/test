@@ -7,3 +7,5 @@ uploaded/
 public/data/managers.csv
 managers*.csv
 competitors*.csv
+feedback*.jsonl
+.store_link_secret

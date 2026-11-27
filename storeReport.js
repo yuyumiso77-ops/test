@@ -195,6 +195,13 @@ table{width:100%;border-collapse:collapse;font-size:14px}th,td{padding:7px 6px;b
 .two{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:22px}.two section{min-width:0}
 .hb{display:flex;flex-direction:column;gap:6px}.hr{display:grid;grid-template-columns:44px 1fr auto;gap:8px;align-items:center;font-size:13px}.ht{height:10px;background:var(--line);border-radius:3px;overflow:hidden}.ht i{display:block;height:100%;background:var(--accent)}.hv{color:var(--muted);font-variant-numeric:tabular-nums;font-size:12px;white-space:nowrap}
 tr.me td{font-weight:700}
+.vbtn{display:inline-block;font-size:13px;font-weight:600;color:var(--accent);text-decoration:none;border:1px solid var(--accent);border-radius:999px;padding:5px 12px}
+.vf{display:flex;flex-direction:column;gap:10px}.vf label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted)}
+.vf select,.vf textarea,.vf input{font:inherit;font-size:15px;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+.vf button{align-self:flex-start;font:inherit;font-weight:600;color:#fff;background:var(--accent);border:0;border-radius:8px;padding:10px 18px;cursor:pointer}
+.ok{color:var(--up);font-weight:600}.bad{color:var(--down);font-weight:600}
+.vl{list-style:none;padding:0;display:flex;flex-direction:column;gap:10px}.vi{border:1px solid var(--line);border-radius:10px;padding:10px 12px}.vh{font-size:12px;color:var(--muted)}.vm{margin-top:4px;white-space:pre-wrap}
+.vr{margin-top:6px;padding:6px 10px;background:var(--bg);border-radius:8px;font-size:14px}.vs{margin-left:4px;padding:1px 8px;border-radius:999px;border:1px solid var(--line);font-size:11px}.vs.done{color:var(--up);border-color:var(--up)}.vs.new{color:var(--accent);border-color:var(--accent)}
 .rks{display:flex;flex-wrap:wrap;gap:6px}.rk{display:flex;flex-direction:column;align-items:center;min-width:54px;padding:6px 4px;border:1px solid var(--line);border-radius:8px;font-variant-numeric:tabular-nums}.rk small{font-size:11px;color:var(--muted)}`;
 
 const vbars = (rows) => { const mx = Math.max(1, ...rows.map((x) => Math.max(x.v, x.ly || 0)));
@@ -228,6 +235,17 @@ ${vbars(r.months.map((x) => ({ v: x.net, ly: x.ly, a: `${+x.m.slice(5)}월`, t: 
   return out.join('\n');
 }
 
+function voice(fb) {
+  const when = (t) => new Date(t).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const items = fb.list.slice().reverse().slice(0, 10).map((x) => `<li class="vi"><div class="vh"><b>${esc(x.category)}</b> · ${esc(when(x.at))}${x.name ? ' · ' + esc(x.name) : ''} <span class="vs ${esc(x.status)}">${esc(fb.status[x.status] || '')}</span></div><div class="vm">${esc(x.message)}</div>${x.reply ? `<div class="vr"><b>본사 답변</b> ${esc(x.reply)}</div>` : ''}</li>`).join('');
+  const msg = fb.sent === 'ok' ? '<p class="ok">보내 주셔서 감사합니다. 본사 대시보드에 바로 올라갔습니다.</p>' : fb.sent === 'err' ? '<p class="bad">보내지 못했습니다. 내용을 적었는지 확인하고 잠시 뒤 다시 보내 주세요.</p>' : '';
+  return `<section id="voice"><h2>현장 목소리</h2><p class="muted" style="margin:0 0 10px">매장에서 느낀 점을 본사에 알려 주세요. 고객 반응, 잘 팔리거나 안 팔리는 이유, 재고·사이즈, 경쟁 브랜드 행사, 인력·운영 등 무엇이든 좋습니다. 담당자와 본사가 확인하고 답변을 여기에 남깁니다.</p>${msg}
+<form method="post" action="${esc(fb.action)}" class="vf"><label>분류 <select name="category">${fb.cats.map((c) => `<option>${esc(c)}</option>`).join('')}</select></label>
+<label>내용<textarea name="message" rows="4" maxlength="1000" required placeholder="예: 26FW 다운 L 사이즈 문의가 많은데 재고가 없습니다. / 옆 매장 타이틀리스트가 이번 주 20% 행사 중입니다."></textarea></label>
+<label>이름·직책 (선택) <input name="name" maxlength="30" placeholder="예: 김OO 매니저"></label><button type="submit">본사에 보내기</button></form>
+${items ? `<h2 style="margin-top:16px">보낸 내용</h2><ul class="vl">${items}</ul>` : ''}</section>`;
+}
+
 function rankSec(r) {
   if (!r.ranks.length) return '';
   const fmt = (k, v) => (k === 'yoy' ? signed(v) : k === 'mem' ? pct(v) : won(v));
@@ -240,7 +258,7 @@ function rankSec(r) {
 ${tr ? `<p class="muted" style="margin:12px 0 6px">월별 ${esc(n.sn)} 안 순위 (순매출)</p><div class="rks">${tr}</div>` : ''}</section>`;
 }
 
-function page(r) {
+function page(r, fb = { list: [], cats: [], status: {}, sent: '', action: '' }) {
   const yoy = r.lyNet > 0 ? r.net / r.lyNet - 1 : null, w7 = r.p7 > 0 ? r.s7 / r.p7 - 1 : null, l7 = r.l7 > 0 ? r.s7 / r.l7 - 1 : null;
   const mx = Math.max(1, ...r.days.map((x) => Math.max(x.net, x.ly || 0)));
   const bars = r.days.map((x) => { const w = [0, 6].includes(new Date(x.d + 'T00:00:00Z').getUTCDay()); return `<div class="bar${w ? ' we' : ''}" title="${esc(md(x.d))}(${dow(x.d)}) ${esc(won(x.net))}${x.ly != null ? ' · 작년 같은 요일 ' + esc(won(x.ly)) : ''}"><i style="height:${Math.max(0, x.net / mx * 100).toFixed(1)}%"></i>${x.ly ? `<b style="bottom:${(x.ly / mx * 100).toFixed(1)}%"></b>` : ''}</div>`; }).join('');
@@ -251,6 +269,7 @@ function page(r) {
   return `<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="robots" content="noindex,nofollow"><link rel="icon" href="/favicon.ico" sizes="any"><link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png"><link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <title>${esc(r.store)} ${+r.ym.slice(5)}월 실적</title><link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css"><style>${CSS}</style></head><body><main>
 <div><h1>${esc(r.store)}</h1><div class="muted">${esc(r.ym.slice(0, 4))}년 ${+r.ym.slice(5)}월 1일 ~ ${esc(md(r.last))}(${dow(r.last)}) 실적${r.updated ? ' · 자료 갱신 ' + esc(new Date(r.updated).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })) : ''}</div></div>
+<p style="margin:0"><a class="vbtn" href="#voice">현장 목소리 보내기 ↓</a></p>
 <p class="lede">이번 달 순매출은 <b>${esc(won(r.net))}</b>이고, 작년 같은 기간 대비 <b class="${tone(yoy)}">${signed(yoy)}</b>입니다. 지금 추세라면 ${+r.ym.slice(5)}월 마감은 약 <b>${esc(won(r.projected))}</b>${r.lyMonth > 0 ? ` (작년 ${+r.ym.slice(5)}월 전체 ${esc(won(r.lyMonth))})` : ''}입니다.${r.ranks.length ? ' 순매출 순위는 ' + r.ranks[0].by.map((b) => `${esc(b.sn)} ${b.n}개 매장 중 <b>${b.rank}위</b>`).join(', ') + '입니다.' : ''}</p>
 <div class="kpis">
 ${r.ranks.length ? r.ranks[0].by.slice(0, 2).map((b) => `<div class="card"><span class="muted">${esc(b.sn)} 순위</span><span class="v">${b.rank}위 <small style="font-size:14px;font-weight:500">/ ${b.n}개</small></span><span class="s">이번 달 순매출 기준</span></div>`).join('') : ''}
@@ -268,6 +287,7 @@ ${more(r)}
 <section><h2>상품 베스트 10</h2>${catT ? `<p class="muted" style="margin:0 0 8px">카테고리 비중: ${catT}</p>` : ''}<div class="wrap"><table><thead><tr><th class="n">순위</th><th>상품</th><th>카테고리</th><th class="n">수량</th><th class="n">순매출</th></tr></thead><tbody>${bt || '<tr><td colspan="5">판매 상품이 없습니다.</td></tr>'}</tbody></table></div></section>
 ${r.missing.length ? `<section><h2>확인해 볼 상품</h2><p class="muted" style="margin:0 0 8px">같은 유통 형태 매장들의 이번 달 베스트 15 중 우리 매장에서 아직 안 팔린 상품입니다. 재고와 진열을 확인해 주세요.</p><ul>${r.missing.map((n) => `<li>${esc(n)}</li>`).join('')}</ul></section>` : ''}
 <section><h2>일별 실적표</h2><div class="wrap"><table><thead><tr><th>날짜</th><th class="n">순매출</th><th class="n">작년 같은 요일</th><th class="n">전년 대비</th></tr></thead><tbody>${dtab}</tbody></table></div></section>
+${voice(fb)}
 <p class="muted">순매출 = 판매금액 − 반품금액 (ERP 판매정보현황 기준). 이 링크는 이 매장 전용입니다. 다른 사람에게 전달하지 마세요.</p>
 </main></body></html>`;
 }

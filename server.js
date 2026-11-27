@@ -13,6 +13,7 @@ const { aggregate } = require('./aggregate');
 const ExcelJS = require('exceljs');
 const { parseCompetitors, HEAD: COMP_HEAD } = require('./competitors');
 const SR = require('./storeReport');
+const FB = require('./feedback');
 
 const root = path.join(__dirname, 'public');
 const port = Number(process.env.PORT) || 3000;
@@ -525,9 +526,10 @@ showComp();
 }
 
 http.createServer((req, res) => {
-  let pathname;
+  let pathname, query;
   try {
-    pathname = decodeURIComponent(new URL(req.url, 'http://localhost').pathname);
+    const u = new URL(req.url, 'http://localhost');
+    pathname = decodeURIComponent(u.pathname); query = u.searchParams;
   } catch {
     res.writeHead(400);
     return res.end();
@@ -554,14 +556,26 @@ http.createServer((req, res) => {
     });
   }
   // 매장 공유 링크: /s/<매장코드>/<서명> — 비밀번호 없이 그 매장 자료만
-  const sm = pathname.match(/^\/s\/([A-Za-z0-9]{3,20})\/([A-Za-z0-9_-]{10,40})$/);
+  const sm = pathname.match(/^\/s\/([A-Za-z0-9]{3,20})\/([A-Za-z0-9_-]{10,40})(\/feedback)?$/);
   if (sm) {
     const h = { 'X-Robots-Tag': 'noindex, nofollow', 'Referrer-Policy': 'no-referrer' };
     if (!SR.verify(SR.getSecret(dataDir), sm[1], sm[2])) return send(res, 404, '<!doctype html><meta charset="utf-8"><p style="font-family:sans-serif;padding:24px">링크가 맞지 않거나 만료되었습니다. 담당자에게 새 링크를 받아 주세요.</p>', h);
+    const base = `/s/${sm[1]}/${sm[2]}`;
+    if (sm[3]) {
+      if (req.method !== 'POST') { res.writeHead(303, { Location: base }); return res.end(); }
+      if (!FB.allowed(clientIp(req))) { res.writeHead(303, { Location: base + '?sent=err#voice' }); return res.end(); }
+      return FB.readBody(req).then((b) => {
+        const f = new URLSearchParams(b), name = (SR.storeList(loadCsv).find((x) => x.store_code === sm[1]) || {}).store || sm[1];
+        const it = FB.add(dataDir, { store_code: sm[1], store: name, category: f.get('category'), message: f.get('message'), name: f.get('name') });
+        console.log(`현장 목소리: ${name} · ${it.category}`);
+        res.writeHead(303, { Location: base + '?sent=ok#voice' }); res.end();
+      }).catch(() => { res.writeHead(303, { Location: base + '?sent=err#voice' }); res.end(); });
+    }
     try {
       const r = SR.report(loadCsv, sm[1], readMeta());
       if (!r) return send(res, 200, '<!doctype html><meta charset="utf-8"><p style="font-family:sans-serif;padding:24px">이번 달 이 매장의 판매 자료가 아직 없습니다.</p>', h);
-      return send(res, 200, SR.page(r), h);
+      const fb = { list: FB.readAll(dataDir).filter((x) => x.store_code === sm[1]), cats: FB.CATS, status: FB.STATUS, sent: query.get('sent') || '', action: base + '/feedback' };
+      return send(res, 200, SR.page(r, fb), { ...h, 'Cache-Control': 'no-store' });
     } catch (e) { console.error('매장 리포트 실패:', e.message); return send(res, 500, '<!doctype html><meta charset="utf-8"><p>잠시 뒤 다시 열어 주세요.</p>', h); }
   }
   if (!loggedIn(req)) {
@@ -571,6 +585,16 @@ http.createServer((req, res) => {
   }
 
   if (pathname === '/upload') return send(res, 200, uploadPage());
+  // 현장 목소리 (대시보드용)
+  if (pathname === '/api/feedback' && req.method === 'GET') return json(res, 200, { status: FB.STATUS, items: FB.readAll(dataDir) });
+  const fu = pathname.match(/^\/api\/feedback\/([a-f0-9]{12})$/);
+  if (fu && req.method === 'POST') {
+    return FB.readBody(req).then((b) => {
+      let d = {}; try { d = JSON.parse(b); } catch {}
+      const it = FB.update(dataDir, fu[1], { status: d.status, reply: d.reply });
+      return it ? json(res, 200, { ok: true, item: it }) : json(res, 404, { ok: false });
+    }).catch(() => json(res, 400, { ok: false }));
+  }
   if (pathname === '/links/rotate' && req.method === 'POST') {
     SR.rotateSecret(dataDir); console.log('매장 공유 링크를 모두 새로 만듦');
     res.writeHead(303, { Location: '/links' }); return res.end();
