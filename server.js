@@ -568,7 +568,7 @@ http.createServer((req, res) => {
         const f = new URLSearchParams(b), name = (SR.storeList(loadCsv).find((x) => x.store_code === sm[1]) || {}).store || sm[1];
         const qk = f.get('qkey');
         if (!qk) { res.writeHead(303, { Location: base + '#today-q' }); return res.end(); } // 자유 의견 입력은 없앰 (오늘의 질문만)
-        const it = FB.add(dataDir, { store_code: sm[1], store: name, category: f.get('category'), message: f.get('message'), name: f.get('name'), qkey: qk, qdate: f.get('qdate'), question: f.get('question'), choice: f.get('choice') });
+        const it = FB.add(dataDir, { store_code: sm[1], store: name, category: f.get('category'), message: f.get('message'), name: f.get('name'), qkey: qk, qdate: f.get('qdate'), question: f.get('question'), choice: f.get('choice'), ref: f.get('ref') });
         if (it) console.log(`오늘의 질문 답변: ${name} · ${it.category}${it.qkey ? ' (오늘의 질문)' : ''}`);
         res.writeHead(303, { Location: base + (qk ? '?sent=ok#today-q' : '?sent=ok#voice') }); res.end();
       }).catch(() => { res.writeHead(303, { Location: base + '?sent=err#today-q' }); res.end(); });
@@ -576,7 +576,7 @@ http.createServer((req, res) => {
     try {
       const r = SR.report(loadCsv, sm[1], readMeta());
       if (!r) return send(res, 200, '<!doctype html><meta charset="utf-8"><p style="font-family:sans-serif;padding:24px">이번 달 이 매장의 판매 자료가 아직 없습니다.</p>', h);
-      const fb = { list: FB.readAll(dataDir).filter((x) => x.store_code === sm[1]), cats: FB.CATS, status: FB.STATUS, sent: query.get('sent') || '', action: base + '/feedback', questions: SR.questions(r) };
+      const fb = { list: FB.readAll(dataDir).filter((x) => x.store_code === sm[1]), cats: FB.CATS, status: FB.STATUS, sent: query.get('sent') || '', action: base + '/feedback', questions: SR.questions(r, FB.readAll(dataDir).filter((x) => x.store_code === sm[1])) };
       return send(res, 200, SR.page(r, fb), { ...h, 'Cache-Control': 'no-store' });
     } catch (e) { console.error('매장 리포트 실패:', e.message); return send(res, 500, '<!doctype html><meta charset="utf-8"><p>잠시 뒤 다시 열어 주세요.</p>', h); }
   }

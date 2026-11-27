@@ -21,15 +21,15 @@ function writeAll(dir, list) {
 }
 const clean = (s, n) => String(s ?? '').replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, '').trim().slice(0, n);
 
-const QKEYS = ['day', 'week', 'itemDown', 'itemUp', 'miss', 'ret', 'comp', 'any'];
-function add(dir, { store_code, store, category, message, name, qkey, qdate, question, choice }) {
+const QKEYS = ['day', 'week', 'itemDown', 'itemUp', 'miss', 'ret', 'comp', 'any', 'theme', 'fu'];
+function add(dir, { store_code, store, category, message, name, qkey, qdate, question, choice, ref }) {
   const text = clean(message, 1000), ch = clean(choice, 40);
   const isQ = QKEYS.includes(qkey) && /^\d{4}-\d{2}-\d{2}$/.test(qdate || '');
   if (!text && !(isQ && ch)) throw new Error('내용을 적어 주세요.');
   if (isQ && readAll(dir).some((x) => x.store_code === store_code && x.qkey === qkey && x.qdate === qdate)) return null; // 같은 질문은 하루 한 번
   const msg = isQ ? [ch, text].filter(Boolean).join(' · ') : text;
   const item = { id: crypto.randomBytes(6).toString('hex'), at: new Date().toISOString(), store_code, store, category: CATS.includes(category) ? category : '기타', message: msg, name: clean(name, 30), status: 'new', reply: '', reply_at: '',
-    ...(isQ ? { qkey, qdate, question: clean(question, 300), choice: ch, text } : {}) };
+    ...(isQ ? { qkey, qdate, question: clean(question, 300), choice: ch, text, ...(qkey === 'fu' && /^[a-f0-9]{12}$/.test(ref || '') ? { ref } : {}) } : {}) };
   fs.mkdirSync(dir, { recursive: true });
   fs.appendFileSync(file(dir), JSON.stringify(item) + '\n');
   return item;
