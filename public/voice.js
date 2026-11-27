@@ -49,6 +49,30 @@
     const md = `${+last.slice(5, 7)}/${+last.slice(8)}`;
     box.sum.textContent = `${md} 마감 기준 · ${S.t} · ${m ? m + ' 담당 · ' : ''}${by.size} / ${names.size}개 매장 답변` + (cv.length ? ` · 추정 구매율 중간값 약 ${Math.round(cv[Math.floor(cv.length / 2)] * 100)}% (${cv.length}곳)` : '');
     box.hr.replaceChildren(...['담당자', '매장', wkend ? '주말 매출' : '어제 매출', '작년 같은 요일 대비', ...Q.map((x) => x[2]), '한 줄 메모'].map((t, i) => $('th', i === 2 || i === 3 ? 'n' : '', t)));
+    // 자동 요약: 담당자별 답변율, 구매율 낮은 매장, 재고·사이즈 부족 매장(+베스트 미판매), 경쟁사 언급 매장
+    const ins = [], nm = (c) => short(names.get(c) || c), uniq = (a) => [...new Set(a)];
+    const mg = new Map(); names.forEach((_, c) => { const k = mgr.get(c) || '담당 없음', o = mg.get(k) || [0, 0]; o[1]++; if (by.has(c)) o[0]++; mg.set(k, o); });
+    if (!m && mg.size > 1) ins.push(['담당자별 답변', [...mg].map(([k, [a, n]]) => `${k} ${a}/${n}`).join(' · ')]);
+    const low = uniq(ans.filter((x) => x.qkey === 'conv' && CONV[x.choice] != null && CONV[x.choice] <= 0.33).map((x) => x.store_code));
+    if (low.length) ins.push(['구매율 낮음 (33% 이하)', `${low.length}곳 · ${low.slice(0, 10).map(nm).join(', ')}${low.length > 10 ? ' 등' : ''} — 들어온 고객을 놓치는 매장: 응대·사이즈 구성 점검`]);
+    const STOCK = ['재고·사이즈 부족', '사이즈·컬러 없음', '재고 부족', '재고 없음', '사이즈 없음', '재고·사이즈'];
+    const stock = uniq(ans.filter((x) => STOCK.includes(x.choice)).map((x) => x.store_code));
+    if (stock.length) {
+      const ps = dd.data('product_store'), typ = new Map(sd.data.map((r) => [r.store_code, r.type])), miss = new Map();
+      if (ps && ps.status === 'ok') {
+        const top = new Map();
+        for (const r of ps.data) { const t = typ.get(r.store_code), mm = top.get(t) || new Map(); mm.set(r.product_code, { n: (mm.get(r.product_code) || { n: 0 }).n + (+r.net || 0), name: r.product_name }); top.set(t, mm); }
+        const sold = new Map(); ps.data.forEach((r) => { if (+r.qty > 0) { const s2 = sold.get(r.store_code) || new Set(); s2.add(r.product_code); sold.set(r.store_code, s2); } });
+        stock.forEach((c) => { const t = [...(top.get(typ.get(c)) || new Map())].sort((a, b) => b[1].n - a[1].n).slice(0, 15).filter(([pc]) => !(sold.get(c) || new Set()).has(pc)); miss.set(c, t.slice(0, 2).map(([, o]) => o.name.replace(/^KR\s*/, ''))); });
+      }
+      ins.push(['재고·사이즈 부족', stock.slice(0, 8).map((c) => nm(c) + ((miss.get(c) || []).length ? ` (안 팔린 베스트: ${miss.get(c).join(', ')})` : '')).join(' · ') + (stock.length > 8 ? ' 등' : '') + ' — 물류 확인']);
+    }
+    const comp = uniq(ans.filter((x) => /경쟁사/.test(x.choice || '')).map((x) => x.store_code));
+    if (comp.length) ins.push(['경쟁사 영향', `${comp.length}곳 · ${comp.slice(0, 10).map(nm).join(', ')} — 메모에서 브랜드·조건 확인`]);
+    const wait = [...names.keys()].filter((c) => !by.has(c));
+    if (by.size && wait.length) ins.push(['아직 안 한 매장', `${wait.length}곳 · ${wait.slice(0, 12).map(nm).join(', ')}${wait.length > 12 ? ' 등' : ''}`]);
+    box.ins.replaceChildren(...ins.map(([h, t]) => { const li = $('li'); li.append($('b', '', h + ': '), document.createTextNode(t)); return li; }));
+    box.ins.hidden = !ins.length;
     // 질문별 답 분포
     box.dist.replaceChildren(...Q.map(([ks, label]) => {
       const cnt = new Map(); ans.filter((x) => ks.includes(x.qkey)).forEach((x) => cnt.set(x.choice || '기타', (cnt.get(x.choice || '기타') || 0) + 1));
@@ -117,16 +141,16 @@
     const sec = $('section', 'fj-section'); sec.id = 'voice-section';
     const title = $('div', 'fj-sec-title');
     title.append($('h2', '', '매장 현황 (오늘의 질문)'), $('span', 'fj-label', '매장 링크의 오늘의 질문에 매장이 답한 내용을 모았습니다. 월요일은 주말·주간 동향과 이번 주 집중할 일, 화~목은 어제를 구매 고객 수·객단가로 나눈 상황과 방문 대비 구매(추정 구매율), 금요일은 월요일에 고른 일의 실천과 주말 준비를 묻습니다. 하나하나 처리하지 않아도 되고, 맨 위 담당자 필터가 적용됩니다.'));
-    const sum = $('p', 'fd-sum'), dist = $('div', 'fd-grid');
+    const sum = $('p', 'fd-sum'), insl = $('ul', 'fd-ins'), dist = $('div', 'fd-grid');
     const wrap = $('div', 'fj-tablewrap tall'), table = $('table', 'fj-table'), th = $('thead'), hr = $('tr');
     th.append(hr); const tb = $('tbody'); table.append(th, tb); wrap.append(table);
     const more = $('details', 'fd-more'); more.append($('summary', '', '매장별 답변 보기 · 필요할 때만 답변 남기기'));
     const list = $('ul', 'fv-list'); more.append(list);
-    sec.append(title, sum, dist, wrap, more);
+    sec.append(title, sum, insl, dist, wrap, more);
     tab.insertBefore(sec, tab.firstElementChild);
-    box = { sum, dist, tb, list, more, hr };
+    box = { sum, ins: insl, dist, tb, list, more, hr };
     const st = document.createElement('style');
-    st.textContent = `.fd-sum{margin:0;font-weight:600}
+    st.textContent = `.fd-sum{margin:0;font-weight:600}.fd-ins{margin:0;padding-left:1.2em;display:flex;flex-direction:column;gap:4px;font-size:14px}
 .fd-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
 .fd-card{border:1px solid var(--color-border-line);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:6px}
 .fd-h{font-weight:600;font-size:14px}.fd-none{font-size:13px;color:var(--color-fg-muted)}

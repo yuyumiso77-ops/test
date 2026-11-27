@@ -211,7 +211,9 @@ table{width:100%;border-collapse:collapse;font-size:14px}th,td{padding:7px 6px;b
 .two{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:22px}.two section{min-width:0}
 .hb{display:flex;flex-direction:column;gap:6px}.hr{display:grid;grid-template-columns:44px 1fr auto;gap:8px;align-items:center;font-size:13px}.ht{height:10px;background:var(--line);border-radius:3px;overflow:hidden}.ht i{display:block;height:100%;background:var(--accent)}.hv{color:var(--muted);font-variant-numeric:tabular-nums;font-size:12px;white-space:nowrap}
 tr.me td{font-weight:700}
-.qt{font-size:12px;color:var(--accent);font-weight:600}.qc{border:1px solid var(--line);border-radius:10px;padding:12px;margin-top:10px;display:flex;flex-direction:column;gap:8px}.qc.done{opacity:.75}.qq{font-weight:600}.qa{color:var(--up);font-size:14px}
+.qt{font-size:12px;color:var(--accent);font-weight:600}
+.qs{display:flex;flex-wrap:wrap;gap:6px}.qs span{display:flex;flex-direction:column;min-width:88px;padding:6px 10px;border-radius:8px;background:var(--bg);border:1px solid var(--line)}.qs small{font-size:11px;color:var(--muted)}.qs b{font-size:16px;font-variant-numeric:tabular-nums}.qs em{font-style:normal;font-size:12px;color:var(--muted)}.qs em.up{color:var(--up)}.qs em.down{color:var(--down)}
+.qp{font-size:13px;color:var(--muted);padding:6px 10px;background:var(--bg);border-radius:8px}.qc{border:1px solid var(--line);border-radius:10px;padding:12px;margin-top:10px;display:flex;flex-direction:column;gap:8px}.qc.done{opacity:.75}.qq{font-weight:600}.qa{color:var(--up);font-size:14px}
 .chips{display:flex;flex-wrap:wrap;gap:6px}.chips input{position:absolute;opacity:0;pointer-events:none}.chips span{display:inline-block;padding:6px 12px;border:1px solid var(--line);border-radius:999px;font-size:14px;cursor:pointer;background:var(--bg)}.chips input:checked+span{background:var(--accent);border-color:var(--accent);color:#fff}.chips input:focus-visible+span{outline:2px solid var(--accent)}
 .qc input[name=message]{font:inherit;font-size:15px;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px}.qc button{align-self:flex-start;font:inherit;font-weight:600;color:#fff;background:var(--accent);border:0;border-radius:8px;padding:8px 16px;cursor:pointer}
 .vbtn{display:inline-block;font-size:13px;font-weight:600;color:var(--accent);text-decoration:none;border:1px solid var(--accent);border-radius:999px;padding:5px 12px}
@@ -318,15 +320,17 @@ function dailyQ(r) {
   if (y.lyRc > 0 && aov && lyAov) {
     const k = (y.rc >= y.lyRc ? 'u' : 'd') + (aov >= lyAov ? 'u' : 'd');
     const txt = y.rc === y.lyRc ? `구매 고객 수는 작년과 같고, 1인당 구매는 ${aov >= lyAov ? '늘었어요' : '줄었어요'}.` : QTXT[k];
-    q.push({ key: 'day', tag: '어제 상황', cat: '고객 반응', q: `${md2} 매출 ${won(y.net)}${y.lyNet > 0 ? `(작년 같은 요일 대비 ${signed(y.net / y.lyNet - 1)})` : ''} · 구매 고객 ${y.rc}명(작년 ${y.lyRc}명) · 객단가 ${won(aov)}(작년 ${won(lyAov)}). ${txt} 어떤 상황이었나요?`, a: QUAD[k] });
+    q.push({ key: 'day', tag: `어제 상황 · ${md2}`, cat: '고객 반응', q: `${md2} 매출 ${won(y.net)}${y.lyNet > 0 ? `(작년 같은 요일 대비 ${signed(y.net / y.lyNet - 1)})` : ''} · 구매 고객 ${y.rc}명(작년 ${y.lyRc}명) · 객단가 ${won(aov)}(작년 ${won(lyAov)}). ${txt} 어떤 상황이었나요?`, a: QUAD[k],
+      short: `${txt} 어떤 상황이었나요?`, stats: [['매출', won(y.net), y.lyNet > 0 ? signed(y.net / y.lyNet - 1) : ''], ['구매 고객', `${y.rc}명`, `작년 ${y.lyRc}명`], ['객단가', won(aov), signed(aov / lyAov - 1)]] });
   } else {
     const pw = r.pwNet, up = upOf(y.net, y.lyNet, pw);
-    q.push({ key: 'day', tag: '어제 상황', cat: '고객 반응', q: `${md2} 매출 ${won(y.net)} · 구매 고객 ${y.rc}명${vs(y.net, y.lyNet, pw) ? ` (${vs(y.net, y.lyNet, pw)})` : ''}. ${up === false ? '이유가 무엇인가요?' : '무엇이 잘됐나요?'}`, a: up === false ? A.down : A.up });
+    q.push({ key: 'day', tag: `어제 상황 · ${md2}`, cat: '고객 반응', q: `${md2} 매출 ${won(y.net)} · 구매 고객 ${y.rc}명${vs(y.net, y.lyNet, pw) ? ` (${vs(y.net, y.lyNet, pw)})` : ''}. ${up === false ? '이유가 무엇인가요?' : '무엇이 잘됐나요?'}`, a: up === false ? A.down : A.up,
+      short: up === false ? '매출이 줄어든 이유가 무엇인가요?' : '무엇이 잘됐나요?', stats: [['매출', won(y.net), y.lyNet > 0 ? signed(y.net / y.lyNet - 1) : ''], ['전주 같은 요일', pw > 0 ? won(pw) : '—', pw > 0 ? signed(y.net / pw - 1) : ''], ['구매 고객', `${y.rc}명`, '']] });
   }
-  if (y.rc > 0) q.push({ key: 'conv', tag: '방문 대비 구매', cat: '고객 반응', q: `어제 구매 고객은 ${y.rc}명이었어요. 매장에 들어온 고객은 대략 몇 명이었나요?`,
+  if (y.rc > 0) q.push({ key: 'conv', tag: '방문 대비 구매', cat: '고객 반응', q: `어제 구매 고객은 ${y.rc}명이었어요. 매장에 들어온 고객은 대략 몇 명이었나요?`, short: `어제 구매 고객은 ${y.rc}명이었어요. 매장에 들어온 고객은 대략 몇 명이었나요?`,
     a: CONV.map(([v, m], i) => ({ v, l: i === 0 ? `${y.rc}~${Math.ceil(y.rc * m)}명 (거의 다 구매)` : i === 3 ? `${y.rc * m}명 이상` : `약 ${Math.round(y.rc * m)}명` })) });
-  if (y.retQ >= 2 || y.ret >= 3e5) q.push({ key: 'ret1', tag: '어제 반품', cat: '상품·재고', q: `어제 반품이 ${y.retQ}건(${won(y.ret)}) 있었어요. 주된 사유는 무엇인가요?`, a: A.ret });
-  else if (y.top) q.push({ key: 'item', tag: '어제 잘 팔린 상품', cat: '상품·재고', q: `어제 ${itemName(y.top.k)} 판매 수량은 ${y.top.n}개예요 (이번 달 하루 평균 ${y.top.avg.toFixed(1)}개). 많이 팔린 이유는?`, a: A.itemUp });
+  if (y.retQ >= 2 || y.ret >= 3e5) q.push({ key: 'ret1', tag: '어제 반품', cat: '상품·재고', q: `어제 반품이 ${y.retQ}건(${won(y.ret)}) 있었어요. 주된 사유는 무엇인가요?`, a: A.ret, short: '주된 반품 사유는 무엇인가요?', stats: [['어제 반품', `${y.retQ}건`, won(y.ret)]] });
+  else if (y.top) q.push({ key: 'item', tag: '어제 잘 팔린 상품', cat: '상품·재고', q: `어제 ${itemName(y.top.k)} 판매 수량은 ${y.top.n}개예요 (이번 달 하루 평균 ${y.top.avg.toFixed(1)}개). 많이 팔린 이유는?`, a: A.itemUp, short: '평소보다 많이 팔린 이유는?', stats: [[itemName(y.top.k), `${y.top.n}개`, `하루 평균 ${y.top.avg.toFixed(1)}개`]] });
   else q.push({ key: 'lost', tag: '어제 놓친 판매', cat: '상품·재고', q: '어제 구매로 이어지지 않은 가장 큰 이유는 무엇이었나요?', a: A.lost });
   return q.map((x) => ({ ...x, qdate: y.d }));
 }
@@ -336,8 +340,10 @@ function weekQ(r) {
   const we = r.sumDays(sat, e), weLy = r.sumLy(sat, e), wePw = r.sumDays(shift(sat, -7), shift(e, -7));
   const wk = r.sumDays(mon, e), wkLy = r.sumLy(mon, e), wkPw = r.sumDays(shift(mon, -7), shift(e, -7));
   const q = [], u1 = upOf(we || 0, weLy, wePw), u2 = upOf(wk || 0, wkLy, wkPw);
-  q.push({ key: 'wkend', tag: '주말 동향', cat: '고객 반응', q: `지난 주말 ${rng(sat, e)} 매출은 ${won(we)}${vs(we, weLy, wePw) ? `으로 ${vs(we, weLy, wePw)}예요` : '이에요'}. ${u1 === false ? '이유가 무엇인가요?' : '무엇이 잘됐나요?'}`, a: u1 === false ? A.down : A.up });
-  q.push({ key: 'week', tag: '주간 동향', cat: '고객 반응', q: `지난주 ${rng(mon, e)} 매출은 ${won(wk)}${vs(wk, wkLy, wkPw) ? `으로 ${vs(wk, wkLy, wkPw)}예요` : '이에요'}. 한 주를 가장 크게 좌우한 것은?`, a: u2 === false ? A.down : A.up });
+  q.push({ key: 'wkend', tag: '주말 동향', cat: '고객 반응', q: `지난 주말 ${rng(sat, e)} 매출은 ${won(we)}${vs(we, weLy, wePw) ? `으로 ${vs(we, weLy, wePw)}예요` : '이에요'}. ${u1 === false ? '이유가 무엇인가요?' : '무엇이 잘됐나요?'}`, a: u1 === false ? A.down : A.up,
+    short: u1 === false ? '주말 매출이 줄어든 이유는?' : '주말에 무엇이 잘됐나요?', stats: [['지난 주말', won(we), ''], ['작년 같은 요일', weLy > 0 ? signed(we / weLy - 1) : '—', ''], ['전주 주말', wePw > 0 ? signed(we / wePw - 1) : '—', '']] });
+  q.push({ key: 'week', tag: '주간 동향', cat: '고객 반응', q: `지난주 ${rng(mon, e)} 매출은 ${won(wk)}${vs(wk, wkLy, wkPw) ? `으로 ${vs(wk, wkLy, wkPw)}예요` : '이에요'}. 한 주를 가장 크게 좌우한 것은?`, a: u2 === false ? A.down : A.up,
+    short: '한 주를 가장 크게 좌우한 것은?', stats: [['지난주', won(wk), ''], ['작년 같은 요일', wkLy > 0 ? signed(wk / wkLy - 1) : '—', ''], ['전주', wkPw > 0 ? signed(wk / wkPw - 1) : '—', '']] });
   q.push({ key: 'focus', tag: '이번 주 집중', cat: '행사·판촉', q: '이번 주 매출을 위해 가장 집중할 일 하나를 골라 주세요. 금요일에 얼마나 했는지 여쭤볼게요.', a: A.focus });
   return q.map((x) => ({ ...x, qdate: e }));
 }
@@ -347,24 +353,40 @@ function friQ(r, past) {
   const we = r.sumDays(sat, sun), weLy = r.sumLy(sat, sun), q = [];
   const f = past.filter((x) => x.qkey === 'focus' && x.qdate >= shift(e, -6) && x.qdate < e).sort((a, b) => b.at.localeCompare(a.at))[0];
   if (f) q.push({ key: 'focusChk', tag: '이번 주 집중 점검', cat: '행사·판촉', q: `월요일에 고른 이번 주 집중할 일: '${f.choice}'. 얼마나 했나요?`, a: A.done });
-  q.push({ key: 'plan', tag: '주말 준비', cat: '행사·판촉', q: `지난 주말 ${rng(sat, sun)} 매출은 ${won(we)}${weLy > 0 ? `(작년 같은 요일 대비 ${signed(we / weLy - 1)})` : ''}이었어요. 이번 주말 매출을 올리려고 준비한 것은?`, a: A.plan });
+  q.push({ key: 'plan', tag: '주말 준비', cat: '행사·판촉', q: `지난 주말 ${rng(sat, sun)} 매출은 ${won(we)}${weLy > 0 ? `(작년 같은 요일 대비 ${signed(we / weLy - 1)})` : ''}이었어요. 이번 주말 매출을 올리려고 준비한 것은?`, a: A.plan,
+    short: '이번 주말 매출을 올리려고 준비한 것은?', stats: [['지난 주말', won(we), weLy > 0 ? `작년 대비 ${signed(we / weLy - 1)}` : '']] });
   q.push({ key: 'risk', tag: '주말 걸림돌', cat: '인력·운영', q: '이번 주말 매출에 가장 걸림돌이 될 것 같은 것은?', a: A.risk });
   if (!f) q.push({ key: 'hope', tag: '주말 기대 상품', cat: '상품·재고', q: '이번 주말에 가장 많이 팔 것 같은 상품군은?', a: A.hope });
   return q.slice(0, 3).map((x) => ({ ...x, qdate: e }));
 }
 
+// 다른 매장(같은 유통 형태) 답 분포: 3곳 이상 답했을 때만, 매장 이름 없이
+function peerLine(fb, x) {
+  const v = (fb.peers || []).filter((p) => p.qkey === x.key);
+  if (v.length < 3) return `<div class="qp">다른 ${esc(fb.peerLabel || '매장')} 답은 3곳 이상 답하면 여기 보여 드려요.</div>`;
+  const cnt = new Map(); v.forEach((p) => cnt.set(p.choice, (cnt.get(p.choice) || 0) + 1));
+  const top = [...cnt].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([c, n]) => `${esc(c)} ${Math.round(n / v.length * 100)}%`).join(' · ');
+  return `<div class="qp">다른 ${esc(fb.peerLabel || '매장')} ${v.length}곳 답: ${top}</div>`;
+}
+function convTrend(fb) {
+  const v = fb.list.filter((x) => x.qkey === 'conv' && CONVP[x.choice]).sort((a, b) => a.qdate.localeCompare(b.qdate)).slice(-7);
+  if (v.length < 2) return '';
+  return `<p class="muted" style="margin:12px 0 0">우리 매장 추정 구매율 (들어온 고객 중 산 고객): ${v.map((x) => `${+x.qdate.slice(5, 7)}/${+x.qdate.slice(8)} 약 ${CONVP[x.choice]}%`).join(' · ')}</p>`;
+}
+const CONVP = { '구매율 80% 이상': 85, '구매율 약 50%': 50, '구매율 약 33%': 33, '구매율 25% 이하': 20 };
 function voice(fb) {
   const when = (t) => new Date(t).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
   const items = fb.list.slice().reverse().slice(0, 10).map((x) => `<li class="vi"><div class="vh"><b>${esc(x.category)}</b> · ${esc(when(x.at))}${x.name ? ' · ' + esc(x.name) : ''} <span class="vs ${esc(x.status)}">${esc(fb.status[x.status] || '')}</span></div>${x.question ? `<div class="vh">Q. ${esc(x.question)}</div>` : ''}<div class="vm">${esc(x.message)}</div>${x.reply ? `<div class="vr"><b>본사 답변</b> ${esc(x.reply)}</div>` : ''}</li>`).join('');
   const qs = fb.questions || [], done = new Map(fb.list.filter((x) => x.qkey).map((x) => [`${x.qdate}|${x.qkey}`, x]));
   const qcards = qs.map((x, i) => {
     const a = done.get(`${x.qdate}|${x.key}`);
-    if (a) return `<div class="qc done"><div class="qq">${esc(x.q)}</div><div class="qa">✓ 답변함: ${esc(a.choice || '')}${a.text ? ' · ' + esc(a.text) : ''}</div></div>`;
+    const st = x.stats ? `<div class="qs">${x.stats.map(([k, v, dd]) => `<span><small>${esc(k)}</small><b>${esc(v)}</b>${dd ? `<em class="${/\+\d/.test(dd) ? 'up' : /-\d/.test(dd) ? 'down' : ''}">${esc(dd)}</em>` : ''}</span>`).join('')}</div>` : '';
+    if (a) return `<div class="qc done"><div class="qt">${esc(x.tag || '')}</div><div class="qq">${esc(x.short || x.q)}</div><div class="qa">✓ 답변함: ${esc(a.choice || '')}${a.text ? ' · ' + esc(a.text) : ''}</div>${peerLine(fb, x)}</div>`;
     return `<form method="post" action="${esc(fb.action)}" class="qc"><input type="hidden" name="qkey" value="${esc(x.key)}"><input type="hidden" name="qdate" value="${esc(x.qdate)}"><input type="hidden" name="question" value="${esc(x.q)}"><input type="hidden" name="category" value="${esc(x.cat)}">${x.ref ? `<input type="hidden" name="ref" value="${esc(x.ref)}">` : ''}
-<div class="qt">${esc(x.tag || '')}</div><div class="qq"><b>Q${i + 1}.</b> ${esc(x.q)}</div><div class="chips">${x.a.map((c) => `<label><input type="radio" name="choice" value="${esc(c.v || c)}"><span>${esc(c.l || c)}</span></label>`).join('')}</div>
+<div class="qt">${esc(x.tag || '')}</div>${st}<div class="qq"><b>Q${i + 1}.</b> ${esc(x.short || x.q)}</div><div class="chips">${x.a.map((c) => `<label><input type="radio" name="choice" value="${esc(c.v || c)}"><span>${esc(c.l || c)}</span></label>`).join('')}</div>
 <input name="message" maxlength="500" placeholder="한 줄 덧붙이기 (선택)"><button type="submit">답하기</button></form>`;
   }).join('');
-  const qsec = qs.length ? `<section id="today-q"><h2>오늘의 질문 <span class="muted" style="font-weight:400">· ${esc(md(qs[0].qdate))} 마감 기준</span></h2><p class="muted" style="margin:0 0 10px">${esc(md(qs[0].qdate))} 마감 매출을 보고 드리는 질문입니다. 맞는 답을 하나 골라 주세요.</p>${fb.sent === 'ok' ? '<p class="ok">답변이 등록되었습니다.</p>' : fb.sent === 'err' ? '<p class="bad">답을 하나 고른 뒤 다시 눌러 주세요.</p>' : ''}${qcards}</section>` : '';
+  const qsec = qs.length ? `<section id="today-q"><h2>오늘의 질문 <span class="muted" style="font-weight:400">· ${esc(md(qs[0].qdate))} 마감 기준</span></h2><p class="muted" style="margin:0 0 10px">${esc(md(qs[0].qdate))} 마감 매출을 보고 드리는 질문입니다. 맞는 답을 하나 골라 주세요.</p>${fb.sent === 'ok' ? '<p class="ok">답변이 등록되었습니다.</p>' : fb.sent === 'err' ? '<p class="bad">답을 하나 고른 뒤 다시 눌러 주세요.</p>' : ''}${qcards}${convTrend(fb)}</section>` : '';
   return `${qsec}${items ? `<section id="voice"><h2>지난 답변과 본사 답변</h2><ul class="vl">${items}</ul></section>` : ''}`;
 }
 

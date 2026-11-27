@@ -576,7 +576,10 @@ http.createServer((req, res) => {
     try {
       const r = SR.report(loadCsv, sm[1], readMeta());
       if (!r) return send(res, 200, '<!doctype html><meta charset="utf-8"><p style="font-family:sans-serif;padding:24px">이번 달 이 매장의 판매 자료가 아직 없습니다.</p>', h);
-      const fb = { list: FB.readAll(dataDir).filter((x) => x.store_code === sm[1]), cats: FB.CATS, status: FB.STATUS, sent: query.get('sent') || '', action: base + '/feedback', questions: SR.questions(r, FB.readAll(dataDir).filter((x) => x.store_code === sm[1])) };
+      const all = FB.readAll(dataDir), mine = all.filter((x) => x.store_code === sm[1]), qs = SR.questions(r, mine);
+      const grp = (t) => (t === '가두점' ? '대리점' : t), typeOf = new Map(SR.storeList(loadCsv).map((x) => [x.store_code, grp(x.type)])), myType = grp(r.type);
+      const peers = qs.length ? all.filter((x) => x.store_code !== sm[1] && x.qdate === qs[0].qdate && typeOf.get(x.store_code) === myType) : [];
+      const fb = { list: mine, cats: FB.CATS, status: FB.STATUS, sent: query.get('sent') || '', action: base + '/feedback', questions: qs, peers, peerLabel: `${myType} 매장` };
       return send(res, 200, SR.page(r, fb), { ...h, 'Cache-Control': 'no-store' });
     } catch (e) { console.error('매장 리포트 실패:', e.message); return send(res, 500, '<!doctype html><meta charset="utf-8"><p>잠시 뒤 다시 열어 주세요.</p>', h); }
   }
