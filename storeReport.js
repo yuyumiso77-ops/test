@@ -266,62 +266,24 @@ const A = {
   fuGood: ['같은 행사 다시', '고객 재방문 연락', '같은 상품 추가 입고', '다른 매장에 공유', '기타'],
   fuReply: ['해결됨', '진행 중', '아직 안 됨', '기타'],
 };
-// 지난 답변에 이어 묻기: 고른 답 → 다음 질문
-const FU = [
-  [['재고·사이즈 부족', '재고 부족', '재고 없음', '사이즈 없음', 'S·M 부족', 'L 부족', 'XL 이상 부족', '컬러 부족', '특정 사이즈', '특정 컬러', '재고·사이즈'], (c) => `지난번 답: '${c}'. 필요한 상품군을 고르고, 상품·사이즈를 한 줄로 적어 주세요.`, 'fuStock', '상품·재고'],
-  [['경쟁사 행사', '경쟁사', '할인 행사', '사은품', '신상품 입고'], (c) => `지난번 답: '${c}'. 어느 브랜드가 어떤 조건인지 알려 주세요.`, 'fuComp', '경쟁 브랜드'],
-  [['방문객 감소', '거절이 많음', '권하지 못함'], (c) => `지난번 답: '${c}'. 방문객·회원을 늘리려면 무엇이 가장 필요할까요?`, 'fuVisit', '고객 반응'],
-  [['인력 부족', '인력'], (c) => `지난번 답: '${c}'. 인력이 가장 부족한 때는 언제인가요?`, 'fuStaff', '인력·운영'],
-  [['단체·큰 구매 고객', '행사 효과', '직원 추천 판매', '신상품 반응', '직원 추천', '신상품 디자인'], (c) => `지난번 답: '${c}' 덕분에 매출이 좋았어요. 다시 할 수 있는 방법이 있을까요?`, 'fuGood', '고객 반응'],
-];
-const itemName = (k) => k.replace('·', ' ');
-const gainQ = (c, x) => (x.isNew ? `${+c.month.slice(5)}월 이 점포에 ${x.k}가 새로 들어와 점유율 ${pct(x.sh)}를 차지했어요. ${x.k}는 어떤 행사·상품으로 팔고 있나요?` : `${+c.month.slice(5)}월 이 점포에서 ${x.k} 점유율이 ${(x.pp * 100).toFixed(1)}%p 올랐어요. 요즘 ${x.k}는 어떤 행사를 하나요?`);
-function questions(r, past = []) {
+// ── 오늘의 질문: 전일 마감 매출로 현황 파악 (모두 어제에 대한 질문, 버튼 하나로 답) ──
+A.traffic = ['훨씬 많았음', '조금 많았음', '평소와 비슷', '조금 적었음', '훨씬 적었음'];
+A.lost = ['사이즈·컬러 없음', '가격 부담', '둘러보기만 함', '경쟁사로 감', '놓친 판매 없음', '기타'];
+function questions(r) {
   const q = [], d = r.days[r.days.length - 1], md2 = `${md(d.d)}(${dow(d.d)})`, g = (a, b) => (b > 0 ? a / b - 1 : null);
-  const yd = g(d.net, d.ly), pd = r.pwNet == null ? null : g(d.net, r.pwNet), w = g(r.s7, r.l7);
-  // Q1은 늘 전일 마감 매출: 작년 같은 요일·전주 같은 요일과 비교
+  const yd = g(d.net, d.ly), pd = r.pwNet == null ? null : g(d.net, r.pwNet);
   const cmp = [d.ly > 0 ? `작년 같은 요일 ${won(d.ly)} 대비 ${signed(yd)}` : '', r.pwNet > 0 ? `전주 같은 요일 ${won(r.pwNet)} 대비 ${signed(pd)}` : ''].filter(Boolean).join(', ');
   const score = [yd, pd].filter((x) => x != null), upDay = score.length ? score.reduce((a, b) => a + b, 0) / score.length >= 0 : null;
-  const T1 = '전일 매출';
-  if (d.net <= 0) q.push({ key: 'day', tag: T1, cat: '인력·운영', q: `${md2} 매출이 없었어요${cmp ? ` (${cmp.replace(/ 대비 [^,]+/g, '')})` : ''}. 어떤 사정이 있었나요?`, a: A.down });
-  else if (upDay === null) q.push({ key: 'day', tag: T1, cat: '고객 반응', q: `${md2} 매출은 ${won(d.net)}이에요. 어제 매장 분위기는 어땠나요?`, a: A.up.concat(A.down.slice(1, 3)) });
-  else if (yd != null && pd != null && (yd >= 0) !== (pd >= 0)) q.push({ key: 'day', tag: T1, cat: '고객 반응', q: `${md2} 매출은 ${won(d.net)}으로 ${cmp}예요. 전주와 비교해 무엇이 달랐나요?`, a: pd >= 0 ? A.up : A.down });
-  else q.push({ key: 'day', tag: T1, cat: '고객 반응', q: `${md2} 매출은 ${won(d.net)}으로 ${cmp}예요. ${upDay ? '무엇이 잘됐나요?' : '이유가 무엇인가요?'}`, a: upDay ? A.up : A.down });
-  const fin = (list) => list.slice(0, 3).map((x) => ({ ...x, qdate: d.d }));
-  // 답하는 날(마감 다음 날)의 요일로 Q2 주제, 주말은 Q1만
-  const wd = new Date(shift(d.d, 1) + 'T00:00:00Z').getUTCDay();
-  if (wd === 0 || wd === 6) return fin(q);
-  const c = r.compInfo, gain = c && c.L ? c.brands.filter((x) => x.k !== '풋조이').map((x) => ({ k: x.k, pp: x.n / c.T - x.l / c.L, isNew: !x.l, sh: x.n / c.T })).sort((a, b) => b.pp - a.pp)[0] : null;
-  const used = new Set();
-  if (wd === 1) q.push({ key: 'theme', tag: '월 · 지난주 결산', cat: '행사·판촉', q: w != null ? `지난 7일(${md(shift(d.d, -6))}~${md(d.d)}) 매출이 작년 같은 요일보다 ${signed(w)}였어요. 이번 주 가장 먼저 할 일은 무엇인가요?` : '이번 주 가장 먼저 할 일은 무엇인가요?', a: A.plan }), used.add('week');
-  if (wd === 2) { if (r.missing.length >= 2) { q.push({ key: 'theme', tag: '화 · 상품·재고', cat: '상품·재고', q: `다른 매장 베스트인 ${r.missing.slice(0, 2).join(', ')} 등 ${r.missing.length}개가 이번 달 아직 안 팔렸어요. 매장에 있나요?`, a: A.miss }); used.add('miss'); }
-    else q.push({ key: 'theme', tag: '화 · 상품·재고', cat: '상품·재고', q: '다운·아우터 중 부족한 사이즈나 컬러가 있나요?', a: A.size }); }
-  if (wd === 3) q.push(r.memberShare != null && r.memberShare < 0.5
-    ? { key: 'theme', tag: '수 · 고객', cat: '고객 반응', q: `이번 달 회원 매출 비중이 ${pct(r.memberShare)}예요. 회원 가입을 권했을 때 고객 반응은 어떤가요?`, a: A.member }
-    : { key: 'theme', tag: '수 · 고객', cat: '고객 반응', q: '이번 주 고객이 찾았는데 매장에 없던 것은 무엇인가요?', a: A.wish });
-  if (wd === 4) { if (gain && gain.pp >= 0.02) { q.push({ key: 'theme', tag: '목 · 경쟁 브랜드', cat: '경쟁 브랜드', q: gainQ(c, gain), a: A.comp }); used.add('comp'); }
-    else q.push({ key: 'theme', tag: '목 · 경쟁 브랜드', cat: '경쟁 브랜드', q: '이번 주 옆 매장 중 행사하는 브랜드가 있나요?', a: A.compNow }); }
-  if (wd === 5) q.push({ key: 'theme', tag: '금 · 주말 준비', cat: '인력·운영', q: '이번 주말에 부족할 것 같은 것은 무엇인가요?', a: A.weekend });
-  // Q3: 지난 답변 이어 묻기 (최근 7일, 한 답변에 한 번만)
-  const followed = new Set(past.filter((x) => x.qkey === 'fu' && x.ref).map((x) => x.ref));
-  const cand = past.filter((x) => x.qkey && x.qkey !== 'fu' && x.qdate && x.qdate < d.d && x.qdate >= shift(d.d, -7) && !followed.has(x.id)).sort((a, b) => b.at.localeCompare(a.at));
-  let fu = null;
-  const rep = cand.find((x) => x.reply);
-  if (rep) fu = { key: 'fu', ref: rep.id, tag: '지난 답변 이어서', cat: rep.category, q: `본사 답변 "${rep.reply.length > 40 ? rep.reply.slice(0, 40) + '…' : rep.reply}" 내용은 해결됐나요?`, a: A.fuReply };
-  else for (const x of cand) { const m = FU.find(([cs]) => cs.includes(x.choice)); if (m) { fu = { key: 'fu', ref: x.id, tag: '지난 답변 이어서', cat: m[3], q: m[1](x.choice), a: A[m[2]] }; break; } }
-  if (fu) q.push(fu);
-  else {
-    const T3 = '이번 달 숫자';
-    if (!used.has('week') && w != null && r.l7 >= 2e6 && w <= -0.2) q.push({ key: 'week', tag: T3, cat: '고객 반응', q: `최근 7일 매출이 작년 같은 요일보다 ${signed(w)}예요. 가장 큰 이유는 무엇인가요?`, a: A.down });
-    else if (!used.has('week') && w != null && r.l7 >= 2e6 && w >= 0.25) q.push({ key: 'week', tag: T3, cat: '고객 반응', q: `최근 7일 매출이 작년 같은 요일보다 ${signed(w)}예요. 잘된 방법을 다른 매장과 나눠 주세요.`, a: A.up });
-    if (r.itemDown) q.push({ key: 'itemDown', tag: T3, cat: '상품·재고', q: `${itemName(r.itemDown.k)} 매출이 작년 같은 기간보다 ${signed(g(r.itemDown.v, r.itemDown.ly))}예요 (${won(r.itemDown.ly)} → ${won(r.itemDown.v)}). 이유는?`, a: A.itemDown });
-    if (r.itemUp) q.push({ key: 'itemUp', tag: T3, cat: '상품·재고', q: `${itemName(r.itemUp.k)} 매출이 작년 같은 기간보다 ${signed(g(r.itemUp.v, r.itemUp.ly))}예요 (${won(r.itemUp.ly)} → ${won(r.itemUp.v)}). 잘 팔리는 이유는?`, a: A.itemUp });
-    if (!used.has('miss') && r.missing.length >= 3) q.push({ key: 'miss', tag: T3, cat: '상품·재고', q: `다른 매장 베스트인 ${r.missing.slice(0, 2).join(', ')} 등 ${r.missing.length}개가 이번 달 아직 안 팔렸어요. 매장에 있나요?`, a: A.miss });
-    if (r.rr >= 0.25 && r.returns >= 1e6) q.push({ key: 'ret', tag: T3, cat: '상품·재고', q: `이번 달 반품률이 ${pct(r.rr)}예요 (반품 ${won(r.returns)}). 주된 반품 사유는?`, a: A.ret });
-    if (!used.has('comp') && gain && gain.pp >= 0.03) q.push({ key: 'comp', tag: T3, cat: '경쟁 브랜드', q: gainQ(c, gain), a: A.comp });
-    q.push({ key: 'any', tag: T3, cat: '고객 반응', q: '이번 주 고객 반응이 가장 좋은 상품군은 무엇이고, 이유는 무엇인가요?', a: A.any });
+  const T = '전일 매출';
+  if (d.net <= 0) q.push({ key: 'day', tag: T, cat: '인력·운영', q: `${md2} 매출이 없었어요${cmp ? ` (${cmp.replace(/ 대비 [^,]+/g, '')})` : ''}. 어떤 사정이 있었나요?`, a: A.down });
+  else if (upDay === null) q.push({ key: 'day', tag: T, cat: '고객 반응', q: `${md2} 매출은 ${won(d.net)}이에요. 매출에 가장 영향을 준 것은 무엇인가요?`, a: A.up.slice(0, 3).concat(A.down.slice(1, 4)) });
+  else if (yd != null && pd != null && (yd >= 0) !== (pd >= 0)) q.push({ key: 'day', tag: T, cat: '고객 반응', q: `${md2} 매출은 ${won(d.net)}으로 ${cmp}예요. 전주와 비교해 무엇이 달랐나요?`, a: pd >= 0 ? A.up : A.down });
+  else q.push({ key: 'day', tag: T, cat: '고객 반응', q: `${md2} 매출은 ${won(d.net)}으로 ${cmp}예요. ${upDay ? '무엇이 잘됐나요?' : '이유가 무엇인가요?'}`, a: upDay ? A.up : A.down });
+  if (d.net > 0) {
+    q.push({ key: 'visit', tag: '전일 방문객', cat: '고객 반응', q: `${md2} 매장을 찾은 고객은 평소 ${dow(d.d)}요일과 비교해 어땠나요?`, a: A.traffic });
+    q.push({ key: 'lost', tag: '전일 놓친 판매', cat: '상품·재고', q: `${md2} 구매로 이어지지 않은 가장 큰 이유는 무엇이었나요?`, a: A.lost });
   }
-  return fin(q);
+  return q.map((x) => ({ ...x, qdate: d.d }));
 }
 
 function voice(fb) {
