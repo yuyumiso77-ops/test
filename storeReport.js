@@ -172,7 +172,9 @@ function report(load, code, meta) {
     const pool = [...tot].filter(([c, v]) => v > 0 && retailer(info.get(c)) === grp).sort((a, b) => b[1] - a[1]);
     rankTrend.push({ m: mm, rank: pool.findIndex(([c]) => c === code) + 1, n: pool.length });
   }
-  return { code, ...s, first, last, dim, ym, net, tag, ranks, rankTrend, itemUp, itemDown, confirmed, qty, weeks, months, ytd, lyYtd, dowAvg, hours, stypes, gen, lgen, itemRows, season, memb, compInfo, sales, returns, receipts, lyNet, lyMonth, projected, s7, p7, l7, rank, peers: peers.length, grp,
+  const pwd = shift(last, -7), pwNet = pwd.slice(0, 7) === ym ? (daily.get(pwd) || 0) : hist.filter((x) => x.date === pwd).reduce((a, x) => a + (+x.net || 0), 0);
+  const pwHas = pwd.slice(0, 7) === ym || hist.some((x) => x.date.slice(0, 7) === pwd.slice(0, 7));
+  return { code, ...s, first, last, dim, ym, net, tag, ranks, rankTrend, itemUp, itemDown, pwd, pwNet: pwHas ? pwNet : null, confirmed, qty, weeks, months, ytd, lyYtd, dowAvg, hours, stypes, gen, lgen, itemRows, season, memb, compInfo, sales, returns, receipts, lyNet, lyMonth, projected, s7, p7, l7, rank, peers: peers.length, grp,
     aov: receipts ? sales / receipts : null, rr: sales ? returns / sales : null, memberShare: ms + ns ? ms / (ms + ns) : null, newMembers,
     days: allDays.map((d) => ({ d, net: daily.get(d) || 0, ly: lyDaily.get(shift(d, -364)) })), best, cats: [...catMap].filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]), missing, updated: meta && meta.uploaded_at };
 }
@@ -255,10 +257,14 @@ const A = {
 const itemName = (k) => k.replace('·', ' ');
 function questions(r) {
   const q = [], d = r.days[r.days.length - 1], md2 = `${md(d.d)}(${dow(d.d)})`, g = (a, b) => (b > 0 ? a / b - 1 : null);
-  const yd = g(d.net, d.ly), w = g(r.s7, r.l7);
-  if (d.net <= 0 && (d.ly || 0) > 0) q.push({ key: 'day', cat: '인력·운영', q: `${md2} 매출이 없었어요 (작년 같은 요일 ${won(d.ly)}). 어떤 사정이 있었나요?`, a: A.down });
-  else if (yd != null && d.ly >= 5e5 && yd >= 0.5) q.push({ key: 'day', cat: '고객 반응', q: `${md2} 매출은 ${won(d.net)}, 작년 같은 요일 대비 ${signed(yd)}예요. 무엇이 잘됐나요?`, a: A.up });
-  else if (yd != null && d.ly >= 5e5 && yd <= -0.4) q.push({ key: 'day', cat: '고객 반응', q: `${md2} 매출은 ${won(d.net)}, 작년 같은 요일 대비 ${signed(yd)}예요. 이유가 있었나요?`, a: A.down });
+  const yd = g(d.net, d.ly), pd = r.pwNet == null ? null : g(d.net, r.pwNet), w = g(r.s7, r.l7);
+  // Q1은 늘 전일 마감 매출: 작년 같은 요일·전주 같은 요일과 비교
+  const cmp = [d.ly > 0 ? `작년 같은 요일 ${won(d.ly)} 대비 ${signed(yd)}` : '', r.pwNet > 0 ? `전주 같은 요일 ${won(r.pwNet)} 대비 ${signed(pd)}` : ''].filter(Boolean).join(', ');
+  const score = [yd, pd].filter((x) => x != null), upDay = score.length ? score.reduce((a, b) => a + b, 0) / score.length >= 0 : null;
+  if (d.net <= 0) q.push({ key: 'day', cat: '인력·운영', q: `${md2} 매출이 없었어요${cmp ? ` (${cmp.replace(/ 대비 [^,]+/g, '')})` : ''}. 어떤 사정이 있었나요?`, a: A.down });
+  else if (upDay === null) q.push({ key: 'day', cat: '고객 반응', q: `${md2} 매출은 ${won(d.net)}이에요. 어제 매장 분위기는 어땠나요?`, a: A.up.concat(A.down.slice(1, 3)) });
+  else if (yd != null && pd != null && (yd >= 0) !== (pd >= 0)) q.push({ key: 'day', cat: '고객 반응', q: `${md2} 매출은 ${won(d.net)}으로 ${cmp}예요. 전주와 비교해 무엇이 달랐나요?`, a: pd >= 0 ? A.up : A.down });
+  else q.push({ key: 'day', cat: '고객 반응', q: `${md2} 매출은 ${won(d.net)}으로 ${cmp}예요. ${upDay ? '무엇이 잘됐나요?' : '이유가 무엇인가요?'}`, a: upDay ? A.up : A.down });
   if (w != null && r.l7 >= 2e6 && w <= -0.2) q.push({ key: 'week', cat: '고객 반응', q: `최근 7일 매출이 작년 같은 요일보다 ${signed(w)}예요. 가장 큰 이유는 무엇인가요?`, a: A.down });
   else if (w != null && r.l7 >= 2e6 && w >= 0.25) q.push({ key: 'week', cat: '고객 반응', q: `최근 7일 매출이 작년 같은 요일보다 ${signed(w)}예요. 잘된 방법을 다른 매장과 나눠 주세요.`, a: A.up });
   if (r.itemDown) q.push({ key: 'itemDown', cat: '상품·재고', q: `${itemName(r.itemDown.k)} 매출이 작년 같은 기간보다 ${signed(g(r.itemDown.v, r.itemDown.ly))}예요 (${won(r.itemDown.ly)} → ${won(r.itemDown.v)}). 이유는?`, a: A.itemDown });
